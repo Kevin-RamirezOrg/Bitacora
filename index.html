@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0d1215">
+<title>Bitácora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: two-pane notebook — folder tree on the left, one focused editor on the right; drawer on phones. */
+:root{
+  --bg:#e9edf0; --panel:#ffffff; --panel-2:#f4f6f8; --line:#d7dde3; --fg:#17212b; --muted:#5b6876;
+  --accent:#0d7a70; --accent-fg:#ffffff; --accent-soft:rgba(13,122,112,.12); --danger:#c93a3f; --danger-soft:rgba(201,58,63,.1);
+  --shadow:0 10px 30px rgba(18,32,44,.14);
+  --hl-kw:#8a2bb5; --hl-str:#1d7d3a; --hl-num:#b4560a; --hl-com:#7c8894; --hl-fn:#1f5fc4; --hl-type:#a1601a; --hl-attr:#0d7a70;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1215; --panel:#151b20; --panel-2:#1b2228; --line:#28323a; --fg:#e4eaee; --muted:#8e9ba6;
+  --accent:#3cc9b8; --accent-fg:#06211e; --accent-soft:rgba(60,201,184,.14); --danger:#ff6b6f; --danger-soft:rgba(255,107,111,.12);
+  --shadow:0 12px 34px rgba(0,0,0,.5);
+  --hl-kw:#d49cff; --hl-str:#8fd694; --hl-num:#ffb36b; --hl-com:#6f7d88; --hl-fn:#7fb6ff; --hl-type:#f2c46b; --hl-attr:#5fe0cf;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1215; --panel:#151b20; --panel-2:#1b2228; --line:#28323a; --fg:#e4eaee; --muted:#8e9ba6;
+  --accent:#3cc9b8; --accent-fg:#06211e; --accent-soft:rgba(60,201,184,.14); --danger:#ff6b6f; --danger-soft:rgba(255,107,111,.12);
+  --shadow:0 12px 34px rgba(0,0,0,.5);
+  --hl-kw:#d49cff; --hl-str:#8fd694; --hl-num:#ffb36b; --hl-com:#6f7d88; --hl-fn:#7fb6ff; --hl-type:#f2c46b; --hl-attr:#5fe0cf;
+  color-scheme:dark}
+
+html{height:100%;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
+body{height:100%;margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+*{box-sizing:border-box}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{height:100%;display:grid;grid-template-columns:288px minmax(0,1fr);gap:12px;
+  padding-block:12px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+
+/* ---------- Sidebar ---------- */
+.side{background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.brand{display:flex;align-items:center;gap:10px;padding:16px 16px 10px}
+.brand-mark{width:28px;height:28px;border-radius:7px;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center}
+.brand h1{font-family:var(--f-display);font-size:21px;font-weight:700;margin:0;letter-spacing:-.01em}
+.brand .close-side{margin-left:auto;display:none}
+.search{margin:0 12px 10px;position:relative}
+.search input{width:100%;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:8px 10px 8px 32px;font-size:14px}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.side-actions{display:flex;gap:6px;padding:0 12px 10px}
+.side-actions .btn{flex:1;justify-content:center}
+.tree{flex:1;overflow:auto;padding:4px 6px 12px;min-height:0}
+.tree-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:8px 10px 4px;font-weight:600}
+.row{display:flex;align-items:center;gap:6px;width:100%;padding:5px 6px;border-radius:7px;text-align:left;font-size:14px;position:relative;min-height:32px}
+.row:hover{background:var(--panel-2)}
+.row.sel{background:var(--accent-soft)}
+.row.open{background:var(--accent-soft);font-weight:600}
+.row.drop{outline:2px dashed var(--accent);outline-offset:-2px}
+.row .chev{width:16px;height:16px;flex:none;color:var(--muted);transition:transform .15s}
+.row .chev.on{transform:rotate(90deg)}
+.row .ico{flex:none;width:18px;height:18px;display:grid;place-items:center}
+.row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .cnt{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row .more{opacity:0;width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--muted);flex:none}
+.row:hover .more,.row.open .more,.row:focus-within .more{opacity:1}
+.row .more:hover{background:var(--line)}
+@media (hover:none){.row .more{opacity:1}}
+.side-foot{border-top:1px solid var(--line);padding:10px 14px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.ok{background:#30a46c}.dot.warn{background:#e2a700}.dot.err{background:var(--danger)}
+
+/* ---------- Main ---------- */
+.main{background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.menu-btn{display:none}
+.crumbs{font-size:12px;color:var(--muted);display:flex;gap:4px;align-items:center;min-width:0;overflow:hidden;white-space:nowrap}
+.title-wrap{display:flex;flex-direction:column;flex:1;min-width:160px}
+.title-in{font-family:var(--f-display);font-size:20px;font-weight:700;border:0;background:transparent;padding:2px 4px;margin-left:-4px;border-radius:6px;width:100%;letter-spacing:-.01em}
+.title-in:hover{background:var(--panel-2)}
+.title-in:focus{background:var(--panel-2);outline:none}
+.save-st{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.top-actions{display:flex;gap:4px;align-items:center}
+
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--panel-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--panel-2)}
+.icon-btn{width:32px;height:32px;border-radius:8px;display:inline-grid;place-items:center;color:var(--fg)}
+.icon-btn:hover{background:var(--panel-2)}
+.icon-btn.on{background:var(--accent-soft);color:var(--accent)}
+.badge{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:3px 7px;border-radius:5px;background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
+
+.toolbar{display:flex;align-items:center;gap:2px;padding:6px 10px;border-bottom:1px solid var(--line);overflow-x:auto;background:var(--panel-2);flex:none;scrollbar-width:thin}
+.toolbar .sep{width:1px;height:20px;background:var(--line);margin:0 6px;flex:none}
+.tb{height:30px;min-width:30px;padding:0 6px;border-radius:6px;display:inline-grid;place-items:center;font-size:13px;color:var(--fg);flex:none;position:relative}
+.tb:hover{background:var(--line)}
+.tb.on{background:var(--accent-soft);color:var(--accent)}
+.tb b,.tb i,.tb u,.tb s{font-family:var(--f-body);font-size:15px}
+.tb select{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:3px 6px;font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;flex:none}
+.seg button{padding:4px 10px;font-size:12px;font-weight:500}
+.seg button.on{background:var(--accent);color:var(--accent-fg)}
+
+.editor-host{flex:1;min-height:0;display:flex;flex-direction:column}
+.statusbar{display:flex;gap:14px;padding:6px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;flex:none;flex-wrap:wrap}
+
+/* Rich editor */
+.rich{flex:1;overflow:auto;padding:24px clamp(16px,5vw,56px) 60px;outline:none;min-height:0}
+.rich:empty::before{content:attr(data-ph);color:var(--muted)}
+.prose{max-width:72ch;margin:0 auto;font-size:16px;line-height:1.65}
+.prose h1{font-family:var(--f-display);font-size:30px;line-height:1.2;margin:.6em 0 .3em;letter-spacing:-.015em;text-wrap:balance}
+.prose h2{font-family:var(--f-display);font-size:23px;line-height:1.25;margin:.8em 0 .3em;text-wrap:balance}
+.prose h3{font-size:18px;margin:.8em 0 .3em}
+.prose p{margin:.5em 0}
+.prose a{color:var(--accent)}
+.prose blockquote{margin:.8em 0;padding:.2em 1em;border-left:3px solid var(--accent);color:var(--muted)}
+.prose code{font-family:var(--f-mono);font-size:.88em;background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:.05em .35em}
+.prose pre{font-family:var(--f-mono);font-size:13.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;line-height:1.55}
+.prose pre code{background:none;border:0;padding:0;font-size:inherit}
+.prose table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%}
+.prose th,.prose td{border:1px solid var(--line);padding:6px 10px;text-align:left}
+.prose th{background:var(--panel-2)}
+.prose hr{border:0;border-top:1px solid var(--line);margin:1.4em 0}
+.prose img{max-width:100%}
+.prose ul[data-check]{list-style:none;padding-left:4px}
+.prose ul[data-check] li{position:relative;padding-left:28px}
+.prose ul[data-check] li::before{content:"";position:absolute;left:0;top:.3em;width:16px;height:16px;border:1.5px solid var(--muted);border-radius:4px;cursor:pointer}
+.prose ul[data-check] li[data-checked="true"]{color:var(--muted);text-decoration:line-through}
+.prose ul[data-check] li[data-checked="true"]::before{background:var(--accent);border-color:var(--accent);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E");background-size:14px;background-position:center;background-repeat:no-repeat}
+
+/* Markdown */
+.md-split{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0}
+.md-split.only-edit{grid-template-columns:1fr}.md-split.only-edit .md-prev{display:none}
+.md-split.only-view{grid-template-columns:1fr}.md-split.only-view .md-src{display:none}
+.md-src{border:0;border-right:1px solid var(--line);background:var(--panel);resize:none;padding:20px 22px;font-family:var(--f-mono);font-size:14px;line-height:1.65;outline:none;min-height:0;min-width:0;tab-size:4}
+.md-prev{overflow:auto;padding:20px clamp(16px,4vw,40px) 60px;min-width:0}
+
+/* Code */
+.code-wrap{flex:1;position:relative;min-height:0;background:var(--panel)}
+.code-wrap pre,.code-wrap textarea{position:absolute;inset:0;margin:0;padding:18px 20px 60px 20px;font-family:var(--f-mono);font-size:14px;line-height:1.6;tab-size:4;white-space:pre;overflow:auto;border:0;letter-spacing:0;word-spacing:0}
+.code-wrap.wrap pre,.code-wrap.wrap textarea{white-space:pre-wrap;word-break:break-word}
+.code-wrap pre{pointer-events:none;color:var(--fg)}
+.code-wrap textarea{background:transparent;color:transparent;caret-color:var(--fg);resize:none;outline:none}
+.code-wrap textarea::selection{background:var(--accent-soft);color:transparent}
+.hljs-keyword,.hljs-selector-tag,.hljs-built_in.hljs-keyword,.hljs-literal,.hljs-doctag{color:var(--hl-kw)}
+.hljs-string,.hljs-regexp,.hljs-template-string,.hljs-selector-attr{color:var(--hl-str)}
+.hljs-number,.hljs-symbol,.hljs-bullet{color:var(--hl-num)}
+.hljs-comment,.hljs-quote,.hljs-meta{color:var(--hl-com);font-style:italic}
+.hljs-title,.hljs-title.function_,.hljs-section{color:var(--hl-fn)}
+.hljs-type,.hljs-built_in,.hljs-class .hljs-title,.hljs-title.class_{color:var(--hl-type)}
+.hljs-attr,.hljs-attribute,.hljs-variable,.hljs-template-variable,.hljs-name,.hljs-tag,.hljs-property,.hljs-params{color:var(--hl-attr)}
+.hljs-emphasis{font-style:italic}.hljs-strong{font-weight:600}
+
+/* Home */
+.home{flex:1;overflow:auto;padding:28px clamp(16px,5vw,48px)}
+.home h2{font-family:var(--f-display);font-size:28px;margin:0 0 4px;letter-spacing:-.015em}
+.home .lead{color:var(--muted);margin:0 0 22px;max-width:60ch}
+.stats{display:flex;gap:28px;margin-bottom:26px;flex-wrap:wrap}
+.stat .n{font-family:var(--f-display);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.stat .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:4px}
+.recent{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.rcard{border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:4px;background:var(--panel);min-width:0}
+.rcard:hover{border-color:var(--accent)}
+.rcard .t{font-weight:600;display:flex;align-items:center;gap:8px;min-width:0}
+.rcard .t span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rcard .s{font-size:13px;color:var(--muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-height:2.6em}
+.rcard .m{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.empty{max-width:460px;margin:8vh auto 0;text-align:center}
+.empty .art{width:72px;height:72px;margin:0 auto 14px;border-radius:16px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+.empty .acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--panel-2)}
+.tips{margin-top:28px;font-size:13px;color:var(--muted);display:flex;gap:18px;flex-wrap:wrap}
+
+/* Popovers & modals */
+.pop{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:6px;min-width:190px}
+.pop .mi{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border-radius:6px;font-size:14px;text-align:left}
+.pop .mi:hover{background:var(--panel-2)}
+.pop .mi.danger{color:var(--danger)}
+.pop .mi.danger:hover{background:var(--danger-soft)}
+.pop hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.pop .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);padding:6px 10px 2px;font-weight:600}
+.swatches{display:grid;grid-template-columns:repeat(5,28px);gap:6px;padding:6px 8px}
+.sw{width:28px;height:28px;border-radius:7px;border:2px solid transparent;display:grid;place-items:center;font-size:11px}
+.sw.on{border-color:var(--fg)}
+.sw.none{border:1.5px dashed var(--muted);color:var(--muted)}
+.link-pop{display:flex;gap:6px;padding:6px}
+.link-pop input{border:1px solid var(--line);background:var(--panel-2);border-radius:6px;padding:6px 8px;width:220px;font-size:13px}
+
+.scrim{position:fixed;inset:0;background:rgba(10,16,22,.45);z-index:60;display:grid;place-items:center;padding:16px}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);width:min(460px,100%);max-height:90vh;overflow:auto;padding:20px}
+.modal h3{font-family:var(--f-display);font-size:20px;margin:0 0 12px}
+.modal p{color:var(--muted);margin:0 0 12px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.field input,.field select{border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:9px 10px;font-size:15px}
+.fmts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fmt{border:1.5px solid var(--line);border-radius:10px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;font-weight:500;text-align:center}
+.fmt small{font-size:11px;color:var(--muted);font-weight:400}
+.fmt.on{border-color:var(--accent);background:var(--accent-soft)}
+.modal-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:9px;font-size:14px;z-index:80;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
+.banner{margin:10px 12px 0;padding:8px 12px;border-radius:8px;background:var(--danger-soft);color:var(--danger);font-size:13px}
+
+.scrim-side{display:none}
+
+/* Access, lock & read-only */
+.foot-txt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.mode-chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--fg);padding:0;text-align:left}
+.mode-chip:hover{color:var(--accent)}
+.mode-dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+.m-private{background:var(--accent)}.m-read{background:#e2a700}.m-open{background:var(--danger)}
+.ro .write-only{display:none!important}
+.note{margin:10px 12px 0;padding:8px 12px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.link-btn{font-weight:600;color:var(--accent);text-decoration:underline;font-size:13px;padding:0}
+.banner .link-btn{color:var(--danger)}
+.lock{position:fixed;inset:0;z-index:70;background:var(--bg);display:grid;place-items:center;overflow:auto;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.lock-card{width:min(360px,100%);background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:28px 22px;display:flex;flex-direction:column;gap:10px;text-align:center}
+.lock-card h2{font-family:var(--f-display);font-size:26px;margin:4px 0 0;letter-spacing:-.015em}
+.lock-card p{color:var(--muted);margin:0 0 8px;font-size:14px}
+.brand-mark.big{width:52px;height:52px;border-radius:14px;margin:0 auto}
+.pin{border:1px solid var(--line);background:var(--panel-2);border-radius:10px;padding:12px 14px;font-size:18px;text-align:center;letter-spacing:.2em;width:100%}
+.pin:focus{outline:2px solid var(--accent);outline-offset:1px}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;justify-content:center;margin-top:4px}
+.chk input{width:16px;height:16px;accent-color:var(--accent)}
+.chk-hint{font-size:12px;color:var(--muted);line-height:1.4}
+.form-err{color:var(--danger);font-size:13px;min-height:1em}
+.btn.wide{width:100%;justify-content:center;padding:10px;font-size:15px}
+.btn:disabled{opacity:.6;cursor:default}
+.modes{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.mode-opt{display:flex;gap:12px;align-items:flex-start;text-align:left;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px}
+.mode-opt .mode-dot{margin-top:6px}
+.mode-opt b{display:block;font-size:14px}
+.mode-opt small{display:block;color:var(--muted);font-size:12px}
+.mode-opt.on{border-color:var(--accent);background:var(--accent-soft)}
+
+/* Phone */
+@media (max-width:760px){
+  .app{grid-template-columns:minmax(0,1fr);padding-block:8px}
+  .side{position:fixed;z-index:40;top:0;bottom:0;left:0;width:min(320px,86vw);border-radius:0 14px 14px 0;
+    padding-top:env(safe-area-inset-top, 0px);padding-bottom:env(safe-area-inset-bottom, 0px);padding-left:env(safe-area-inset-left, 0px);
+    transform:translateX(-105%);transition:transform .22s ease;box-shadow:var(--shadow)}
+  .side.show{transform:none}
+  .scrim-side.show{display:block;position:fixed;inset:0;z-index:39;background:rgba(10,16,22,.4)}
+  .brand .close-side{display:inline-grid}
+  .menu-btn{display:inline-grid}
+  .md-split{grid-template-columns:1fr}
+  .md-split:not(.only-edit):not(.only-view) .md-prev{display:none}
+  .seg .split-opt{display:none}
+  .top-actions .lbl-txt{display:none}
+  .title-in{font-size:18px}
+  .rich{padding:18px 16px 60px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side" aria-label="Carpetas y archivos">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/><path d="M9 8h6"/></svg></div>
+      <h1>Bitácora</h1>
+      <button class="icon-btn close-side" id="closeSide" aria-label="Cerrar panel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Buscar en nombres y contenido" autocomplete="off">
+    </div>
+    <div class="side-actions write-only">
+      <button class="btn" id="newFolderBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5h5"/></svg>Carpeta</button>
+      <button class="btn primary" id="newFileBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></svg>Archivo</button>
+    </div>
+    <div class="tree" id="tree" role="tree"></div>
+    <div class="side-foot">
+      <span class="dot" id="connDot"></span>
+      <div class="foot-txt"><span id="connTxt">Conectando…</span><button class="mode-chip" id="modeChip" title="Modo de acceso"></button></div>
+      <button class="icon-btn" id="gearBtn" aria-label="Acceso y respaldos"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    </div>
+  </aside>
+  <div class="scrim-side" id="scrimSide"></div>
+
+  <main class="main" id="main">
+    <div class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="Abrir carpetas"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <div class="title-wrap">
+        <div class="crumbs" id="crumbs"></div>
+        <input class="title-in" id="titleIn" aria-label="Nombre del archivo" value="Inicio" readonly>
+      </div>
+      <span class="badge" id="fmtBadge" hidden></span>
+      <span class="save-st" id="saveSt"></span>
+      <div class="top-actions" id="topActions" hidden>
+        <button class="btn ghost" id="copyBtn" title="Copiar contenido"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg><span class="lbl-txt">Copiar</span></button>
+        <button class="btn ghost" id="exportBtn" title="Descargar archivo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><span class="lbl-txt">Descargar</span></button>
+        <button class="icon-btn" id="fileMore" aria-label="Más opciones"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+      </div>
+    </div>
+    <div id="modeHost"></div>
+    <div id="bannerHost"></div>
+    <div class="editor-host" id="host"></div>
+  </main>
+</div>
+
+<div class="lock" id="lock" hidden>
+  <form class="lock-card" id="lockForm" autocomplete="on">
+    <div class="brand-mark big" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/><path d="M9 8h6"/></svg></div>
+    <h2>Bitácora</h2>
+    <p id="lockSub">Esta bitácora es privada. Ingresa tu PIN para abrirla.</p>
+    <input type="email" name="username" value="matias@gmail.com" autocomplete="username" hidden>
+    <input id="pinIn" class="pin" type="password" autocomplete="current-password" placeholder="PIN" aria-label="PIN">
+    <label class="chk"><input type="checkbox" id="remember" checked> Recordar en este dispositivo</label>
+    <small class="chk-hint">Desmárcalo en computadoras ajenas. Sin recordar, la sesión se cierra al cerrar la pestaña o tras 30 minutos sin uso.</small>
+    <div class="form-err" id="lockErr" role="alert"></div>
+    <button class="btn primary wide" id="lockGo" type="submit">Entrar</button>
+    <button class="btn ghost wide" id="lockCancel" type="button" hidden>Seguir como invitado</button>
+  </form>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = (s, r=document) => r.querySelector(s);
+const h = (tag, attrs={}, ...kids) => { const el=document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs)) { if (v==null||v===false) continue;
+    if (k==='class') el.className=v; else if (k==='html') el.innerHTML=v; else if (k==='text') el.textContent=v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v===true?'':v); }
+  for (const k of kids.flat()) if (k!=null) el.append(k.nodeType?k:document.createTextNode(k)); return el; };
+
+/* ---------- Constants ---------- */
+const COLORS = ['#e5484d','#f76b15','#e2a700','#30a46c','#12a594','#0090ff','#6e56cf','#d6409f','#8b8d98'];
+const TEXT_COLORS = ['#e5484d','#f76b15','#c99400','#30a46c','#0090ff','#6e56cf','#d6409f','#8b8d98'];
+const HI_COLORS = ['rgba(255,214,10,.42)','rgba(48,164,108,.32)','rgba(0,144,255,.28)','rgba(214,64,159,.28)','rgba(247,107,21,.32)'];
+const FORMATS = { rich:{label:'Texto enriquecido', short:'Texto'}, md:{label:'Markdown', short:'Markdown'}, code:{label:'Código', short:'Código'} };
+const LANGS = [['python','Python','py'],['javascript','JavaScript','js'],['typescript','TypeScript','ts'],['sql','SQL','sql'],['java','Java','java'],
+  ['c','C','c'],['cpp','C++','cpp'],['csharp','C#','cs'],['r','R','r'],['xml','HTML / XML','html'],['css','CSS','css'],['json','JSON','json'],
+  ['bash','Bash / Shell','sh'],['plaintext','Texto plano','txt']];
+const langInfo = id => LANGS.find(l=>l[0]===id) || LANGS[LANGS.length-1];
+
+const ICON = {
+  folder:(c,open)=>`<svg width="17" height="17" viewBox="0 0 24 24" fill="${c}" fill-opacity=".2" stroke="${c}" stroke-width="1.9" stroke-linejoin="round">${open?'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v1H8.5a2 2 0 0 0-1.9 1.4L4 19H5a2 2 0 0 1-2-2z"/><path d="M6.6 11.4A2 2 0 0 1 8.5 10H21l-2.6 7.6A2 2 0 0 1 16.5 19H4z"/>':'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'}</svg>`,
+  rich:c=>`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.9"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>`,
+  md:c=>`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.9"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15V9l2.5 3L12 9v6M15.5 9v6M14 13.5l1.5 1.5 1.5-1.5"/></svg>`,
+  code:c=>`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.9"><path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/></svg>`,
+  chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"/></svg>',
+  dots:'<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>',
+};
+const fileColor = it => it.color || 'var(--muted)';
+
+/* ---------- State ---------- */
+const S = { items:new Map(), openId:null, selFolder:null, expanded:new Set(), q:'', mdMode:'split', pastePlain:false, wrap:false,
+  dirty:false, lastSaved:null, ready:false, isOwner:false, authKnown:false, access:null, canWrite:false };
+try { const e = JSON.parse(localStorage.getItem('bitacora.expanded')||'[]'); e.forEach(x=>S.expanded.add(x));
+  S.mdMode = localStorage.getItem('bitacora.mdmode') || 'split'; S.wrap = localStorage.getItem('bitacora.wrap')==='1'; } catch {}
+const remember = () => { try { localStorage.setItem('bitacora.expanded', JSON.stringify([...S.expanded]));
+  localStorage.setItem('bitacora.mdmode', S.mdMode); localStorage.setItem('bitacora.wrap', S.wrap?'1':'0'); } catch {} };
+
+const uid = () => 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const get = id => S.items.get(id);
+const kids = pid => [...S.items.entries()].filter(([,v]) => (v.parent||null) === (pid||null))
+  .sort(([,a],[,b]) => (a.type===b.type ? 0 : a.type==='folder' ? -1 : 1) || a.name.localeCompare(b.name, 'es', {numeric:true}));
+const pathOf = id => { const out=[]; let cur=get(id)?.parent; let guard=0; while (cur && guard++<50) { const f=get(cur); if(!f) break; out.unshift([cur,f]); cur=f.parent; } return out; };
+const descendants = id => { const out=[]; const walk=p=>kids(p).forEach(([k,v])=>{out.push(k); if(v.type==='folder') walk(k);}); walk(id); return out; };
+const plainOf = it => { if (!it) return ''; if (it.format==='rich') { const d=document.createElement('div'); d.innerHTML=DOMPurify.sanitize(it.content||''); return d.innerText||d.textContent||''; } return it.content||''; };
+
+/* ---------- Firebase ---------- */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCzJD_2Tl7l3T-zr_2aglgqz3Uqjb0g8pM",
+  authDomain: "bitacora-c20b4.firebaseapp.com",
+  projectId: "bitacora-c20b4",
+  storageBucket: "bitacora-c20b4.firebasestorage.app",
+  messagingSenderId: "486406754270",
+  appId: "1:486406754270:web:551dfe99bac89d5984d74f"
+};
+const OWNER_UID = "mOlFltUhUNQrTTxtIWuCFJzMCFI3";
+const OWNER_EMAIL = "matias@gmail.com";
+firebase.initializeApp(FIREBASE_CONFIG);
+const fdb = firebase.firestore();
+try { fdb.settings({ ignoreUndefinedProperties: true }); } catch {}
+const auth = firebase.auth();
+const MODES = { private:{label:'Privado', hint:'Solo tú, con PIN, puedes ver y editar.'}, read:{label:'Solo lectura', hint:'Cualquiera con el enlace puede leer. Editar exige PIN.'}, open:{label:'Abierto', hint:'Cualquiera con el enlace puede leer, editar y borrar.'} };
+
+const Store = {
+  col: fdb.collection('items'), queues:{}, unsub:null, key:null,
+  subscribe(key) {
+    this.unsubscribe(); this.key = key; S.ready = false; conn('warn','Sincronizando…');
+    const timer = setTimeout(() => { if (!S.ready) { conn('warn','Sin respuesta del servidor'); banner('Tus notas no se pueden cargar todavía. Revisa tu conexión; seguirá intentando.'); } }, 10000);
+    this.unsub = this.col.onSnapshot(snap => {
+      clearTimeout(timer);
+      const next = new Map(); snap.docs.forEach(d => next.set(d.id, d.data()));
+      S.items = next; S.ready = true; banner(null); updateFoot(); onData();
+    }, err => {
+      clearTimeout(timer); this.unsub = null; this.key = null; S.ready = true;
+      if (err.code === 'permission-denied') { S.items = new Map(); showLock(); }
+      else { conn('err','Error de conexión'); banner('Se perdió la conexión con la base de datos (' + err.code + '). Recarga la página para reintentar.'); }
+      onData();
+    });
+  },
+  unsubscribe() { if (this.unsub) { this.unsub(); this.unsub = null; } this.key = null; },
+  q(id, fn) { const p = (this.queues[id]||Promise.resolve()).then(fn).catch(e => { console.error(e);
+      if (e?.code==='permission-denied') toast('No tienes permiso para editar. Ingresa con tu PIN.');
+      else if (e?.code==='resource-exhausted') toast('Se alcanzó el límite diario gratuito de Firebase. Vuelve a intentarlo mañana.');
+      else if (e?.code==='invalid-argument') toast('No se pudo guardar: el archivo es demasiado grande (máximo 1 MB).');
+      else toast('No se pudo guardar. Se reintentará con tu próxima edición.');
+      conn('err','Error al guardar'); throw e; });
+    this.queues[id] = p.catch(()=>{}); return p; },
+  set(id, data) { S.items.set(id, data); return this.q(id, () => this.col.doc(id).set(data)); },
+  patch(id, part) { const cur = get(id); if (!cur) return Promise.resolve(); S.items.set(id, {...cur, ...part}); return this.q(id, () => this.col.doc(id).update(part)); },
+  del(id) { S.items.delete(id); return this.q(id, () => this.col.doc(id).delete()); },
+};
+
+/* ---------- Access: owner PIN + modes ---------- */
+function recompute() {
+  if (!S.authKnown || S.access == null) return;
+  const canRead = S.isOwner || S.access === 'read' || S.access === 'open';
+  const prevW = S.canWrite; S.canWrite = S.isOwner || S.access === 'open';
+  document.body.classList.toggle('ro', !S.canWrite);
+  modeBanner(); updateFoot(); armIdle();
+  if (!canRead) { flushSave(); Store.unsubscribe(); S.items = new Map(); S.ready = false; S.openId = null; ed = null; showLock(); renderTree(); renderHome(); return; }
+  if (!lockDismissible) hideLock();
+  const key = (S.isOwner ? 'o' : 'g') + S.access;
+  if (Store.key !== key) Store.subscribe(key);
+  if (prevW !== S.canWrite && S.openId) openFile(S.openId); else onData();
+}
+const authMsg = e => ({ 'auth/invalid-credential':'PIN incorrecto.', 'auth/wrong-password':'PIN incorrecto.', 'auth/invalid-login-credentials':'PIN incorrecto.',
+  'auth/missing-password':'Escribe tu PIN.', 'auth/too-many-requests':'Demasiados intentos. Espera unos minutos y vuelve a probar.',
+  'auth/network-request-failed':'Sin conexión a internet.', 'auth/user-not-found':'El usuario no existe en Firebase Authentication.',
+  'auth/operation-not-allowed':'Activa "Correo electrónico/contraseña" en Firebase Authentication.' }[e?.code] || 'No se pudo ingresar (' + (e?.code||'error') + ').');
+async function login(pin, rememberMe) {
+  await auth.setPersistence(rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION);
+  await auth.signInWithEmailAndPassword(OWNER_EMAIL, pin);
+  try { rememberMe ? localStorage.removeItem('bitacora.temp') : localStorage.setItem('bitacora.temp','1'); } catch {}
+}
+let lockDismissible = false;
+function showLock(dismissible=false) {
+  lockDismissible = dismissible; const L = $('#lock'); L.hidden = false;
+  $('#lockCancel').hidden = !dismissible; $('#lockErr').textContent = '';
+  $('#lockSub').textContent = dismissible ? 'Ingresa tu PIN para editar y cambiar el modo de acceso.' : 'Esta bitácora es privada. Ingresa tu PIN para abrirla.';
+  setTimeout(() => $('#pinIn').focus(), 50);
+}
+function hideLock() { $('#lock').hidden = true; lockDismissible = false; $('#pinIn').value = ''; }
+$('#lockForm').addEventListener('submit', async e => {
+  e.preventDefault(); const pin = $('#pinIn').value; const btn = $('#lockGo');
+  if (!pin) { $('#lockErr').textContent = 'Escribe tu PIN.'; return; }
+  btn.disabled = true; btn.textContent = 'Entrando…'; $('#lockErr').textContent = '';
+  try { await login(pin, $('#remember').checked); hideLock(); toast('Bienvenido'); }
+  catch (err) { $('#lockErr').textContent = authMsg(err); $('#pinIn').select(); }
+  finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+});
+$('#lockCancel').onclick = hideLock;
+
+function accessModal() {
+  if (!S.isOwner) return showLock(true);
+  modal({ title:'Modo de acceso', confirm:'Guardar', build: body => {
+      let mode = S.access || 'private'; const box = h('div',{class:'modes'});
+      const paint = () => box.querySelectorAll('.mode-opt').forEach(b => b.classList.toggle('on', b.dataset.m === mode));
+      Object.entries(MODES).forEach(([m,info]) => box.append(h('button',{class:'mode-opt',type:'button','data-m':m,onclick:()=>{mode=m;paint();}},
+        h('span',{class:'mode-dot m-'+m}), h('span',{}, h('b',{text:info.label}), h('small',{text:info.hint})))));
+      paint();
+      const pin = h('input',{id:'pinConfirm',type:'password',autocomplete:'current-password',placeholder:'Tu PIN'});
+      const err = h('div',{class:'form-err',role:'alert'});
+      body.append(box, h('div',{class:'field'}, h('label',{for:'pinConfirm',text:'Confirma con tu PIN'}), pin), err);
+      setTimeout(()=>pin.focus(),40);
+      return { get mode(){return mode;}, pin, err }; },
+    onOk: async api => {
+      if (!api.pin.value) { api.err.textContent = 'Escribe tu PIN para confirmar.'; return false; }
+      try {
+        await auth.currentUser.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(OWNER_EMAIL, api.pin.value));
+        await fdb.doc('config/access').set({ mode: api.mode, updated: Date.now() });
+        toast('Modo cambiado a ' + MODES[api.mode].label);
+      } catch (e) { api.err.textContent = authMsg(e); return false; }
+    } });
+}
+function lockNow() { flushSave(); try { localStorage.removeItem('bitacora.temp'); } catch {} auth.signOut().then(()=>toast('Bitácora bloqueada')); }
+
+const IDLE_MS = 30 * 60 * 1000; let idleT = null;
+function armIdle() { clearTimeout(idleT); let temp = false; try { temp = localStorage.getItem('bitacora.temp') === '1'; } catch {}
+  if (S.isOwner && temp) idleT = setTimeout(() => { flushSave(); auth.signOut(); toast('Sesión cerrada por inactividad'); }, IDLE_MS); }
+let lastAct = 0; ['mousedown','keydown','touchstart'].forEach(ev => document.addEventListener(ev, () => { const n = Date.now(); if (S.isOwner && n - lastAct > 15000) { lastAct = n; armIdle(); } }, {passive:true}));
+
+function modeBanner() {
+  const host = $('#modeHost'); host.innerHTML = ''; let msg = null, cls = 'note', act = null;
+  if (S.isOwner && S.access === 'open') { cls = 'banner'; msg = 'Modo abierto: cualquiera con el enlace puede editar y borrar tus notas.'; act = ['Cambiar', accessModal]; }
+  else if (!S.isOwner && S.access === 'read') { msg = 'Estás en modo solo lectura.'; act = ['Ingresar con PIN', () => showLock(true)]; }
+  else if (!S.isOwner && S.access === 'open') { msg = 'Modo abierto: estás editando sin PIN.'; act = ['Ingresar con PIN', () => showLock(true)]; }
+  if (!msg) return;
+  host.append(h('div',{class:cls,role:'status'}, h('span',{text:msg}), act ? h('button',{class:'link-btn',onclick:act[1],text:act[0]}) : null));
+}
+function updateFoot() {
+  const chip = $('#modeChip'); const m = S.access || 'private';
+  chip.innerHTML = ''; chip.append(h('span',{class:'mode-dot m-'+m}), MODES[m].label + (S.isOwner ? '' : ' · invitado'));
+  if (!S.ready) return;
+  conn('ok', S.canWrite ? 'Guardado en la nube' : 'Solo lectura');
+}
+function gearMenu(anchor) {
+  pop(anchor, p => {
+    if (S.isOwner) p.append(mi('Modo de acceso…', accessModal));
+    else p.append(mi('Ingresar con PIN', () => showLock(true)));
+    if (S.ready && S.items.size) p.append(mi('Descargar respaldo', backup));
+    if (S.isOwner) p.append(mi('Restaurar respaldo…', restore), h('hr'), mi('Bloquear ahora', lockNow, 'danger'));
+  });
+}
+function saveBlob(filename, data, type) {
+  const u = URL.createObjectURL(new Blob([data], {type})); const a = h('a',{href:u, download:filename});
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 3000);
+}
+function backup() { flushSave(); const d = new Date().toISOString().slice(0,10);
+  saveBlob('bitacora-respaldo-' + d + '.json', JSON.stringify({app:'bitacora', version:1, exported:Date.now(), items:Object.fromEntries(S.items)}, null, 2), 'application/json');
+  toast('Respaldo descargado'); }
+function restore() {
+  const inp = h('input',{type:'file',accept:'.json,application/json'});
+  inp.onchange = async () => { const f = inp.files[0]; if (!f) return; let data;
+    try { data = JSON.parse(await f.text()); } catch { toast('El archivo no es un respaldo válido.'); return; }
+    const items = data && data.items; if (!items || typeof items !== 'object') { toast('El archivo no es un respaldo de Bitácora.'); return; }
+    const ids = Object.keys(items).filter(id => /^[A-Za-z0-9_-]{1,100}$/.test(id) && items[id] && (items[id].type === 'file' || items[id].type === 'folder'));
+    if (!ids.length) { toast('El respaldo no contiene notas.'); return; }
+    modal({ title:'Restaurar respaldo', confirm:'Restaurar', text:`Se restaurarán ${ids.length} elementos. Los que ya existan se reemplazarán por la versión del respaldo; el resto de tus notas no cambia.`,
+      onOk: async () => { try { for (let i = 0; i < ids.length; i += 400) { const b = fdb.batch(); ids.slice(i, i+400).forEach(id => b.set(Store.col.doc(id), items[id])); await b.commit(); } toast('Respaldo restaurado'); }
+        catch (e) { toast('No se pudo restaurar (' + (e.code||'error') + ').'); } } });
+  };
+  inp.click();
+}
+
+/* ---------- UI helpers ---------- */
+function conn(kind, txt) { $('#connDot').className = 'dot ' + kind; $('#connTxt').textContent = txt; }
+function banner(msg) { const host=$('#bannerHost'); host.innerHTML=''; if (msg) host.append(h('div',{class:'banner',role:'status',text:msg})); }
+let toastT; function toast(msg) { document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=h('div',{class:'toast',role:'status',text:msg}); document.body.append(t); clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),2600); }
+function closePops() { document.querySelectorAll('.pop').forEach(p=>p.remove()); }
+function pop(anchor, build, opts={}) {
+  closePops(); const p = h('div',{class:'pop'}); build(p); document.body.append(p);
+  const r = anchor.getBoundingClientRect(); const pw=p.offsetWidth, ph=p.offsetHeight;
+  let left = opts.alignRight ? r.right - pw : r.left; left = Math.max(8, Math.min(left, innerWidth - pw - 8));
+  let top = r.bottom + 6; if (top + ph > innerHeight - 8) top = Math.max(8, r.top - ph - 6);
+  p.style.left = left+'px'; p.style.top = top+'px';
+  setTimeout(()=>document.addEventListener('mousedown', function off(e){ if(!p.contains(e.target)){ p.remove(); document.removeEventListener('mousedown', off);} }),0);
+  return p;
+}
+const mi = (label, fn, cls='') => h('button',{class:'mi '+cls, onclick:()=>{closePops(); fn();}}, label);
+
+function modal({title, text, build, confirm='Aceptar', danger=false, onOk}) {
+  const sc = h('div',{class:'scrim'}); const m = h('div',{class:'modal',role:'dialog','aria-modal':'true','aria-label':title});
+  m.append(h('h3',{text:title})); if (text) m.append(h('p',{text}));
+  const body = h('div'); m.append(body); const api = build ? build(body) : {};
+  const close = () => { sc.remove(); document.removeEventListener('keydown', esc); };
+  const ok = async () => { const r = onOk ? await onOk(api) : true; if (r!==false) close(); };
+  const esc = e => { if (e.key==='Escape') close(); if (e.key==='Enter' && e.target.tagName==='INPUT') { e.preventDefault(); ok(); } };
+  document.addEventListener('keydown', esc);
+  m.append(h('div',{class:'modal-acts'}, h('button',{class:'btn',onclick:close},'Cancelar'), h('button',{class:'btn '+(danger?'danger':'primary'),onclick:ok}, confirm)));
+  sc.addEventListener('mousedown', e => { if (e.target===sc) close(); });
+  sc.append(m); document.body.append(sc); setTimeout(()=>m.querySelector('input,select')?.focus(),30);
+}
+function folderOptions(sel, exclude=new Set()) {
+  const s = h('select',{id:'locSel'}); s.append(h('option',{value:''},'Raíz (sin carpeta)'));
+  const walk = (pid, depth) => kids(pid).forEach(([k,v]) => { if (v.type!=='folder' || exclude.has(k)) return;
+    s.append(h('option',{value:k, selected:k===sel}, ' '.repeat(depth*3) + v.name)); walk(k, depth+1); });
+  walk(null,0); return s;
+}
+const relTime = t => { if (!t) return ''; const d=(Date.now()-t)/1000; if (d<60) return 'hace un momento'; if (d<3600) return 'hace '+Math.floor(d/60)+' min';
+  if (d<86400) return 'hace '+Math.floor(d/3600)+' h'; return new Date(t).toLocaleDateString('es',{day:'numeric',month:'short'}); };
+
+/* ---------- Create / edit actions ---------- */
+function newFolder(parent = S.selFolder) {
+  modal({ title:'Nueva carpeta', confirm:'Crear', build: body => {
+      const name = h('input',{id:'fName',value:'',placeholder:'Ej. Bases de Datos'});
+      let color = COLORS[5]; const sw = h('div',{class:'swatches'});
+      const paint = () => sw.querySelectorAll('.sw').forEach(b=>b.classList.toggle('on', b.dataset.c===color));
+      COLORS.forEach(c => sw.append(h('button',{class:'sw',type:'button','data-c':c,style:`background:${c}`,'aria-label':'Color',onclick:()=>{color=c;paint();}})));
+      paint(); const loc = folderOptions(parent);
+      body.append(h('div',{class:'field'},h('label',{for:'fName',text:'Nombre'}),name), h('div',{class:'field'},h('label',{text:'Color'}),sw), h('div',{class:'field'},h('label',{for:'locSel',text:'Dentro de'}),loc));
+      return { name, get color(){return color;}, loc }; },
+    onOk: api => { const n = api.name.value.trim(); if (!n) { api.name.focus(); return false; }
+      const id = uid(); const p = api.loc.value || null;
+      Store.set(id, {type:'folder', name:n, parent:p, color:api.color, created:Date.now(), updated:Date.now()});
+      if (p) S.expanded.add(p); S.expanded.add(id); S.selFolder = id; remember(); renderTree(); if (!S.openId) renderHome(); toast('Carpeta creada'); } });
+}
+function newFile(parent = S.selFolder) {
+  modal({ title:'Nuevo archivo', confirm:'Crear', build: body => {
+      const name = h('input',{id:'fName',placeholder:'Ej. Apuntes semana 3'});
+      let fmt = 'rich'; const fm = h('div',{class:'fmts'});
+      const langF = h('div',{class:'field',hidden:true}); const lang = h('select',{id:'langSel'}); LANGS.forEach(([v,l])=>lang.append(h('option',{value:v},l))); lang.value='python';
+      langF.append(h('label',{for:'langSel',text:'Lenguaje'}), lang);
+      const paint = () => { fm.querySelectorAll('.fmt').forEach(b=>b.classList.toggle('on', b.dataset.f===fmt)); langF.hidden = fmt!=='code'; };
+      [['rich','Texto','Colores y estilos'],['md','Markdown','Con vista previa'],['code','Código','Resaltado']].forEach(([f,l,s]) =>
+        fm.append(h('button',{class:'fmt',type:'button','data-f':f,onclick:()=>{fmt=f;paint();}, html:ICON[f]('currentColor')}, l, h('small',{text:s}))));
+      paint(); const loc = folderOptions(parent);
+      body.append(h('div',{class:'field'},h('label',{for:'fName',text:'Nombre'}),name), h('div',{class:'field'},h('label',{text:'Formato'}),fm), langF, h('div',{class:'field'},h('label',{for:'locSel',text:'Carpeta'}),loc));
+      return { name, get fmt(){return fmt;}, lang, loc }; },
+    onOk: api => { const n = api.name.value.trim() || 'Sin título'; const id = uid(); const p = api.loc.value || null;
+      const data = {type:'file', name:n, parent:p, format:api.fmt, content:'', created:Date.now(), updated:Date.now()};
+      if (api.fmt==='code') data.lang = api.lang.value;
+      Store.set(id, data); if (p) S.expanded.add(p); remember(); openFile(id); } });
+}
+function renameItem(id) { const it=get(id); if(!it) return;
+  modal({ title: it.type==='folder'?'Renombrar carpeta':'Renombrar archivo', confirm:'Guardar', build: body => { const name=h('input',{id:'fName',value:it.name}); body.append(h('div',{class:'field'},h('label',{for:'fName',text:'Nombre'}),name)); setTimeout(()=>name.select(),40); return {name}; },
+    onOk: api => { const n=api.name.value.trim(); if(!n) return false; Store.patch(id,{name:n, updated:Date.now()}); onData(); } });
+}
+function moveItem(id) { const it=get(id); if(!it) return; const ex = new Set([id, ...descendants(id)]);
+  modal({ title:'Mover "'+it.name+'"', confirm:'Mover', build: body => { const loc=folderOptions(it.parent, ex); body.append(h('div',{class:'field'},h('label',{for:'locSel',text:'Destino'}),loc)); return {loc}; },
+    onOk: api => { const p=api.loc.value||null; Store.patch(id,{parent:p, updated:Date.now()}); if(p) S.expanded.add(p); remember(); onData(); toast('Movido'); } });
+}
+function deleteItem(id) { const it=get(id); if(!it) return; const sub = it.type==='folder' ? descendants(id) : [];
+  modal({ title:'Eliminar "'+it.name+'"', danger:true, confirm:'Eliminar',
+    text: it.type==='folder' ? (sub.length ? `Se eliminarán la carpeta y los ${sub.length} elementos que contiene. No se puede deshacer.` : 'La carpeta está vacía. No se puede deshacer.') : 'El archivo se eliminará para siempre.',
+    onOk: () => { [...sub, id].forEach(x => Store.del(x)); if (S.openId && (S.openId===id || sub.includes(S.openId))) { S.openId=null; }
+      if (S.selFolder===id || sub.includes(S.selFolder)) S.selFolder=null; onData(); toast('Eliminado'); } });
+}
+function duplicate(id) { const it=get(id); if(!it) return; const nid=uid(); Store.set(nid, {...it, name:it.name+' (copia)', created:Date.now(), updated:Date.now()}); onData(); openFile(nid); }
+function setColor(id, anchor) { const it=get(id);
+  pop(anchor, p => { p.append(h('div',{class:'lbl',text:'Color'})); const sw=h('div',{class:'swatches'});
+    sw.append(h('button',{class:'sw none'+(!it.color?' on':''),title:'Sin color',onclick:()=>{Store.patch(id,{color:null}); closePops(); onData();}},'—'));
+    COLORS.forEach(c=>sw.append(h('button',{class:'sw'+(it.color===c?' on':''),style:`background:${c}`,'aria-label':'Color '+c,onclick:()=>{Store.patch(id,{color:c}); closePops(); onData();}})));
+    p.append(sw); }, {alignRight:true});
+}
+function itemMenu(id, anchor) { const it=get(id); if(!it) return;
+  pop(anchor, p => {
+    if (it.type==='folder') { p.append(mi('Nuevo archivo aquí', ()=>newFile(id)), mi('Nueva subcarpeta', ()=>newFolder(id)), h('hr')); }
+    p.append(mi('Renombrar', ()=>renameItem(id)), mi('Cambiar color', ()=>setColor(id, anchor)), mi('Mover a…', ()=>moveItem(id)));
+    if (it.type==='file') p.append(mi('Duplicar', ()=>duplicate(id)));
+    p.append(h('hr'), mi('Eliminar', ()=>deleteItem(id), 'danger'));
+  }, {alignRight:true});
+}
+
+function loadExamples() {
+  const now = Date.now(); const f1=uid(), f2=uid();
+  Store.set(f1, {type:'folder', name:'Ejemplos', parent:null, color:COLORS[4], created:now, updated:now});
+  Store.set(f2, {type:'folder', name:'Código', parent:f1, color:COLORS[6], created:now, updated:now});
+  Store.set(uid(), {type:'file', parent:f1, format:'rich', name:'Bienvenida (ejemplo)', created:now, updated:now, content:
+    '<h1>Bienvenido a tu Bitácora</h1><p>Este archivo es un <b>ejemplo</b>. Puedes <span style="color:#0090ff">cambiar el color</span>, <span style="background-color:rgba(255,214,10,.42)">resaltar</span> y dar formato con la barra de arriba.</p><h2>Lista de pendientes</h2><ul data-check=""><li data-checked="true">Crear mi primera carpeta</li><li data-checked="false">Pegar mis apuntes de clase</li><li data-checked="false">Probar un archivo de código</li></ul><blockquote>Todo se guarda solo, unos segundos después de escribir.</blockquote>'});
+  Store.set(uid(), {type:'file', parent:f1, format:'md', name:'Guía de Markdown (ejemplo)', created:now, updated:now, content:
+    '# Guía rápida de Markdown\n\nEscribe a la izquierda y mira el resultado a la derecha.\n\n## Estilos\n\n- **Negrita** con `**texto**`\n- *Cursiva* con `*texto*`\n- `Código en línea` con comillas invertidas\n\n## Tabla\n\n| Comando | Uso |\n|---|---|\n| `SELECT` | Leer filas |\n| `INSERT` | Agregar filas |\n\n> Ideal para apuntes con estructura.\n'});
+  Store.set(uid(), {type:'file', parent:f2, format:'code', lang:'python', name:'promedio.py (ejemplo)', created:now, updated:now, content:
+    '# Promedio de una lista de notas\ndef promedio(valores: list[float]) -> float:\n    if not valores:\n        return 0.0\n    return sum(valores) / len(valores)\n\nnotas = [8.5, 9.0, 7.25, 10]\nprint(f"Promedio: {promedio(notas):.2f}")\n'});
+  S.expanded.add(f1); S.expanded.add(f2); remember(); onData(); toast('Se cargaron 3 archivos de ejemplo');
+}
+
+/* ---------- Tree ---------- */
+function renderTree() {
+  const tree = $('#tree'); tree.innerHTML='';
+  const q = S.q.trim().toLowerCase();
+  if (q) {
+    const hits = [...S.items.entries()].filter(([,v]) => v.type==='file' && (v.name.toLowerCase().includes(q) || plainOf(v).toLowerCase().includes(q)))
+      .sort(([,a],[,b])=>(b.updated||0)-(a.updated||0));
+    tree.append(h('div',{class:'tree-label',text: hits.length ? `${hits.length} resultado${hits.length>1?'s':''}` : 'Sin resultados'}));
+    hits.forEach(([k,v]) => { const where = pathOf(k).map(([,f])=>f.name).join(' / ') || 'Raíz';
+      const row = h('button',{class:'row'+(S.openId===k?' open':''),role:'treeitem',onclick:()=>openFile(k)},
+        h('span',{class:'ico',html:ICON[v.format](fileColor(v))}), h('span',{class:'nm'}, v.name, h('div',{style:'font-size:11px;color:var(--muted);font-weight:400',text:where})));
+      tree.append(row); });
+    return;
+  }
+  const rootKids = kids(null);
+  if (!rootKids.length) { tree.append(h('div',{class:'tree-label',text:'Aún no hay carpetas'})); return; }
+  const walk = (pid, depth, host) => kids(pid).forEach(([k,v]) => {
+    const isF = v.type==='folder'; const open = S.expanded.has(k);
+    const row = h('div',{class:'row'+(isF && S.selFolder===k ? ' sel':'')+(S.openId===k?' open':''), role:'treeitem', tabindex:'0', draggable: S.canWrite ? 'true' : null,
+      'aria-expanded': isF ? String(open) : null, style:`padding-left:${6+depth*16}px`});
+    row.innerHTML = (isF ? ICON.chev.replace('chev', 'chev'+(open?' on':'')) : '<span style="width:16px;flex:none"></span>') +
+      `<span class="ico">${isF ? ICON.folder(v.color||'var(--muted)', open) : ICON[v.format](fileColor(v))}</span>`;
+    row.append(h('span',{class:'nm',text:v.name}));
+    if (isF) { const n = kids(k).length; if (n) row.append(h('span',{class:'cnt',text:n})); }
+    const more = h('button',{class:'more','aria-label':'Opciones de '+v.name,html:ICON.dots,onclick:e=>{e.stopPropagation(); itemMenu(k, more);}});
+    if (S.canWrite) row.append(more);
+    const act = () => { if (isF) { S.selFolder=k; open ? S.expanded.delete(k) : S.expanded.add(k); remember(); renderTree(); } else openFile(k); };
+    row.addEventListener('click', act);
+    row.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); act(); } });
+    row.addEventListener('contextmenu', e => { if (!S.canWrite) return; e.preventDefault(); itemMenu(k, more); });
+    row.addEventListener('dragstart', e => { e.dataTransfer.setData('text/x-bitacora', k); e.dataTransfer.effectAllowed='move'; });
+    if (isF && S.canWrite) {
+      row.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('text/x-bitacora')) { e.preventDefault(); row.classList.add('drop'); } });
+      row.addEventListener('dragleave', () => row.classList.remove('drop'));
+      row.addEventListener('drop', e => { e.preventDefault(); row.classList.remove('drop'); const src=e.dataTransfer.getData('text/x-bitacora');
+        if (!src || src===k || descendants(src).includes(k)) return; Store.patch(src,{parent:k}); S.expanded.add(k); remember(); onData(); toast('Movido a '+v.name); });
+    }
+    host.append(row);
+    if (isF && open) walk(k, depth+1, host);
+  });
+  tree.append(h('div',{class:'tree-label',text:'Mis carpetas'}));
+  walk(null, 0, tree);
+  tree.ondragover = e => { if (e.target===tree) e.preventDefault(); };
+  tree.ondrop = e => { if (e.target!==tree) return; const src=e.dataTransfer.getData('text/x-bitacora'); if (src) { Store.patch(src,{parent:null}); onData(); } };
+}
+
+/* ---------- Home ---------- */
+function renderHome() {
+  S.openId = null; setTop(null); const host=$('#host'); host.innerHTML='';
+  const files=[...S.items.entries()].filter(([,v])=>v.type==='file'); const folders=[...S.items.values()].filter(v=>v.type==='folder');
+  const wrap = h('div',{class:'home'});
+  if (!S.ready) { wrap.append(h('div',{class:'empty'}, h('p',{class:'lead',text:'Cargando tus notas…'}))); host.append(wrap); return; }
+  if (!S.items.size) {
+    wrap.append(h('div',{class:'empty'},
+      h('div',{class:'art',html:'<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/><path d="M9 8h6"/></svg>'}),
+      h('h2',{text:'Tu bitácora está vacía'}),
+      h('p',{class:'lead',text:'Crea una carpeta por materia o proyecto y agrega archivos de texto, Markdown o código. Todo se guarda solo.'}),
+      S.canWrite ? h('div',{class:'acts'}, h('button',{class:'btn',onclick:()=>newFolder(null)},'Nueva carpeta'), h('button',{class:'btn primary',onclick:()=>newFile(null)},'Nuevo archivo'), h('button',{class:'btn ghost',onclick:loadExamples},'Cargar ejemplos')) : null));
+    host.append(wrap); return;
+  }
+  const words = files.reduce((s,[,v])=>s+(plainOf(v).match(/\S+/g)||[]).length,0);
+  wrap.append(h('h2',{text:'Inicio'}), h('p',{class:'lead',text:'Retoma donde lo dejaste o crea algo nuevo.'}),
+    h('div',{class:'stats'}, ...[[folders.length,'Carpetas'],[files.length,'Archivos'],[words.toLocaleString('es'),'Palabras']].map(([n,l])=>h('div',{class:'stat'},h('div',{class:'n',text:n}),h('div',{class:'l',text:l})))));
+  wrap.append(h('div',{class:'tree-label',style:'padding-left:0',text:'Recientes'}));
+  const grid = h('div',{class:'recent'});
+  files.sort(([,a],[,b])=>(b.updated||0)-(a.updated||0)).slice(0,9).forEach(([k,v])=>{
+    const where = pathOf(k).map(([,f])=>f.name).join(' / ') || 'Raíz';
+    grid.append(h('button',{class:'rcard',onclick:()=>openFile(k)},
+      h('div',{class:'t'}, h('i',{html:ICON[v.format](fileColor(v)),style:'display:grid'}), h('span',{text:v.name})),
+      h('div',{class:'s',text: plainOf(v).trim().slice(0,140) || 'Vacío'}),
+      h('div',{class:'m'}, h('span',{text:where}), h('span',{text:relTime(v.updated)}))));
+  });
+  if (!files.length) grid.append(h('p',{class:'lead',text:'Todavía no hay archivos. Crea uno con el botón Archivo.'}));
+  wrap.append(grid);
+  wrap.append(h('div',{class:'tips'}, h('span',{}, h('span',{class:'kbd',text:'Ctrl'}),' + ',h('span',{class:'kbd',text:'S'}),' guarda al instante'),
+    h('span',{}, 'Arrastra archivos a una carpeta para moverlos'), h('span',{}, 'Clic derecho en un elemento para ver opciones')));
+  host.append(wrap);
+}
+
+/* ---------- Top bar ---------- */
+function setTop(it) {
+  const t=$('#titleIn'), cr=$('#crumbs'), b=$('#fmtBadge'); cr.innerHTML='';
+  if (!it) { t.value='Inicio'; t.readOnly=true; b.hidden=true; $('#topActions').hidden=true; $('#saveSt').textContent=''; return; }
+  t.readOnly=!S.canWrite; t.value=it.name; $('#topActions').hidden=false; $('#fileMore').hidden=!S.canWrite; b.hidden=false;
+  b.textContent = it.format==='code' ? langInfo(it.lang)[1] : FORMATS[it.format].short;
+  const parts = pathOf(S.openId); const home = h('button',{text:'Inicio',onclick:renderHome,style:'color:inherit'}); cr.append(home);
+  parts.forEach(([k,f]) => cr.append(h('span',{text:'›'}), h('button',{text:f.name,style:'color:inherit',onclick:()=>{S.selFolder=k; S.expanded.add(k); renderTree(); openSide();}})));
+}
+function saveStatus(txt) { $('#saveSt').innerHTML=''; $('#saveSt').append(h('span',{class:'dot '+(txt==='Guardando…'?'warn':'ok')}), txt); }
+
+/* ---------- Editors ---------- */
+let ed = null;   // { getContent(), setContent(v), focus(), stats() }
+let saveT = null;
+
+function openFile(id) {
+  flushSave();
+  const it = get(id); if (!it) return renderHome();
+  S.openId = id; S.selFolder = it.parent || null; S.dirty=false;
+  pathOf(id).forEach(([k])=>S.expanded.add(k)); remember();
+  closeSide(); renderTree(); setTop(it);
+  if (S.canWrite) saveStatus(it.updated ? 'Guardado ' + relTime(it.updated) : 'Guardado'); else $('#saveSt').textContent = 'Solo lectura';
+  const host=$('#host'); host.innerHTML='';
+  ed = it.format==='rich' ? richEditor(host, it) : it.format==='md' ? mdEditor(host, it) : codeEditor(host, it);
+  S.lastSaved = it.content || '';
+  updateStats();
+}
+function changed() { if (!S.canWrite) return; S.dirty=true; saveStatus('Guardando…'); clearTimeout(saveT); saveT=setTimeout(flushSave, 700); updateStats(); }
+function flushSave() {
+  clearTimeout(saveT); if (!S.dirty || !S.openId || !ed) return; const id=S.openId; const content=ed.getContent(); S.dirty=false;
+  if (content===S.lastSaved) { saveStatus('Guardado'); return; }
+  S.lastSaved = content; const now=Date.now();
+  Store.patch(id, {content, updated:now}).then(()=>{ if (S.openId===id && !S.dirty) saveStatus('Guardado'); }).catch(()=>{ S.dirty=true; S.lastSaved=null; });
+}
+function updateStats() { const sb=$('#statusbar'); if (!sb || !ed) return; sb.innerHTML=''; ed.stats().forEach(s=>sb.append(h('span',{text:s}))); }
+const countWords = txt => (txt.match(/\S+/g)||[]).length;
+function statusbar(host) { const sb=h('div',{class:'statusbar',id:'statusbar'}); host.append(sb); return sb; }
+const tbBtn = (html, title, fn, extra={}) => h('button',{class:'tb',title,'aria-label':title,html,onmousedown:e=>e.preventDefault(),onclick:fn,...extra});
+const sep = () => h('span',{class:'sep'});
+
+/* Rich text */
+function richEditor(host, it) {
+  const tb = h('div',{class:'toolbar',role:'toolbar','aria-label':'Formato de texto'});
+  const area = h('div',{class:'rich',contenteditable:'true',spellcheck:'true','data-ph':'Empieza a escribir o pega tu texto aquí…'});
+  const inner = area; inner.classList.add('prose');
+  inner.innerHTML = DOMPurify.sanitize(it.content||'', {ADD_ATTR:['data-check','data-checked']});
+  const exec = (c,v=null) => { area.focus(); document.execCommand('styleWithCSS', false, true); document.execCommand(c, false, v); changed(); refreshState(); };
+  const block = tag => { const cur = document.queryCommandValue('formatBlock').toLowerCase(); exec('formatBlock', cur===tag ? 'p' : tag); };
+  let savedRange = null; const saveRange = () => { const s=getSelection(); if (s.rangeCount && area.contains(s.anchorNode)) savedRange=s.getRangeAt(0).cloneRange(); };
+  const restoreRange = () => { if (!savedRange) return; area.focus(); const s=getSelection(); s.removeAllRanges(); s.addRange(savedRange); };
+  const colorPop = (anchor, list, cmd, label) => { saveRange(); pop(anchor, p => { p.append(h('div',{class:'lbl',text:label})); const sw=h('div',{class:'swatches'});
+      sw.append(h('button',{class:'sw none',title:'Quitar',onclick:()=>{closePops(); restoreRange(); exec(cmd, cmd==='hiliteColor'?'transparent':'inherit');}},'—'));
+      list.forEach(c=>sw.append(h('button',{class:'sw',style:`background:${c}`,'aria-label':c,onclick:()=>{closePops(); restoreRange(); exec(cmd,c);}})));
+      p.append(sw); }); };
+  const B = {
+    bold: tbBtn('<b>B</b>','Negrita (Ctrl+B)',()=>exec('bold')), italic: tbBtn('<i>I</i>','Cursiva (Ctrl+I)',()=>exec('italic')),
+    underline: tbBtn('<u>U</u>','Subrayado (Ctrl+U)',()=>exec('underline')), strike: tbBtn('<s>S</s>','Tachado',()=>exec('strikeThrough')),
+  };
+  const colorBtn = tbBtn('<svg width="18" height="18" viewBox="0 0 24 24"><path d="M7 16L11.2 5h1.6L17 16M8.6 12h6.8" fill="none" stroke="currentColor" stroke-width="2"/><rect x="4" y="18.5" width="16" height="3" rx="1" fill="#e5484d"/></svg>','Color de texto',()=>colorPop(colorBtn, TEXT_COLORS,'foreColor','Color de texto'));
+  const hiBtn = tbBtn('<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 14l-3 3v2h4l3-3"/><path d="M9 14l6.5-9.5 4 4L13 15z"/><rect x="3" y="20" width="18" height="2" fill="#ffd60a" stroke="none"/></svg>','Resaltar',()=>colorPop(hiBtn, HI_COLORS,'hiliteColor','Resaltado'));
+  const linkBtn = tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7L12 6.3"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>','Insertar enlace',()=>{ saveRange();
+    pop(linkBtn, p => { const inp=h('input',{type:'url',placeholder:'https://…','aria-label':'Dirección del enlace'});
+      const apply=()=>{ let u=inp.value.trim(); if(!u) return; if(!/^https?:\/\//i.test(u)) u='https://'+u; closePops(); restoreRange(); exec('createLink',u); };
+      inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();apply();} });
+      p.append(h('div',{class:'link-pop'}, inp, h('button',{class:'btn primary',onclick:apply},'Aplicar'))); setTimeout(()=>inp.focus(),20); }); });
+  const checkBtn = tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="7" height="7" rx="1.5"/><path d="M4.5 7.5l1.5 1.5 3-3M14 7.5h7M3 15h7v6H3zM14 18h7"/></svg>','Lista de tareas',()=>{
+    area.focus(); exec('insertHTML','<ul data-check=""><li data-checked="false">Nueva tarea</li></ul><p><br></p>'); });
+  const pasteBtn = h('button',{class:'tb'+(S.pastePlain?' on':''),title:'Pegar sin formato',onmousedown:e=>e.preventDefault(),
+    html:'<span style="font-size:12px;font-weight:600">Pegar texto plano</span>',onclick:()=>{S.pastePlain=!S.pastePlain; pasteBtn.classList.toggle('on',S.pastePlain); toast(S.pastePlain?'Pegarás solo el texto':'Pegarás con formato');}});
+  tb.append(
+    tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>','Deshacer (Ctrl+Z)',()=>exec('undo')),
+    tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg>','Rehacer',()=>exec('redo')), sep(),
+    tbBtn('<span style="font-weight:700">T1</span>','Título',()=>block('h1')), tbBtn('<span style="font-weight:700">T2</span>','Subtítulo',()=>block('h2')),
+    tbBtn('<span>¶</span>','Párrafo normal',()=>exec('formatBlock','p')), sep(),
+    B.bold, B.italic, B.underline, B.strike, colorBtn, hiBtn, sep(),
+    tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>','Lista',()=>exec('insertUnorderedList')),
+    tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 6h11M10 12h11M10 18h11M4 4v4M3 18h3l-3 2h3"/></svg>','Lista numerada',()=>exec('insertOrderedList')),
+    checkBtn,
+    tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M4 17h4l2-4V7H4v6h3zM14 17h4l2-4V7h-6v6h3z"/></svg>','Cita',()=>block('blockquote')),
+    tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>','Bloque de código',()=>block('pre')),
+    linkBtn, sep(),
+    tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg>','Alinear a la izquierda',()=>exec('justifyLeft')),
+    tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg>','Centrar',()=>exec('justifyCenter')),
+    tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16"/></svg>','Línea divisoria',()=>exec('insertHorizontalRule')),
+    tbBtn('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12M12 4v9M5 20l14-14"/></svg>','Quitar formato',()=>{ exec('removeFormat'); exec('unlink'); }), sep(), pasteBtn);
+  const refreshState = () => { [['bold',B.bold],['italic',B.italic],['underline',B.underline],['strikeThrough',B.strike]].forEach(([c,b])=>{ try { b.classList.toggle('on', document.queryCommandState(c)); } catch {} }); };
+  document.addEventListener('selectionchange', () => { if (area.isConnected && area.contains(getSelection().anchorNode)) refreshState(); });
+  area.addEventListener('input', changed);
+  area.addEventListener('blur', flushSave);
+  area.addEventListener('click', e => { const li = e.target.closest('ul[data-check] > li'); if (!li) return;
+    const r = li.getBoundingClientRect(); if (e.clientX - r.left < 24) { li.dataset.checked = li.dataset.checked==='true' ? 'false' : 'true'; changed(); } });
+  area.addEventListener('keydown', e => {
+    if (e.key==='Tab') { e.preventDefault(); exec(e.shiftKey?'outdent':'indent'); }
+    if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k') { e.preventDefault(); linkBtn.click(); }
+  });
+  area.addEventListener('paste', e => { const cd=e.clipboardData; if (!cd) return; e.preventDefault();
+    const html = cd.getData('text/html'); const txt = cd.getData('text/plain');
+    if (!S.pastePlain && html) {
+      const clean = DOMPurify.sanitize(html, {FORBID_TAGS:['style','meta','font','script','iframe','form','input','button'], FORBID_ATTR:['style','class','id','width','height','bgcolor','color','face','size']});
+      document.execCommand('insertHTML', false, clean);
+    } else document.execCommand('insertText', false, txt);
+    changed(); });
+  area.addEventListener('drop', e => { if ([...e.dataTransfer.types].includes('text/x-bitacora')) e.preventDefault(); });
+  if (!S.canWrite) { area.contentEditable='false'; tb.hidden=true; }
+  host.append(tb, area); statusbar(host); if (S.canWrite) setTimeout(()=>area.focus({preventScroll:true}),40);
+  return { getContent:()=>area.innerHTML, setContent:v=>{ area.innerHTML=DOMPurify.sanitize(v,{ADD_ATTR:['data-check','data-checked']}); },
+    isFocused:()=>area.contains(document.activeElement)||document.activeElement===area, text:()=>area.innerText,
+    stats:()=>{ const t=area.innerText||''; return [countWords(t).toLocaleString('es')+' palabras', t.replace(/\n/g,'').length.toLocaleString('es')+' caracteres']; } };
+}
+
+/* Markdown */
+function insertAround(ta, before, after='', placeholder='texto') {
+  const s=ta.selectionStart, e=ta.selectionEnd; const sel=ta.value.slice(s,e) || placeholder; const ins = before+sel+after;
+  ta.focus(); ta.setSelectionRange(s,e); if (!document.execCommand('insertText', false, ins)) { ta.setRangeText(ins, s, e, 'end'); ta.dispatchEvent(new Event('input')); }
+  ta.setSelectionRange(s+before.length, s+before.length+sel.length);
+}
+function prefixLines(ta, prefix) {
+  const v=ta.value; let s=ta.selectionStart, e=ta.selectionEnd; s=v.lastIndexOf('\n', s-1)+1; const endNl=v.indexOf('\n', e); e = endNl===-1 ? v.length : endNl;
+  const block=v.slice(s,e); const lines=block.split('\n'); const all=lines.every(l=>l.startsWith(prefix));
+  const out=lines.map((l,i)=> all ? l.slice(prefix.length) : (prefix==='1. ' ? (i+1)+'. ' : prefix)+l).join('\n');
+  ta.focus(); ta.setSelectionRange(s,e); if (!document.execCommand('insertText', false, out)) { ta.setRangeText(out,s,e,'end'); ta.dispatchEvent(new Event('input')); }
+}
+function renderMd(src, target) {
+  target.innerHTML = DOMPurify.sanitize(marked.parse(src||'', {gfm:true, breaks:true}));
+  target.querySelectorAll('a').forEach(a=>{ a.target='_blank'; a.rel='noopener'; });
+  target.querySelectorAll('pre code').forEach(c=>{ try { hljs.highlightElement(c); } catch {} });
+  target.querySelectorAll('input[type=checkbox]').forEach(c=>c.disabled=true);
+  if (!src.trim()) target.innerHTML = '<p style="color:var(--muted)">La vista previa aparecerá aquí.</p>';
+}
+function mdEditor(host, it) {
+  const tb = h('div',{class:'toolbar',role:'toolbar','aria-label':'Formato Markdown'});
+  const split = h('div',{class:'md-split'});
+  const ta = h('textarea',{class:'md-src',id:'mdSrc',spellcheck:'true','aria-label':'Texto Markdown',placeholder:'# Título\n\nEscribe en Markdown…'}); ta.value = it.content||'';
+  const prev = h('div',{class:'md-prev prose'});
+  const applyMode = () => { split.classList.toggle('only-edit', S.mdMode==='edit'); split.classList.toggle('only-view', S.mdMode==='view');
+    seg.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.m===S.mdMode)); };
+  const seg = h('div',{class:'seg'}, ...[['edit','Editar'],['split','Dividido'],['view','Vista previa']].map(([m,l])=>h('button',{'data-m':m,class:m==='split'?'split-opt':'',onclick:()=>{S.mdMode=m; remember(); applyMode(); if(m!=='view') ta.focus();}},l)));
+  if (innerWidth<=760 && S.mdMode==='split') S.mdMode='edit';
+  let pt; const rerender = () => { clearTimeout(pt); pt=setTimeout(()=>renderMd(ta.value, prev), 120); };
+  tb.append(
+    tbBtn('<span style="font-weight:700">H1</span>','Título',()=>prefixLines(ta,'# ')), tbBtn('<span style="font-weight:700">H2</span>','Subtítulo',()=>prefixLines(ta,'## ')), sep(),
+    tbBtn('<b>B</b>','Negrita',()=>insertAround(ta,'**','**')), tbBtn('<i>I</i>','Cursiva',()=>insertAround(ta,'*','*')), tbBtn('<s>S</s>','Tachado',()=>insertAround(ta,'~~','~~')),
+    tbBtn('<span style="font-family:var(--f-mono);font-size:12px">`c`</span>','Código en línea',()=>insertAround(ta,'`','`','código')), sep(),
+    tbBtn('<span style="font-size:16px">•</span>','Lista',()=>prefixLines(ta,'- ')), tbBtn('<span style="font-size:12px;font-weight:600">1.</span>','Lista numerada',()=>prefixLines(ta,'1. ')),
+    tbBtn('<span style="font-size:13px">☐</span>','Tarea',()=>prefixLines(ta,'- [ ] ')), tbBtn('<span style="font-size:16px">❝</span>','Cita',()=>prefixLines(ta,'> ')),
+    tbBtn('<span style="font-family:var(--f-mono);font-size:11px">```</span>','Bloque de código',()=>insertAround(ta,'\n```python\n','\n```\n','print("hola")')),
+    tbBtn('<span style="font-size:12px;font-weight:600">Tabla</span>','Insertar tabla',()=>insertAround(ta,'\n| Columna 1 | Columna 2 |\n|---|---|\n| ','| valor |\n','valor ')),
+    tbBtn('<span style="font-size:12px;font-weight:600">Enlace</span>','Enlace',()=>insertAround(ta,'[','](https://)','texto')),
+    sep(), seg);
+  ta.addEventListener('input', () => { changed(); rerender(); });
+  ta.addEventListener('blur', flushSave);
+  ta.addEventListener('keydown', e => { if (e.key==='Tab') { e.preventDefault(); insertAround(ta,'    ','',''); }
+    if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='b') { e.preventDefault(); insertAround(ta,'**','**'); }
+    if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='i') { e.preventDefault(); insertAround(ta,'*','*'); } });
+  if (!S.canWrite) { ta.readOnly=true; tb.querySelectorAll('.tb,.sep').forEach(x=>x.hidden=true); }
+  split.append(ta, prev); host.append(tb, split); statusbar(host); applyMode(); renderMd(ta.value, prev);
+  if (S.mdMode!=='view' && S.canWrite) setTimeout(()=>ta.focus({preventScroll:true}),40);
+  return { getContent:()=>ta.value, setContent:v=>{ ta.value=v; renderMd(v, prev); }, isFocused:()=>document.activeElement===ta, text:()=>ta.value,
+    stats:()=>[countWords(ta.value).toLocaleString('es')+' palabras', ta.value.split('\n').length.toLocaleString('es')+' líneas'] };
+}
+
+/* Code */
+function codeEditor(host, it) {
+  const tb = h('div',{class:'toolbar',role:'toolbar','aria-label':'Opciones de código'});
+  const wrap = h('div',{class:'code-wrap'+(S.wrap?' wrap':'')});
+  const pre = h('pre',{'aria-hidden':'true'}); const code = h('code',{class:'hljs'}); pre.append(code);
+  const ta = h('textarea',{spellcheck:'false',autocapitalize:'off',autocomplete:'off','aria-label':'Código',wrap:'off'}); ta.value = it.content||'';
+  const lang = h('select',{'aria-label':'Lenguaje'}); LANGS.forEach(([v,l])=>lang.append(h('option',{value:v},l))); lang.value = it.lang || 'python';
+  const paint = () => { let v = ta.value; if (v.endsWith('\n') || !v) v += ' ';
+    const L = lang.value; try { code.innerHTML = (L!=='plaintext' && hljs.getLanguage(L)) ? hljs.highlight(v,{language:L, ignoreIllegals:true}).value : v.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+    catch { code.textContent = v; } };
+  const sync = () => { pre.scrollTop = ta.scrollTop; pre.scrollLeft = ta.scrollLeft; };
+  lang.addEventListener('change', () => { Store.patch(S.openId, {lang:lang.value, updated:Date.now()}); paint(); setTop(get(S.openId)); });
+  const wrapBtn = h('button',{class:'tb'+(S.wrap?' on':''),onmousedown:e=>e.preventDefault(),title:'Ajuste de línea',html:'<span style="font-size:12px;font-weight:600">Ajustar líneas</span>',
+    onclick:()=>{ S.wrap=!S.wrap; remember(); wrap.classList.toggle('wrap',S.wrap); ta.setAttribute('wrap', S.wrap?'soft':'off'); wrapBtn.classList.toggle('on',S.wrap); sync(); }});
+  ta.setAttribute('wrap', S.wrap?'soft':'off');
+  tb.append(h('span',{class:'tb'}, lang), sep(),
+    tbBtn('<span style="font-size:12px;font-weight:600">Comentar</span>','Comentar líneas seleccionadas',()=>{ const pfx = ({python:'# ',r:'# ',bash:'# ',sql:'-- '})[lang.value] || '// '; prefixLines(ta, pfx); }),
+    tbBtn('<span style="font-size:12px;font-weight:600">Sangría</span>','Aumentar sangría',()=>prefixLines(ta,'    ')),
+    sep(), wrapBtn);
+  ta.addEventListener('input', () => { paint(); sync(); changed(); });
+  ta.addEventListener('scroll', sync);
+  ta.addEventListener('blur', flushSave);
+  ta.addEventListener('keyup', updateStats); ta.addEventListener('click', updateStats);
+  ta.addEventListener('keydown', e => {
+    if (e.key==='Tab') { e.preventDefault(); if (ta.selectionStart!==ta.selectionEnd) prefixLines(ta,'    '); else insertAround(ta,'    ','',''); }
+    if (e.key==='Enter') { const v=ta.value, s=ta.selectionStart; const ls=v.lastIndexOf('\n', s-1)+1; const ind=(v.slice(ls,s).match(/^[ \t]*/)||[''])[0];
+      const extra = /[:{\[(]\s*$/.test(v.slice(ls,s)) ? '    ' : ''; if (ind||extra) { e.preventDefault(); insertAround(ta,'\n'+ind+extra,'',''); } }
+    const pairs={'(' :')','[':']','{':'}','"':'"',"'":"'"};
+    if (pairs[e.key] && ta.selectionStart!==ta.selectionEnd) { e.preventDefault(); insertAround(ta, e.key, pairs[e.key], ''); }
+  });
+  if (!S.canWrite) { ta.readOnly=true; lang.disabled=true; }
+  wrap.append(pre, ta); host.append(tb, wrap); statusbar(host); paint(); if (S.canWrite) setTimeout(()=>ta.focus({preventScroll:true}),40);
+  return { getContent:()=>ta.value, setContent:v=>{ ta.value=v; paint(); }, isFocused:()=>document.activeElement===ta, text:()=>ta.value,
+    stats:()=>{ const s=ta.selectionStart; const before=ta.value.slice(0,s); const ln=before.split('\n').length; const col=s-before.lastIndexOf('\n');
+      return ['Ln '+ln+', Col '+col, ta.value.split('\n').length+' líneas', langInfo(lang.value)[1]]; } };
+}
+
+/* ---------- File-level actions ---------- */
+function htmlDoc(title, body) { return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${title.replace(/</g,'&lt;')}</title><style>body{font-family:system-ui,sans-serif;max-width:72ch;margin:40px auto;padding:0 16px;line-height:1.6}pre{background:#f4f6f8;padding:12px;border-radius:8px;overflow:auto}blockquote{border-left:3px solid #0d7a70;margin:0;padding-left:1em;color:#555}</style></head><body>${body}</body></html>`; }
+function fileExport() { flushSave(); const it=get(S.openId); if (!it) return;
+  const base = it.name.replace(/\.[a-z0-9]{1,5}$/i,'').replace(/[\\/:*?"<>|]+/g,'-').trim() || 'archivo';
+  let filename, data;
+  if (it.format==='rich') { filename=base+'.html'; data=htmlDoc(it.name, DOMPurify.sanitize(it.content||'')); }
+  else if (it.format==='md') { filename=base+'.md'; data=it.content||''; }
+  else { filename=base+'.'+langInfo(it.lang)[2]; data=it.content||''; }
+  saveBlob(filename, data, 'text/plain;charset=utf-8'); toast('Descargado: '+filename);
+}
+async function fileCopy() { const it=get(S.openId); if (!it || !ed) return; const txt = ed.text();
+  try {
+    if (it.format==='rich' && window.ClipboardItem) { await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([ed.getContent()],{type:'text/html'}),'text/plain':new Blob([txt],{type:'text/plain'})})]); }
+    else await navigator.clipboard.writeText(txt);
+    toast('Copiado al portapapeles');
+  } catch { try { await navigator.clipboard.writeText(txt); toast('Copiado al portapapeles'); } catch { toast('No se pudo copiar. Selecciona el texto y usa Ctrl+C.'); } }
+}
+function convertTo(fmt, lang) { flushSave(); const id=S.openId; const it=get(id); if (!it || it.format===fmt) return;
+  let content = it.content||'';
+  if (it.format==='rich') content = plainOf(it);
+  if (fmt==='rich') content = it.format==='md' ? DOMPurify.sanitize(marked.parse(content,{gfm:true,breaks:true})) : '<pre><code>'+content.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</code></pre>';
+  if (fmt==='md' && it.format==='code') content = '```'+(it.lang||'')+'\n'+content+'\n```\n';
+  const part = {format:fmt, content, updated:Date.now()}; if (fmt==='code') part.lang = lang || it.lang || 'python';
+  Store.patch(id, part).then(()=>{}); S.items.set(id, {...it, ...part}); openFile(id); toast('Convertido a '+FORMATS[fmt].label);
+}
+function fileMenu(anchor) { const id=S.openId; const it=get(id); if(!it) return;
+  pop(anchor, p => {
+    p.append(h('div',{class:'lbl',text:'Convertir a'}));
+    Object.entries(FORMATS).filter(([f])=>f!==it.format).forEach(([f,info])=>p.append(mi(info.label, ()=>convertTo(f))));
+    p.append(h('hr'), mi('Renombrar', ()=>renameItem(id)), mi('Cambiar color', ()=>setColor(id, anchor)), mi('Mover a…', ()=>moveItem(id)), mi('Duplicar', ()=>duplicate(id)),
+      h('hr'), mi('Eliminar archivo', ()=>deleteItem(id), 'danger'));
+  }, {alignRight:true});
+}
+
+/* ---------- Data change handling ---------- */
+function onData() {
+  renderTree();
+  if (!S.openId) { renderHome(); return; }
+  const it = get(S.openId); if (!it) { S.openId=null; ed=null; renderHome(); return; }
+  setTop(it);
+  // A change from another device: refresh the editor only when not editing here
+  if (ed && !S.dirty && !ed.isFocused() && (it.content||'') !== S.lastSaved && (it.content||'') !== ed.getContent()) { ed.setContent(it.content||''); S.lastSaved=it.content||''; updateStats(); }
+}
+
+/* ---------- Mobile drawer ---------- */
+const openSide = () => { $('#side').classList.add('show'); $('#scrimSide').classList.add('show'); };
+const closeSide = () => { $('#side').classList.remove('show'); $('#scrimSide').classList.remove('show'); };
+
+/* ---------- Wire up ---------- */
+$('#newFolderBtn').onclick = () => newFolder();
+$('#newFileBtn').onclick = () => newFile();
+$('#menuBtn').onclick = openSide; $('#closeSide').onclick = closeSide; $('#scrimSide').onclick = closeSide;
+$('#copyBtn').onclick = fileCopy; $('#exportBtn').onclick = fileExport; $('#fileMore').onclick = e => fileMenu(e.currentTarget);
+let qT; $('#q').addEventListener('input', e => { clearTimeout(qT); qT=setTimeout(()=>{ S.q=e.target.value; renderTree(); },120); });
+const titleIn = $('#titleIn');
+titleIn.addEventListener('change', () => { if (!S.openId || !S.canWrite) return; const n=titleIn.value.trim(); if (!n) { titleIn.value=get(S.openId).name; return; } Store.patch(S.openId,{name:n, updated:Date.now()}); renderTree(); });
+titleIn.addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); titleIn.blur(); } });
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s') { e.preventDefault(); if (!S.canWrite) return; S.dirty = S.dirty || !!S.openId; flushSave(); toast('Guardado'); }
+  if (e.key==='Escape') closePops();
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushSave(); });
+window.addEventListener('pagehide', flushSave);
+setInterval(() => { if (S.openId && !S.dirty) { const it=get(S.openId); if (it?.updated) saveStatus('Guardado ' + relTime(it.updated)); } }, 30000);
+
+renderTree(); renderHome();
+$('#gearBtn').onclick = e => gearMenu(e.currentTarget);
+$('#modeChip').onclick = () => S.isOwner ? accessModal() : showLock(true);
+auth.onAuthStateChanged(u => { S.isOwner = !!u && u.uid === OWNER_UID; S.authKnown = true; if (u && !S.isOwner) auth.signOut(); recompute(); });
+fdb.doc('config/access').onSnapshot(snap => { const m = snap.exists ? snap.data().mode : 'private'; S.access = MODES[m] ? m : 'private'; recompute(); },
+  () => { S.access = 'private'; recompute(); });
+})();
+</script>
+</body>
+</html>
