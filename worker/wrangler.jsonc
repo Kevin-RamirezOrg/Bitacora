@@ -1,5 +1,10 @@
 {
   "name": "bitacora-worker",
   "main": "src/index.js",
-  "compatibility_date": "2026-11-01"
+  "compatibility_date": "2026-11-01",
+  // Datos públicos (también están en index.html); las claves de IA irán como secrets.
+  "vars": {
+    "FIREBASE_PROJECT_ID": "bitacora-c20b4",
+    "OWNER_UID": "mOlFltUhUNQrTTxtIWuCFJzMCFI3"
+  }
 }
