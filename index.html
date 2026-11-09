@@ -302,6 +302,46 @@ input.search-field::placeholder{color:var(--muted)}
 .set-col .row-t span{white-space:normal}
 .set-label{font-size:14px;font-weight:600;color:var(--muted);margin:22px 4px 8px}
 
+/* ---------- AI models ---------- */
+.ai-lead{color:var(--ink-2);margin:0 0 4px;font-size:15px}
+.ai .row-t span{white-space:normal}
+.ai-model{font-family:var(--f-mono);font-size:13px;word-break:break-all}
+.ai .row-t b.ai-model{white-space:normal;font-size:14px}
+.ai-box{border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);padding:16px 16px 2px}
+.ai-box .hint{display:block;margin-top:2px}
+.ai-box .form-err{min-height:0}
+.ai-box .textarea{min-height:104px}
+.ai-params{display:grid;grid-template-columns:1fr;gap:0 14px}
+.set-row .icon-btn{margin-right:-8px}
+.ai-fav-ic{color:var(--accent-ink)}
+.ai-test-row{display:flex;gap:10px;align-items:stretch;margin-bottom:14px}
+.ai-test-row .input{flex:1;min-width:0}
+.ai-out{margin:0 0 14px;border-radius:var(--r-md);padding:12px 14px;border:1.5px solid var(--line-strong);background:var(--surface-2);font-size:15px}
+.ai-out.ok{border-color:var(--ok)}
+.ai-out.err{border-color:var(--danger);background:var(--danger-soft)}
+.ai-out b{display:block;font-weight:600}
+.ai-out p{margin:6px 0 0;color:var(--ink-2);font-size:14px;word-break:break-word}
+.ai-text{margin-top:8px;white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto;color:var(--ink)}
+.ai-bar{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;gap:12px;margin-top:22px;padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line)}
+.ai-bar span{flex:1;font-size:14px;color:var(--ink-2);font-weight:500}
+.ai-bar span.warn{color:var(--ink)}
+.ai-bar span.warn::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--warn);margin-right:8px;vertical-align:1px}
+.ai-pick-head{position:sticky;top:-8px;z-index:1;background:var(--surface);padding:6px 0 8px;margin-top:-6px}
+.ai-pick-head .search-field{margin-top:10px;background:var(--surface-2)}
+.ai-seg{display:flex}
+.ai-seg button{flex:1}
+.ai-info{margin:2px 2px 4px}
+.ai-list{display:flex;flex-direction:column;margin:0 -8px}
+.ai-sub{font-size:13px;font-weight:600;color:var(--muted);margin:12px 12px 2px}
+.ai-opt{display:flex;align-items:center;gap:2px}
+.ai-opt-b{flex:1;min-width:0;min-height:48px;display:flex;align-items:center;gap:10px;padding:6px 12px;text-align:left;font-family:var(--f-mono);font-size:14px;word-break:break-all;border-radius:var(--r-md)}
+.ai-opt-b:hover{background:var(--surface-2)}
+.ai-opt-b[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.ai-opt-b small{margin-left:auto;font-family:var(--f-body);font-size:12px;font-weight:600;flex:none}
+.ai-star{color:var(--muted)}
+.ai-star[aria-pressed="true"]{color:var(--accent-ink)}
+@media (min-width:600px){ .ai-params{grid-template-columns:repeat(3,1fr)} }
+
 /* ---------- Assistant ---------- */
 .as-ex{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .as-ex span{align-self:flex-start;max-width:90%;padding:10px 14px;border-radius:18px 18px 18px 6px;background:var(--surface);border:1px solid var(--line);font-size:15px}
@@ -442,6 +482,9 @@ const ICON = {
   key: sv('<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>'),
   info: sv('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>'),
   sparkle: sv('<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/>'),
+  star: sv('<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>'),
+  starFill: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+  test: sv('<path d="M9 3h6M10 3v6L5 19a1.5 1.5 0 0 0 1.3 2h11.4a1.5 1.5 0 0 0 1.3-2l-5-10V3"/><path d="M7.5 14h9"/>'),
 };
 
 /* ================= Constants ================= */
@@ -519,7 +562,7 @@ const OWNER_UID = "mOlFltUhUNQrTTxtIWuCFJzMCFI3";
 const OWNER_EMAIL = "matias@gmail.com";
 firebase.initializeApp(FIREBASE_CONFIG);
 const fdb = firebase.firestore();
-try { fdb.settings({ ignoreUndefinedProperties: true }); } catch {}
+try { fdb.settings({ ignoreUndefinedProperties: true, merge: true }); } catch {}
 const auth = firebase.auth();
 
 const Store = {
@@ -654,13 +697,15 @@ function render() {
   const app = $('#app'); const scr = $('#screen');
   app.classList.toggle('in-editor', S.view === 'editor');
   document.querySelectorAll('.tab').forEach(t => t.toggleAttribute('aria-current', false));
-  const tabView = S.view === 'search' ? 'home' : S.view === 'editor' ? null : S.view;
+  const tabView = S.view === 'search' ? 'home' : S.view === 'ai' ? 'settings' : S.view === 'editor' ? null : S.view;
   const cur = document.querySelector(`.tab[data-view="${tabView}"]`); if (cur) cur.setAttribute('aria-current','page');
   if (S.view !== 'editor') ed = null;
   scr.innerHTML = '';
-  ({ home:viewHome, files:viewFiles, search:viewSearch, assistant:viewAssistant, settings:viewSettings, editor:viewEditor }[S.view] || viewHome)(scr);
+  ({ home:viewHome, files:viewFiles, search:viewSearch, assistant:viewAssistant, settings:viewSettings, ai:viewAI, editor:viewEditor }[S.view] || viewHome)(scr);
 }
 function onData() {
+  // The AI panel keeps unsaved edits in its form; note changes don't affect it, so don't redraw it under the user.
+  if (S.view === 'ai' && S.isOwner && AI.loaded) return;
   if (S.view === 'editor') {
     const it = get(S.fileId);
     if (!it && S.ready) { ed = null; navigate('home', {}, 'replace'); return; }
@@ -882,11 +927,274 @@ function viewSettings(scr) {
     h('div',{class:'set-row set-col'}, h('span',{class:'row-t'}, h('b',{text:'Paleta'}), h('span',{text:'Colores de fondo y superficies'})), pals),
     h('div',{class:'set-row set-col'}, h('span',{class:'row-t'}, h('b',{text:'Color de acento'}), h('span',{text:'Botones, enlaces y marcas. Se ajusta solo para que siempre se lea bien.'})), accs)));
 
+  w.append(h('div',{class:'set-label',text:'Inteligencia artificial'}));
+  const aiSum = !S.isOwner ? 'Requiere tu PIN' : AI.loaded && AI.draft?.principal.modelo ? 'Principal: ' + AI.draft.principal.modelo : 'Proveedores, modelos, favoritos y parámetros';
+  w.append(h('div',{class:'set-group'}, h('button',{class:'set-row',onclick:openAI}, ic('sparkle'),
+    h('span',{class:'row-t'}, h('b',{text:'Modelos de IA'}), h('span',{text:aiSum})), h('span',{class:'chev',html:ICON.chevR}))));
+
   w.append(h('div',{class:'set-label',text:'Respaldo'}));
   const g3 = h('div',{class:'set-group'});
   g3.append(h('button',{class:'set-row',onclick:backup,disabled:!S.ready||!S.items.size}, ic('download'), h('span',{class:'row-t'}, h('b',{text:'Descargar respaldo'}), h('span',{text:'Todas tus carpetas y notas en un archivo'}))));
   if (S.isOwner) g3.append(h('button',{class:'set-row',onclick:restore}, ic('upload'), h('span',{class:'row-t'}, h('b',{text:'Restaurar respaldo'}), h('span',{text:'Recupera notas desde un archivo descargado'}))));
   w.append(g3, h('div',{class:'bottom-space'}));
+}
+
+/* ---------- AI models (Ajustes → Modelos de IA) ---------- */
+// Keys live in Cloudflare; this panel only edits model names and parameters, stored in the Worker's KV.
+const WORKER_URL = 'https://bitacora-worker.matiaschushig23.workers.dev';
+const AI_PROV = { nanogpt:{label:'NanoGPT', secret:'NANOGPT_API_KEY'}, gemini:{label:'Gemini', secret:'GEMINI_API_KEY'} };
+const AI_RANGES = { temperature:[0,2], top_p:[0,1], max_tokens:[1,200000] };
+const AI_RESERVED = ['model','messages','stream','stream_options','n'];
+const AI_MAX_FAV = 20, AI_LIST_MAX = 80;
+const AI = { loaded:false, loading:false, err:null, prov:null, draft:null, saved:'', models:{}, modelsErr:{}, testMsg:'Responde solo: hola', ui:{} };
+const provName = id => AI_PROV[id]?.label || id || '';
+
+async function api(path, { method='GET', body } = {}) {
+  const user = auth.currentUser;
+  if (!user || user.uid !== OWNER_UID) throw new Error('Ingresa con tu PIN para continuar.');
+  const token = await user.getIdToken();
+  let r;
+  try { r = await fetch(WORKER_URL + path, { method, body: body ? JSON.stringify(body) : undefined,
+    headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type':'application/json' } : {}) } }); }
+  catch { throw new Error('No se pudo conectar con el Worker. Revisa tu conexión.'); }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(data.error || 'El Worker respondió ' + r.status); e.status = r.status; e.detalle = data.detalle; throw e; }
+  return data;
+}
+
+// Form state keeps numbers as typed text; fromDraft validates like the Worker does.
+const aiToDraft = c => ({ principal:{...c.principal}, respaldo: c.respaldo ? {...c.respaldo} : null, favoritos:(c.favoritos||[]).map(f=>({...f})),
+  temperature: c.parametros?.temperature ?? '', top_p: c.parametros?.top_p ?? '', max_tokens: c.parametros?.max_tokens ?? '',
+  extra: c.extra && Object.keys(c.extra).length ? JSON.stringify(c.extra, null, 2) : '' });
+function aiFromDraft(d) {
+  const err = {}, parametros = {};
+  for (const [k,[lo,hi]] of Object.entries(AI_RANGES)) {
+    const raw = String(d[k] ?? '').trim().replace(',', '.'); if (!raw) continue;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < lo || n > hi || (k === 'max_tokens' && !Number.isInteger(n)))
+      err[k] = k === 'max_tokens' ? `Escribe un número entero entre ${lo} y ${hi.toLocaleString('es')}.` : `Escribe un número entre ${lo} y ${hi}.`;
+    else parametros[k] = n;
+  }
+  let extra = {}; const ex = String(d.extra || '').trim();
+  if (ex) {
+    try { extra = JSON.parse(ex); if (!extra || typeof extra !== 'object' || Array.isArray(extra)) throw 0;
+      const bad = Object.keys(extra).find(k => AI_RESERVED.includes(k));
+      if (bad) err.extra = `"${bad}" lo controla el Worker; quítalo de aquí.`;
+      else if (JSON.stringify(extra).length > 2000) err.extra = 'Es demasiado largo (máximo 2000 caracteres).';
+    } catch { err.extra = 'Debe ser un objeto JSON, por ejemplo {"top_k": 40}.'; }
+  }
+  if (!d.principal?.modelo) err.principal = 'Elige un modelo principal.';
+  return { config:{ principal:d.principal, respaldo:d.respaldo, parametros, extra, favoritos:d.favoritos }, err };
+}
+const aiDirty = () => !!AI.draft && JSON.stringify(aiFromDraft(AI.draft).config) !== AI.saved;
+function aiSetSaved(config) { AI.draft = aiToDraft(config); AI.saved = JSON.stringify(aiFromDraft(AI.draft).config); }
+
+// Readable reason for a provider failure, with a hint in Spanish.
+function aiReason(f) {
+  const st = Number(String(f.error || '').match(/respondió (\d{3})/)?.[1]);
+  const raw = typeof f.detalle === 'string' ? f.detalle : '';
+  const msg = (raw.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/)?.[1] || raw).replace(/\\n/g, ' ').replace(/\\"/g, '"').trim().slice(0, 220);
+  let hint = { 400:'El proveedor rechazó la petición; revisa los parámetros.', 401:'La clave no es válida; revísala en Cloudflare.', 402:'No hay saldo en el proveedor.',
+    403:'La clave no tiene permiso para este modelo.', 404:'El modelo no está disponible o fue retirado; elige otro.', 429:'Se alcanzó el límite de uso; espera un momento o usa el respaldo.' }[st];
+  if (/api key/i.test(msg)) hint = 'La clave no es válida; revísala en Cloudflare.';
+  return [hint || f.error || 'Error desconocido', msg && msg !== hint ? `(${msg})` : ''].filter(Boolean).join(' ');
+}
+
+function openAI() {
+  if (!S.isOwner) { showLock(true); return; }
+  if (AI.loaded && !aiDirty()) AI.loaded = false; // refresh provider status on each visit unless there are unsaved edits
+  navigate('ai');
+}
+async function aiLoad() {
+  if (AI.loading) return; AI.loading = true; AI.err = null;
+  try {
+    const [p, c] = await Promise.all([api('/ia/proveedores'), api('/config/ia')]);
+    AI.prov = Object.fromEntries(p.proveedores.map(x => [x.id, x])); aiSetSaved(c.config); AI.loaded = true;
+  } catch (e) { AI.err = e.message; }
+  finally { AI.loading = false; aiPaint(); }
+}
+function aiPaint() {
+  if (S.view !== 'ai') return;
+  const top = $('#screen .scroll')?.scrollTop || 0; render();
+  const sc = $('#screen .scroll'); if (sc) sc.scrollTop = top;
+}
+// Updates error messages and the save bar without redrawing the form (keeps focus and keyboard).
+function aiCheck(showAll=false) {
+  const { err } = aiFromDraft(AI.draft); const ui = AI.ui;
+  for (const k of ['temperature','top_p','max_tokens','extra']) if (ui.err?.[k]) ui.err[k].textContent = err[k] || '';
+  if (ui.state) {
+    const n = Object.keys(err).filter(k => k !== 'principal').length;
+    ui.state.className = aiDirty() || n ? 'warn' : '';
+    ui.state.textContent = n ? 'Revisa los campos marcados' : aiDirty() ? 'Cambios sin guardar' : 'Todo guardado';
+  }
+  if (showAll && err.principal) toast(err.principal);
+  return err;
+}
+
+function viewAI(scr) {
+  const head = h('div',{class:'wrap pad'}, h('div',{class:'page-h'},
+    h('button',{class:'ed-back',onclick:()=>goBack('settings'),'aria-label':'Volver a Ajustes'}, ic('back'), h('span',{text:'Ajustes'}))));
+  const sc = h('div',{class:'scroll'}); const w = h('div',{class:'wrap pad ai'}); sc.append(w); scr.append(head, sc);
+  w.append(h('h1',{class:'big',style:{fontSize:'30px',margin:'0 0 6px'},text:'Modelos de IA'}),
+    h('p',{class:'ai-lead',text:'Elige qué modelos usa el asistente. Las claves están guardadas en Cloudflare y nunca pasan por esta página.'}));
+  if (!S.isOwner) {
+    Object.assign(AI, { loaded:false, draft:null, prov:null, saved:'', models:{}, modelsErr:{} });
+    w.append(h('div',{class:'note-bar'}, h('span',{text:'Ingresa con tu PIN para ver y cambiar los modelos.'}), h('button',{class:'link',onclick:()=>showLock(true),text:'Ingresar con PIN'})));
+    return;
+  }
+  if (!AI.loaded) {
+    if (AI.err) w.append(h('div',{class:'note-bar alert',role:'alert'}, h('span',{text:'No se pudo cargar la configuración: ' + AI.err}),
+      h('button',{class:'link',onclick:()=>{ AI.err = null; aiPaint(); },text:'Reintentar'})));
+    else { w.append(h('p',{class:'date',style:{marginTop:'18px'},text:'Cargando configuración…'})); setTimeout(aiLoad); }
+    return;
+  }
+  const d = AI.draft; AI.ui = { err:{} };
+
+  // Providers
+  w.append(h('div',{class:'set-label',text:'Proveedores'}));
+  const gp = h('div',{class:'set-group'});
+  Object.entries(AI_PROV).forEach(([id, p]) => { const ok = !!AI.prov?.[id]?.conClave;
+    gp.append(h('div',{class:'set-row'}, h('span',{class:'mdot '+(ok?'m-private':'m-open'),style:{marginTop:'0'}}),
+      h('span',{class:'row-t'}, h('b',{text:p.label}), h('span',{text: ok ? 'Clave guardada en Cloudflare' : `Sin clave. Agrégala en Cloudflare como secret ${p.secret}.`})))); });
+  w.append(gp);
+
+  // Models
+  const modelTxt = m => m && m.modelo ? `${m.modelo} · ${provName(m.proveedor)}` : null;
+  w.append(h('div',{class:'set-label',text:'Modelos'}));
+  w.append(h('div',{class:'set-group'},
+    h('button',{class:'set-row',onclick:()=>aiModelSheet('principal')}, ic('sparkle'),
+      h('span',{class:'row-t'}, h('b',{text:'Principal'}), h('span',{class: d.principal.modelo ? 'ai-model' : '',text: modelTxt(d.principal) || 'Sin elegir. Toca para buscar un modelo.'})), h('span',{class:'chev',html:ICON.chevR})),
+    h('button',{class:'set-row',onclick:()=>aiModelSheet('respaldo')}, ic('undo'),
+      h('span',{class:'row-t'}, h('b',{text:'Respaldo'}), h('span',{class: d.respaldo ? 'ai-model' : '',text: modelTxt(d.respaldo) || 'Ninguno. Se usa solo si el principal falla.'})), h('span',{class:'chev',html:ICON.chevR}))));
+
+  // Favorites
+  w.append(h('div',{class:'set-label',text:'Favoritos'}));
+  const gf = h('div',{class:'set-group'});
+  if (!d.favoritos.length) gf.append(h('div',{class:'set-row'}, ic('star'), h('span',{class:'row-t'}, h('b',{text:'Aún no hay favoritos'}),
+    h('span',{text:'Toca la estrella junto a un modelo al buscarlo. Los favoritos aparecerán como acceso rápido en el chat.'}))));
+  d.favoritos.forEach((f, i) => gf.append(h('div',{class:'set-row'}, h('span',{class:'ai-fav-ic',html:ICON.starFill}),
+    h('span',{class:'row-t'}, h('b',{class:'ai-model',text:f.modelo}), h('span',{text:provName(f.proveedor)})),
+    h('button',{class:'icon-btn','aria-label':'Quitar de favoritos: '+f.modelo,html:ICON.close,onclick:()=>{ d.favoritos.splice(i, 1); aiPaint(); }}))));
+  w.append(gf);
+
+  // Parameters
+  w.append(h('div',{class:'set-label',text:'Parámetros'}));
+  const field = (k, label, hint, mode) => {
+    const inp = h('input',{class:'input',id:'ai-'+k,type:'text',inputmode:mode,autocomplete:'off',placeholder:'Del modelo',value:String(d[k] ?? '')});
+    const e = h('div',{class:'form-err',role:'alert'}); AI.ui.err[k] = e;
+    inp.addEventListener('input', () => { d[k] = inp.value; aiCheck(); });
+    return h('div',{class:'field'}, h('label',{for:'ai-'+k,text:label}), inp, h('small',{class:'hint',text:hint}), e);
+  };
+  const ta = h('textarea',{class:'textarea',id:'ai-extra',spellcheck:'false',autocapitalize:'off',placeholder:'{\n  "top_k": 40,\n  "min_p": 0.05\n}'}); ta.value = d.extra;
+  const exErr = h('div',{class:'form-err',role:'alert'}); AI.ui.err.extra = exErr;
+  ta.addEventListener('input', () => { d.extra = ta.value; aiCheck(); });
+  w.append(h('div',{class:'ai-box'},
+    h('div',{class:'ai-params'},
+      field('temperature','Temperatura','De 0 a 2. Baja da respuestas más precisas; alta, más variadas.','decimal'),
+      field('top_p','Top P','De 0 a 1. Suele bastar con ajustar solo la temperatura.','decimal'),
+      field('max_tokens','Máx. tokens','Largo máximo de la respuesta.','numeric')),
+    h('div',{class:'field'}, h('label',{for:'ai-extra',text:'Parámetros propios (JSON)'}), ta,
+      h('small',{class:'hint',text:'Para opciones que no están arriba, como top_k o min_p. Vacío = no se envía nada. Si el proveedor no reconoce alguna, la prueba lo mostrará.'}), exErr)));
+
+  // Test (uses what's on screen, without saving)
+  w.append(h('div',{class:'set-label',text:'Probar'}));
+  const msgIn = h('input',{class:'input',id:'ai-test',type:'text',autocomplete:'off','aria-label':'Mensaje de prueba',value:AI.testMsg});
+  msgIn.addEventListener('input', () => { AI.testMsg = msgIn.value; });
+  const out = h('div',{'aria-live':'polite'});
+  const testBtn = h('button',{class:'btn secondary',type:'button',html:ICON.test+' Probar'});
+  testBtn.onclick = () => aiTest(testBtn, out);
+  msgIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); testBtn.click(); } });
+  w.append(h('div',{class:'ai-box'}, h('div',{class:'ai-test-row'}, msgIn, testBtn), out,
+    h('small',{class:'hint',style:{display:'block',margin:'-4px 0 14px'},text:'Envía este mensaje con lo que ves en pantalla, sin guardarlo. Si el principal falla, prueba también el respaldo.'})));
+
+  // Save bar
+  const state = h('span',{role:'status'}); AI.ui.state = state;
+  const saveBtn = h('button',{class:'btn primary',type:'button',text:'Guardar'}); saveBtn.onclick = () => aiSave(saveBtn);
+  w.append(h('div',{class:'ai-bar'}, state, saveBtn));
+  aiCheck();
+}
+
+async function aiSave(btn) {
+  const err = aiCheck(true); if (Object.keys(err).length) { if (!err.principal) toast('Revisa los campos marcados'); return; }
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try { const r = await api('/config/ia', { method:'PUT', body: aiFromDraft(AI.draft).config }); aiSetSaved(r.config); toast('Configuración guardada'); aiPaint(); }
+  catch (e) { toast(e.message); btn.disabled = false; btn.textContent = 'Guardar'; }
+}
+
+async function aiTest(btn, out) {
+  const err = aiCheck(); const { config } = aiFromDraft(AI.draft);
+  if (Object.keys(err).length) { out.replaceChildren(h('div',{class:'ai-out err'}, h('b',{text: err.principal || 'Revisa los campos marcados antes de probar.'}))); return; }
+  const msg = AI.testMsg.trim() || 'Responde solo: hola';
+  btn.disabled = true; out.replaceChildren(h('p',{class:'hint',style:{margin:'0 0 14px'},text:'Esperando respuesta…'}));
+  const t0 = performance.now();
+  try {
+    const r = await api('/ia/chat', { method:'POST', body:{ mensajes:[{ role:'user', content:msg }], config } });
+    const secs = ((performance.now() - t0) / 1000).toLocaleString('es', { minimumFractionDigits:1, maximumFractionDigits:1 });
+    const box = h('div',{class:'ai-out ok'}, h('b',{text:`Respondió ${r.modelo} (${provName(r.proveedor)}) en ${secs} s`}));
+    if (r.fallos?.length) box.append(h('p',{text:`El principal falló: ${aiReason(r.fallos[0])} Respondió el respaldo.`}));
+    box.append(h('div',{class:'ai-text',text:r.texto}));
+    out.replaceChildren(box);
+  } catch (e) {
+    const fails = Array.isArray(e.detalle) ? e.detalle : null;
+    const box = h('div',{class:'ai-out err'}, h('b',{text: fails ? (fails.length > 1 ? 'Ningún modelo respondió' : 'El modelo no respondió') : e.message}));
+    (fails || []).forEach(f => box.append(h('p',{text:`${f.modelo || 'Sin modelo'} (${provName(f.proveedor)}): ${aiReason(f)}`})));
+    out.replaceChildren(box);
+  } finally { btn.disabled = false; }
+}
+
+// Bottom sheet to search a provider's models, pick one and star favorites.
+function aiModelSheet(rol) {
+  const d = AI.draft; const cur = d[rol];
+  let prov = cur?.proveedor || d.principal.proveedor || 'nanogpt'; let q = '';
+  const seg = h('div',{class:'seg ai-seg',role:'group','aria-label':'Proveedor'});
+  const inp = h('input',{class:'search-field',type:'search',placeholder:'Buscar o pegar el nombre exacto',autocomplete:'off',spellcheck:'false',autocapitalize:'off','aria-label':'Buscar modelo'});
+  const info = h('p',{class:'hint ai-info'}); const list = h('div',{class:'ai-list'});
+  const isFav = (p, m) => d.favoritos.some(f => f.proveedor === p && f.modelo === m);
+  const toggleFav = m => {
+    if (isFav(prov, m)) d.favoritos = d.favoritos.filter(f => !(f.proveedor === prov && f.modelo === m));
+    else { if (d.favoritos.length >= AI_MAX_FAV) { toast(`Puedes tener hasta ${AI_MAX_FAV} favoritos`); return; } d.favoritos.push({ proveedor:prov, modelo:m }); }
+    paintList(); aiPaint();
+  };
+  const pick = m => { d[rol] = { proveedor:prov, modelo:m }; closeSheet().then(aiPaint); };
+  const row = m => { const sel = !!cur && cur.proveedor === prov && cur.modelo === m; const fav = isFav(prov, m);
+    return h('div',{class:'ai-opt'},
+      h('button',{class:'ai-opt-b',type:'button','aria-pressed':String(sel),onclick:()=>pick(m)}, h('span',{text:m}), sel ? h('small',{text:'En uso'}) : null),
+      h('button',{class:'icon-btn ai-star',type:'button','aria-pressed':String(fav),'aria-label':(fav ? 'Quitar de favoritos: ' : 'Agregar a favoritos: ') + m,
+        html: fav ? ICON.starFill : ICON.star, onclick:()=>toggleFav(m)})); };
+  const paintSeg = () => seg.replaceChildren(...Object.entries(AI_PROV).map(([id, p]) =>
+    h('button',{type:'button','aria-pressed':String(prov === id),onclick:()=>{ if (prov !== id) { prov = id; paintSeg(); load(); } }},
+      p.label + (AI.prov?.[id]?.conClave ? '' : ' (sin clave)'))));
+  const paintList = () => {
+    const all = AI.models[prov]; const ql = q.trim().toLowerCase(); list.replaceChildren();
+    if (!all) {
+      const e = AI.modelsErr[prov];
+      info.replaceChildren(e ? 'No se pudo cargar la lista: ' + e + ' ' : 'Cargando modelos…', e ? h('button',{class:'link',type:'button',onclick:()=>load(true),text:'Reintentar'}) : '');
+    }
+    const favs = d.favoritos.filter(f => f.proveedor === prov && f.modelo.toLowerCase().includes(ql)).map(f => f.modelo);
+    const hits = (all || []).filter(m => m.toLowerCase().includes(ql) && !favs.includes(m));
+    if (favs.length) list.append(h('div',{class:'ai-sub',text:'Favoritos'}), ...favs.map(row));
+    if (hits.length) list.append(h('div',{class:'ai-sub',text: favs.length ? 'Todos los modelos' : 'Modelos'}), ...hits.slice(0, AI_LIST_MAX).map(row));
+    const typed = q.trim();
+    if (typed && !(all || []).some(m => m.toLowerCase() === ql) && !favs.some(m => m.toLowerCase() === ql))
+      list.append(h('button',{class:'act',type:'button',onclick:()=>pick(typed)}, ic('edit'), `Usar «${typed}» tal cual`));
+    if (all) info.textContent = !hits.length && !favs.length ? (ql ? 'Ningún modelo coincide.' : 'Este proveedor no devolvió modelos.')
+      : hits.length > AI_LIST_MAX ? `Se muestran ${AI_LIST_MAX} de ${hits.length}. Escribe para filtrar.` : `${hits.length + favs.length} de ${all.length} modelos`;
+  };
+  const load = async (force=false) => {
+    const p = prov;
+    if (!AI.models[p] || force) {
+      delete AI.models[p]; delete AI.modelsErr[p]; paintList();
+      try { AI.models[p] = (await api('/ia/modelos?proveedor=' + p)).modelos; } catch (e) { AI.modelsErr[p] = e.message; }
+      if (p !== prov) return;
+    }
+    paintList();
+  };
+  inp.addEventListener('input', () => { q = inp.value; paintList(); });
+  const remove = rol === 'respaldo' && d.respaldo ? h('div',{class:'acts-list',style:{marginTop:'8px'}},
+    h('button',{class:'act danger',type:'button',onclick:()=>{ d.respaldo = null; closeSheet().then(aiPaint); }}, ic('close'), 'Quitar modelo de respaldo')) : null;
+  paintSeg(); paintList();
+  openSheet({ title: rol === 'principal' ? 'Modelo principal' : 'Modelo de respaldo', body:[h('div',{class:'ai-pick-head'}, seg, inp), remove, info, list], focus: inp });
+  load();
 }
 
 /* ================= Sheets ================= */
