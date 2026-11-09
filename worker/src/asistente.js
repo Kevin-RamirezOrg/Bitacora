@@ -25,7 +25,7 @@ export class ErrorAsistente extends Error {
   }
 }
 
-// ---------- Historial en D1 ----------
+// ---------- Historial, chats, memoria y valoraciones en D1 ----------
 
 let tablaLista = false;
 async function db(env) {
@@ -34,26 +34,149 @@ async function db(env) {
     await env.DB.batch([
       env.DB.prepare('CREATE TABLE IF NOT EXISTS mensajes (id INTEGER PRIMARY KEY AUTOINCREMENT, rol TEXT NOT NULL, texto TEXT NOT NULL, datos TEXT, creado INTEGER NOT NULL)'),
       env.DB.prepare('CREATE INDEX IF NOT EXISTS mensajes_creado ON mensajes (creado)'),
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS chats (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT NOT NULL, creado INTEGER NOT NULL, actualizado INTEGER NOT NULL)'),
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS memoria (id INTEGER PRIMARY KEY AUTOINCREMENT, texto TEXT NOT NULL, origen TEXT NOT NULL, creado INTEGER NOT NULL)'),
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS valoraciones (mensaje INTEGER PRIMARY KEY, valor INTEGER NOT NULL, motivo TEXT, creado INTEGER NOT NULL)'),
     ]);
+    // Migración: los mensajes pasan a pertenecer a un chat; los antiguos van a "Conversación anterior".
+    try { await env.DB.prepare('ALTER TABLE mensajes ADD COLUMN chat INTEGER').run(); } catch { /* ya existe */ }
+    await env.DB.prepare('CREATE INDEX IF NOT EXISTS mensajes_chat ON mensajes (chat, id)').run();
+    const sueltos = await env.DB.prepare('SELECT COUNT(*) AS n, MIN(creado) AS ini, MAX(creado) AS fin FROM mensajes WHERE chat IS NULL').first();
+    if (sueltos?.n) {
+      const c = await env.DB.prepare('INSERT INTO chats (titulo, creado, actualizado) VALUES (?, ?, ?)').bind('Conversación anterior', sueltos.ini, sueltos.fin).run();
+      await env.DB.prepare('UPDATE mensajes SET chat = ? WHERE chat IS NULL').bind(c.meta.last_row_id).run();
+    }
     tablaLista = true;
   }
   return env.DB;
 }
 
-const fila = (r) => ({ id: r.id, rol: r.rol, texto: r.texto, datos: r.datos ? JSON.parse(r.datos) : null, creado: r.creado });
+const fila = (r) => ({ id: r.id, rol: r.rol, texto: r.texto, datos: r.datos ? JSON.parse(r.datos) : null, creado: r.creado, chat: r.chat ?? null,
+  ...(r.valoracion != null ? { valoracion: r.valoracion } : {}) });
 
-export async function historial(env, { antes, limite = 50 } = {}) {
+export async function historial(env, { chat, antes, limite = 50 } = {}) {
   const base = await db(env);
   const n = Math.min(Math.max(Number(limite) || 50, 1), 100);
+  const id = Number(chat);
+  if (!id) return [];
   const q = antes
-    ? base.prepare('SELECT * FROM mensajes WHERE id < ? ORDER BY id DESC LIMIT ?').bind(Number(antes), n)
-    : base.prepare('SELECT * FROM mensajes ORDER BY id DESC LIMIT ?').bind(n);
+    ? base.prepare('SELECT m.*, v.valor AS valoracion FROM mensajes m LEFT JOIN valoraciones v ON v.mensaje = m.id WHERE m.chat = ? AND m.id < ? ORDER BY m.id DESC LIMIT ?').bind(id, Number(antes), n)
+    : base.prepare('SELECT m.*, v.valor AS valoracion FROM mensajes m LEFT JOIN valoraciones v ON v.mensaje = m.id WHERE m.chat = ? ORDER BY m.id DESC LIMIT ?').bind(id, n);
   const { results } = await q.all();
   return results.map(fila).reverse();
 }
 
-export async function borrarHistorial(env) {
-  await (await db(env)).prepare('DELETE FROM mensajes').run();
+export async function borrarHistorial(env, chat) {
+  await (await db(env)).prepare('DELETE FROM mensajes WHERE chat = ?').bind(Number(chat)).run();
+}
+
+// Chats
+const tituloDe = (texto) => {
+  const t = String(texto).replace(/\s+/g, ' ').trim();
+  return t.length > 48 ? t.slice(0, 47).trimEnd() + '…' : t || 'Nuevo chat';
+};
+
+export async function listarChats(env) {
+  const { results } = await (await db(env)).prepare(
+    'SELECT c.id, c.titulo, c.creado, c.actualizado, (SELECT COUNT(*) FROM mensajes m WHERE m.chat = c.id) AS mensajes FROM chats c ORDER BY c.actualizado DESC LIMIT 100'
+  ).all();
+  return results;
+}
+
+export async function crearChat(env, titulo) {
+  const base = await db(env);
+  const ahora = Date.now();
+  const r = await base.prepare('INSERT INTO chats (titulo, creado, actualizado) VALUES (?, ?, ?)').bind(tituloDe(titulo || 'Nuevo chat'), ahora, ahora).run();
+  return { id: r.meta.last_row_id, titulo: tituloDe(titulo || 'Nuevo chat'), creado: ahora, actualizado: ahora, mensajes: 0 };
+}
+
+export async function renombrarChat(env, { id, titulo }) {
+  const t = typeof titulo === 'string' ? titulo.trim().slice(0, 80) : '';
+  if (!t) throw new ErrorAsistente(400, 'Escribe un nombre');
+  const r = await (await db(env)).prepare('UPDATE chats SET titulo = ? WHERE id = ?').bind(t, Number(id)).run();
+  if (!r.meta.changes) throw new ErrorAsistente(404, 'No encontré ese chat');
+  return { id: Number(id), titulo: t };
+}
+
+export async function borrarChat(env, id) {
+  const base = await db(env);
+  await base.batch([
+    base.prepare('DELETE FROM valoraciones WHERE mensaje IN (SELECT id FROM mensajes WHERE chat = ?)').bind(Number(id)),
+    base.prepare('DELETE FROM mensajes WHERE chat = ?').bind(Number(id)),
+    base.prepare('DELETE FROM chats WHERE id = ?').bind(Number(id)),
+  ]);
+}
+
+// Memoria: datos que Kevin pidió recordar o aceptó cuando el asistente los propuso.
+export async function listarMemoria(env) {
+  const { results } = await (await db(env)).prepare('SELECT id, texto, origen, creado FROM memoria ORDER BY id').all();
+  return results;
+}
+
+export async function agregarMemoria(env, texto, origen = 'usuario') {
+  const t = typeof texto === 'string' ? texto.trim().slice(0, 300) : '';
+  if (!t) throw new ErrorAsistente(400, 'El recuerdo está vacío');
+  const base = await db(env);
+  const { results } = await base.prepare('SELECT id, texto FROM memoria').all();
+  const igual = results.find((m) => normal(m.texto) === normal(t));
+  if (igual) return { id: igual.id, texto: igual.texto, repetido: true };
+  if (results.length >= 60) throw new ErrorAsistente(409, 'La memoria está llena (60 datos); borra alguno en Ajustes → Memoria');
+  const r = await base.prepare('INSERT INTO memoria (texto, origen, creado) VALUES (?, ?, ?)').bind(t, origen, Date.now()).run();
+  return { id: r.meta.last_row_id, texto: t, origen };
+}
+
+export async function editarMemoria(env, { id, texto }) {
+  const t = typeof texto === 'string' ? texto.trim().slice(0, 300) : '';
+  if (!t) throw new ErrorAsistente(400, 'El recuerdo está vacío');
+  await (await db(env)).prepare('UPDATE memoria SET texto = ? WHERE id = ?').bind(t, Number(id)).run();
+  return { id: Number(id), texto: t };
+}
+
+export async function borrarMemoria(env, id) {
+  await (await db(env)).prepare('DELETE FROM memoria WHERE id = ?').bind(Number(id)).run();
+}
+
+// Respuesta a una propuesta de recuerdo hecha por el asistente: se guarda (si se acepta) y se marca en el mensaje.
+export async function responderPropuesta(env, { mensaje, aceptar, texto }) {
+  const base = await db(env);
+  let guardado = null;
+  let m = null;
+  if (mensaje) {
+    const row = await base.prepare('SELECT * FROM mensajes WHERE id = ?').bind(Number(mensaje)).first();
+    if (row) m = fila(row);
+  }
+  const propuesta = m?.datos?.resultados?.find((x) => x.accion === 'proponer_recuerdo' && x.ok);
+  const t = propuesta?.texto || texto;
+  if (aceptar) guardado = await agregarMemoria(env, t, 'sugerida');
+  if (m && propuesta) {
+    propuesta.estado = aceptar ? 'aceptada' : 'rechazada';
+    await base.prepare('UPDATE mensajes SET datos = ? WHERE id = ?').bind(JSON.stringify(m.datos), m.id).run();
+  }
+  return { mensaje: m, memoria: guardado };
+}
+
+// Valoraciones 👍/👎 (con motivo opcional) para que el asistente ajuste su forma de responder.
+export async function valorar(env, { mensaje, valor, motivo }) {
+  const v = Number(valor);
+  if (![1, -1, 0].includes(v)) throw new ErrorAsistente(400, 'Valor inválido');
+  const base = await db(env);
+  if (v === 0) await base.prepare('DELETE FROM valoraciones WHERE mensaje = ?').bind(Number(mensaje)).run();
+  else {
+    await base.prepare('INSERT INTO valoraciones (mensaje, valor, motivo, creado) VALUES (?, ?, ?, ?) ON CONFLICT (mensaje) DO UPDATE SET valor = excluded.valor, motivo = excluded.motivo, creado = excluded.creado')
+      .bind(Number(mensaje), v, typeof motivo === 'string' ? motivo.trim().slice(0, 200) || null : null, Date.now()).run();
+  }
+  return { mensaje: Number(mensaje), valor: v, motivo: motivo || null };
+}
+
+// Resumen breve de las últimas valoraciones para el prompt.
+async function resumenValoraciones(base) {
+  const { results } = await base.prepare('SELECT valor, motivo FROM valoraciones ORDER BY creado DESC LIMIT 30').all();
+  if (!results.length) return null;
+  const pos = results.filter((r) => r.valor > 0).length;
+  const motivos = {};
+  for (const r of results.filter((x) => x.valor < 0)) { const k = r.motivo || 'sin motivo'; motivos[k] = (motivos[k] || 0) + 1; }
+  const neg = Object.entries(motivos).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n}× "${k}"`).join(', ');
+  return `De las últimas ${results.length} respuestas valoradas: ${pos} le gustaron${neg ? `; no le gustaron por: ${neg}` : ''}.`;
 }
 
 // ---------- Prompt ----------
@@ -86,6 +209,9 @@ ${calendario(fechaHoy)}
 Materias (usa la clave, por ejemplo "m1"):
 ${mats}
 
+Lo que Kevin te pidió recordar (usa la clave, por ejemplo "k1", para olvidar). Respétalo siempre:
+${claves.memoria.length ? claves.memoria.map((m) => `${m.clave}: ${m.texto}`).join('\n') : '(nada todavía)'}
+${claves.valoraciones ? `\nCómo valoró tus respuestas: ${claves.valoraciones}\n` : ''}
 Horario semanal de clases del semestre actual (base Horario; usa la clave, por ejemplo "c1", para editar una clase):
 ${clases}
 
@@ -103,6 +229,9 @@ Acciones posibles (máximo ${MAX_ACCIONES} por mensaje):
 {"accion": "crear_tarea", "titulo": "Prueba 2 de Big Data", "tipo": "${TIPOS_TAREA.join('|')}", "fecha": "AAAA-MM-DD" o null, "hora": "HH:MM" o null, "materia": "m1" o null, "grupal": false}
 {"accion": "completar_tarea", "tarea": "t1"}
 {"accion": "guardar_persona", "nombre": "Nombre completo" o null, "apodo": "Pulu" o null, "profesor_de": "m1" o null, "rol": "${ROLES.join('|')}" o null, "correo": null, "telefono": null, "grupo": null, "cumpleanos": "AAAA-MM-DD" o "MM-DD" o null, "notas": null, "materias": ["m1"]}
+{"accion": "recordar", "texto": "dato en una frase, en tercera persona"}
+{"accion": "olvidar", "memoria": "k1"}
+{"accion": "proponer_recuerdo", "texto": "preferencia en una frase"}
 {"accion": "apunte_clase", "materia": "m1" o null, "fecha": "AAAA-MM-DD" o null, "tema": "tema corto de la clase", "contenido": ["idea 1", "idea 2"]}
 {"accion": "nota_inbox", "texto": "nota clara y autosuficiente", "materia": "m1" o null}
 {"accion": "mostrar_tareas", "desde": "AAAA-MM-DD", "hasta": "AAAA-MM-DD"}
@@ -127,6 +256,8 @@ Reglas:
 - Tipo: "prueba", "test" o "lección" es Prueba; "examen" es Examen; "deber", "taller" o "informe" es Tarea; "proyecto" es Proyecto; "leer" es Lectura; matrículas, trámites o eventos de la universidad son Institucional.
 - No dupliques: si ya existe una tarea pendiente igual, no la crees y dilo.
 - "ya entregué…", "ya di…" o "terminé…" sobre una tarea pendiente es completar_tarea.
+- Memoria: si Kevin pide explícitamente que recuerdes algo ("recuerda que…", "de ahora en adelante…", "no olvides que…"), usa recordar con una frase clara ("Prefiere respuestas cortas", "Trabaja los sábados por la mañana"). Si pide olvidar algo de la lista, usa olvidar. Nunca guardes con recordar algo que no pidió.
+- Si notas un patrón claro y repetido sobre cómo le gustan las respuestas o cómo organiza su estudio (por ejemplo, siempre pide viñetas, o la valoración muestra que tus respuestas le parecen largas), puedes sugerirlo con proponer_recuerdo; él decide si se guarda. Máximo una por mensaje, solo si no está ya en la lista, y nunca sobre salud, dinero, familia u otros temas delicados.
 - Apuntes de clase ("en la clase de hoy de Big Data vimos…", "en la clase nos dieron…", "el licen explicó que…") son apunte_clase. "materia" va solo si Kevin la nombra o es obvia; si dice "la clase" sin materia, usa null y el Worker la deduce del horario. "fecha" null significa hoy. "contenido": una viñeta por idea, con las mismas palabras de Kevin, solo corrigiendo ortografía y puntuación; no agregues explicaciones, definiciones ni datos que él no dijo, y no quites ninguno. "tema": 3 a 8 palabras sobre lo principal.
 - Datos de docentes o compañeros son guardar_persona: nombre, apodo, rol, correo, teléfono, grupo, cumpleaños, materias y notas (personalidad, gustos, cómo prefiere que le escriban…; una frase clara por dato). Si Kevin no dice el nombre pero sí "el licen/profe de Big Data", usa "profesor_de" con esa materia y "nombre" null. Si usa un apodo ("el licen Pulu"), ponlo en "apodo". Cumpleaños sin año: "MM-DD".
 - Lo que un profesor dijo sobre la materia (temas, cómo será la prueba) va como apunte_clase; si además da una fecha de entrega o evaluación, agrega crear_tarea. Lo que describe a la persona va en guardar_persona. Un mismo mensaje puede tener varias acciones.
@@ -229,6 +360,19 @@ export function validarAcciones(acciones, claves) {
   for (const a of acciones.slice(0, MAX_ACCIONES)) {
     const tipo = a?.accion;
     try {
+      if (tipo === 'recordar' || tipo === 'proponer_recuerdo') {
+        const t = cadena(a.texto, 300);
+        if (!t) throw new Error('el recuerdo está vacío');
+        if (claves.memoria.some((m) => normal(m.texto) === normal(t))) throw new Error('eso ya está en la memoria');
+        validas.push({ accion: tipo, texto: t });
+        continue;
+      }
+      if (tipo === 'olvidar') {
+        const m = claves.memoria.find((x) => x.clave === a.memoria);
+        if (!m) throw new Error('no encontré ese recuerdo');
+        validas.push({ accion: tipo, id: m.id, texto: m.texto, origen: m.origen });
+        continue;
+      }
       if (tipo === 'consultar_base') {
         const base = baseDe(claves, a.base);
         if (!base) throw new Error(`no conozco la base ${a.base}`);
@@ -343,6 +487,16 @@ async function ejecutar(env, a, lista, ctx = {}) {
       return { accion: a.accion, ok: true, titulo: a.titulo, url: a.url,
         deshacer: { tipo: 'propiedades', id: a.id, propiedades: { Completada: { checkbox: false } } } };
     }
+    case 'recordar': {
+      const m = await agregarMemoria(env, a.texto, 'usuario');
+      return { accion: a.accion, ok: true, texto: m.texto, deshacer: m.repetido ? null : { tipo: 'memoria', id: m.id } };
+    }
+    case 'olvidar': {
+      await borrarMemoria(env, a.id);
+      return { accion: a.accion, ok: true, texto: a.texto, deshacer: { tipo: 'memoria_volver', texto: a.texto, origen: a.origen } };
+    }
+    case 'proponer_recuerdo':
+      return { accion: a.accion, ok: true, texto: a.texto, estado: 'pendiente' };
     case 'apunte_clase': {
       const r = await guardarApunte(env, a, { clases: ctx.clases, base: ctx.bases.find((b) => sinGuiones(b.id) === sinGuiones(env.NOTION_DS_CLASES)) });
       return { accion: a.accion, ok: true, titulo: r.titulo, materia: a.materiaNombre, fecha: a.fecha, creada: r.creada, semana: r.semana, numero: r.numero,
@@ -389,6 +543,9 @@ function resumenParaModelo(m) {
     if (x.accion === 'completar_tarea') return `marqué como hecha "${x.titulo}"`;
     if (x.accion === 'guardar_persona') return `guardé a ${x.nombre}`;
     if (x.accion === 'nota_inbox') return 'guardé una nota en el Inbox';
+    if (x.accion === 'recordar') return `guardé en la memoria: "${x.texto}"`;
+    if (x.accion === 'olvidar') return `borré de la memoria: "${x.texto}"`;
+    if (x.accion === 'proponer_recuerdo') return `propuse recordar: "${x.texto}" (${x.estado || 'pendiente'})`;
     if (x.accion === 'apunte_clase') return `agregué ${x.lineas} apunte(s) a la clase "${x.titulo}" (${x.materia}, ${x.fecha})`;
     if (x.accion === 'crear_fila') return `creé "${x.titulo}" en ${x.base}`;
     if (x.accion === 'editar_fila') return `cambié ${Object.keys(x.valores || {}).join(', ')} de "${x.titulo}" en ${x.base}`;
@@ -402,7 +559,16 @@ function resumenParaModelo(m) {
 }
 
 // Procesa un mensaje completo. Solo guarda en el historial si hubo respuesta del modelo.
-export async function procesarMensaje(env, { texto, modelo }) {
+// Historial que manda la app en un chat temporal (no se guarda en D1): se limpia y se recorta.
+function previosTemporales(lista) {
+  return (Array.isArray(lista) ? lista : []).slice(-HISTORIAL_CONTEXTO).map((m) => ({
+    rol: m?.rol === 'usuario' ? 'usuario' : 'asistente',
+    texto: String(m?.texto || '').slice(0, MAX_TEXTO),
+    datos: m?.rol === 'usuario' ? null : { resultados: Array.isArray(m?.datos?.resultados) ? m.datos.resultados.slice(0, 10) : [], deshecho: !!m?.datos?.deshecho },
+  })).filter((m) => m.texto);
+}
+
+export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, temporal = false, historial: historialCliente }) {
   const entrada = typeof texto === 'string' ? texto.trim() : '';
   if (!entrada) throw new ErrorAsistente(400, 'Escribe un mensaje');
   if (entrada.length > MAX_TEXTO) throw new ErrorAsistente(400, `El mensaje es demasiado largo (máximo ${MAX_TEXTO} caracteres)`);
@@ -423,12 +589,25 @@ export async function procesarMensaje(env, { texto, modelo }) {
     bases: basesConClave,
     basesTexto: basesConClave.length ? basesParaPrompt(basesConClave) : '(no se pudieron leer)',
     filas: [], nombres: new Map(),
+    memoria: (await listarMemoria(env)).map((m, i) => ({ ...m, clave: `k${i + 1}` })),
+    valoraciones: await resumenValoraciones(base).catch(() => null),
     dsHorario: env.NOTION_DS_HORARIO, dsTareas: env.NOTION_DS_TAREAS, dsClases: env.NOTION_DS_CLASES,
     fecha: fechaHoy,
     hora: horaActual(),
   };
 
-  const previos = await historial(env, { limite: HISTORIAL_CONTEXTO });
+  // Chat: el temporal no se guarda; uno normal se crea con el primer mensaje si no existe.
+  let chatInfo = null;
+  if (!temporal) {
+    if (chatPedido) {
+      const c = await base.prepare('SELECT id, titulo FROM chats WHERE id = ?').bind(Number(chatPedido)).first();
+      if (!c) throw new ErrorAsistente(404, 'Ese chat ya no existe');
+      chatInfo = c;
+    } else {
+      chatInfo = await crearChat(env, entrada);
+    }
+  }
+  const previos = temporal ? previosTemporales(historialCliente) : await historial(env, { chat: chatInfo.id, limite: HISTORIAL_CONTEXTO });
   const mensajes = [
     { role: 'system', content: prompt(fechaHoy, claves) },
     ...previos.map((m) => ({ role: m.rol === 'usuario' ? 'user' : 'assistant', content: m.rol === 'usuario' ? m.texto : resumenParaModelo(m) })),
@@ -537,33 +716,61 @@ export async function procesarMensaje(env, { texto, modelo }) {
     aviso,
   };
   const ahora = Date.now();
+  const respuesta = plan.respuesta || 'Listo.';
+  if (temporal) {
+    return {
+      temporal: true,
+      usuario: { id: `t${ahora}u`, rol: 'usuario', texto: entrada, datos: null, creado: ahora },
+      asistente: { id: `t${ahora}a`, rol: 'asistente', texto: respuesta, datos, creado: ahora + 1 },
+    };
+  }
   const [u, a] = await base.batch([
-    base.prepare('INSERT INTO mensajes (rol, texto, datos, creado) VALUES (?, ?, NULL, ?)').bind('usuario', entrada, ahora),
-    base.prepare('INSERT INTO mensajes (rol, texto, datos, creado) VALUES (?, ?, ?, ?)').bind('asistente', plan.respuesta || 'Listo.', JSON.stringify(datos), ahora + 1),
+    base.prepare('INSERT INTO mensajes (rol, texto, datos, creado, chat) VALUES (?, ?, NULL, ?, ?)').bind('usuario', entrada, ahora, chatInfo.id),
+    base.prepare('INSERT INTO mensajes (rol, texto, datos, creado, chat) VALUES (?, ?, ?, ?, ?)').bind('asistente', respuesta, JSON.stringify(datos), ahora + 1, chatInfo.id),
+    base.prepare('UPDATE chats SET actualizado = ? WHERE id = ?').bind(ahora + 1, chatInfo.id),
   ]);
   return {
-    usuario: { id: u.meta.last_row_id, rol: 'usuario', texto: entrada, datos: null, creado: ahora },
-    asistente: { id: a.meta.last_row_id, rol: 'asistente', texto: plan.respuesta || 'Listo.', datos, creado: ahora + 1 },
+    chat: { id: chatInfo.id, titulo: chatInfo.titulo },
+    usuario: { id: u.meta.last_row_id, rol: 'usuario', texto: entrada, datos: null, creado: ahora, chat: chatInfo.id },
+    asistente: { id: a.meta.last_row_id, rol: 'asistente', texto: respuesta, datos, creado: ahora + 1, chat: chatInfo.id },
   };
 }
 
-// Revierte en Notion lo que hizo un mensaje del asistente (en orden inverso) y lo marca como deshecho.
+// Un paso de deshacer: en Notion o en la memoria (D1).
+async function deshacerUno(env, p) {
+  if (p.tipo === 'memoria') return borrarMemoria(env, p.id);
+  if (p.tipo === 'memoria_volver') return agregarMemoria(env, p.texto, p.origen || 'usuario');
+  return deshacerPaso(env, p);
+}
+
+const PASOS_VALIDOS = new Set(['papelera', 'propiedades', 'bloques', 'restaurar', 'memoria', 'memoria_volver']);
+
+async function revertir(env, datos) {
+  if (datos?.deshecho) throw new ErrorAsistente(409, 'Ese mensaje ya se deshizo');
+  const pasos = (datos?.resultados || []).filter((x) => x?.ok && x.deshacer && PASOS_VALIDOS.has(x.deshacer.tipo)).map((x) => x.deshacer).reverse();
+  if (!pasos.length) throw new ErrorAsistente(400, 'Ese mensaje no hizo cambios que deshacer');
+  const errores = [];
+  for (const p of pasos) {
+    try { await deshacerUno(env, p); } catch (e) { errores.push(e.message); }
+  }
+  if (errores.length === pasos.length) throw new ErrorAsistente(502, `No se pudo deshacer: ${errores[0]}`);
+  return { ...datos, deshecho: true, erroresDeshacer: errores.length ? errores : undefined };
+}
+
+// Revierte lo que hizo un mensaje guardado (en orden inverso) y lo marca como deshecho.
 export async function deshacerMensaje(env, id) {
   const base = await db(env);
   const row = await base.prepare('SELECT * FROM mensajes WHERE id = ? AND rol = ?').bind(Number(id), 'asistente').first();
   if (!row) throw new ErrorAsistente(404, 'No encontré ese mensaje');
   const m = fila(row);
-  if (m.datos?.deshecho) throw new ErrorAsistente(409, 'Ese mensaje ya se deshizo');
-  const pasos = (m.datos?.resultados || []).filter((x) => x.ok && x.deshacer).map((x) => x.deshacer).reverse();
-  if (!pasos.length) throw new ErrorAsistente(400, 'Ese mensaje no hizo cambios en Notion');
-  const errores = [];
-  for (const p of pasos) {
-    try { await deshacerPaso(env, p); } catch (e) { errores.push(e.message); }
-  }
-  if (errores.length === pasos.length) throw new ErrorAsistente(502, `No se pudo deshacer: ${errores[0]}`);
-  const datos = { ...m.datos, deshecho: true, erroresDeshacer: errores.length ? errores : undefined };
+  const datos = await revertir(env, m.datos);
   await base.prepare('UPDATE mensajes SET datos = ? WHERE id = ?').bind(JSON.stringify(datos), m.id).run();
   return { ...m, datos };
+}
+
+// En un chat temporal el mensaje no está en D1: la app manda sus datos y solo se revierten pasos conocidos.
+export async function deshacerTemporal(env, datos) {
+  return { datos: await revertir(env, datos) };
 }
 
 export { ErrorIA };

@@ -1,7 +1,10 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ErrorIA, chat, estadoProveedores, guardarConfig, leerConfig, listarModelos } from './ia.js';
 import { ErrorNotion } from './notion.js';
-import { ErrorAsistente, borrarHistorial, deshacerMensaje, historial, procesarMensaje } from './asistente.js';
+import {
+  ErrorAsistente, agregarMemoria, borrarChat, borrarHistorial, borrarMemoria, crearChat, deshacerMensaje, deshacerTemporal,
+  editarMemoria, historial, listarChats, listarMemoria, procesarMensaje, renombrarChat, responderPropuesta, valorar,
+} from './asistente.js';
 import { datosHoy, marcarRepaso } from './hoy.js';
 
 const ORIGEN = 'https://ellenkev.me';
@@ -93,20 +96,40 @@ const RUTAS = {
 
   'GET /asistente/historial': async (req, env) => {
     const p = new URL(req.url).searchParams;
-    return json({ mensajes: await historial(env, { antes: p.get('antes'), limite: p.get('limite') }) });
+    return json({ mensajes: await historial(env, { chat: p.get('chat'), antes: p.get('antes'), limite: p.get('limite') }) });
   },
 
   'DELETE /asistente/historial': async (req, env) => {
-    await borrarHistorial(env);
+    await borrarHistorial(env, new URL(req.url).searchParams.get('chat'));
+    return json({ ok: true });
+  },
+
+  // Chats: lista, crear, renombrar y borrar
+  'GET /asistente/chats': async (req, env) => json({ chats: await listarChats(env) }),
+  'POST /asistente/chats': async (req, env) => json({ chat: await crearChat(env, (await leerCuerpo(req)).titulo) }),
+  'PUT /asistente/chats': async (req, env) => json({ chat: await renombrarChat(env, await leerCuerpo(req)) }),
+  'DELETE /asistente/chats': async (req, env) => {
+    await borrarChat(env, new URL(req.url).searchParams.get('id'));
     return json({ ok: true });
   },
 
   'POST /asistente/mensaje': async (req, env) => json(await procesarMensaje(env, await leerCuerpo(req))),
 
   'POST /asistente/deshacer': async (req, env) => {
-    const { id } = await leerCuerpo(req);
-    return json({ mensaje: await deshacerMensaje(env, id) });
+    const { id, datos } = await leerCuerpo(req);
+    return json(datos ? await deshacerTemporal(env, datos) : { mensaje: await deshacerMensaje(env, id) });
   },
+
+  // Memoria y valoraciones
+  'GET /asistente/memoria': async (req, env) => json({ memoria: await listarMemoria(env) }),
+  'POST /asistente/memoria': async (req, env) => json({ memoria: await agregarMemoria(env, (await leerCuerpo(req)).texto, 'usuario') }),
+  'PUT /asistente/memoria': async (req, env) => json({ memoria: await editarMemoria(env, await leerCuerpo(req)) }),
+  'DELETE /asistente/memoria': async (req, env) => {
+    await borrarMemoria(env, new URL(req.url).searchParams.get('id'));
+    return json({ ok: true });
+  },
+  'POST /asistente/propuesta': async (req, env) => json(await responderPropuesta(env, await leerCuerpo(req))),
+  'POST /asistente/valorar': async (req, env) => json(await valorar(env, await leerCuerpo(req))),
 
   // Panel "Hoy" (reglas fijas, sin IA)
   'GET /hoy': async (req, env) => json(await datosHoy(env, { refrescar: new URL(req.url).searchParams.get('refrescar') === '1' })),

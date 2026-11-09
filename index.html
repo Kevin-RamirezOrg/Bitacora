@@ -446,6 +446,35 @@ input.search-field::placeholder{color:var(--muted)}
 .mdl-opt small{display:block;font-size:13px;color:var(--ink-2)}
 .mdl-opt .mdl-ic{width:22px;height:22px;flex:none;color:var(--accent-ink);display:grid;place-items:center}
 .mdl-opt .mdl-ic svg{width:20px;height:20px}
+.comp-right{display:flex;align-items:center;gap:6px}
+.mic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line-strong);background:var(--surface);color:var(--ink-2)}
+.mic svg{width:20px;height:20px}
+.mic[aria-pressed="true"]{background:var(--danger);border-color:var(--danger);color:var(--bg);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--danger-soft)}50%{box-shadow:0 0 0 8px var(--danger-soft)}}
+.comp-box.temp{border-style:dashed}
+.chat-title{display:flex;flex-direction:column;min-width:0;flex:1}
+.chat-sub{font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52vw}
+.chat-sub.temp{color:var(--accent-ink);font-weight:600}
+.head-acts{display:flex;gap:2px;flex:none}
+.note-bar.temp{border-style:dashed;border-color:var(--line-strong)}
+.note-bar.temp svg{width:20px;height:20px;color:var(--accent-ink);flex:none}
+.note-bar.temp > span{flex:1 1 180px}
+.chat-item{display:flex;align-items:center;gap:4px}
+.chat-item .mdl-opt{flex:1;min-width:0}
+.mem-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.mem-item{display:flex;align-items:center;gap:4px;padding:8px 4px 8px 12px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--surface)}
+.mem-item .row-t{flex:1;min-width:0}
+.mem-item b{display:block;font-weight:500;font-size:15px}
+.mem-item small{display:block;font-size:12px;color:var(--ink-2)}
+.mem-add{display:flex;gap:8px;align-items:center}
+.mem-add .input{flex:1;min-width:0}
+.prop{margin-top:8px;display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:var(--r-md);border:1.5px dashed var(--accent);background:var(--surface)}
+.prop .res-t{flex:1;min-width:0}
+.prop-acts{display:flex;gap:8px;width:100%;justify-content:flex-end}
+.btn.sm{min-height:44px;padding:0 16px;font-size:14px}
+.rate{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;color:var(--ink-2)}
+.rate svg{width:18px;height:18px}
+.rate[aria-pressed="true"]{color:var(--accent-ink);background:var(--accent-soft)}
 .send{width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;flex:none}
 .send svg{width:20px;height:20px}
 .send:disabled{opacity:.55;cursor:default}
@@ -564,6 +593,12 @@ const ICON = {
   code: sv('<path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/>', 2.3),
   back: sv('<path d="M15 5l-7 7 7 7"/>', 2.4),
   chart: sv('<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>'),
+  mic: sv('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
+  thumbUp: sv('<path d="M7 11v9H4v-9zM7 11l4-8a2 2 0 0 1 3 2l-1 5h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 20H7"/>'),
+  thumbDown: sv('<path d="M17 13V4h3v9zM17 13l-4 8a2 2 0 0 1-3-2l1-5H6a2 2 0 0 1-2-2.3l1.2-6A2 2 0 0 1 7.2 4H17"/>'),
+  newChat: sv('<path d="M4 5h11M4 5v11h4v4l4-4h3M18 3v6M15 6h6"/>'),
+  ghost: sv('<path d="M5 20V11a7 7 0 0 1 14 0v9l-2.3-1.6L14.3 20 12 18.4 9.7 20l-2.4-1.6z" stroke-dasharray="3 2.2"/><circle cx="9.5" cy="11" r=".6"/><circle cx="14.5" cy="11" r=".6"/>'),
+  brain: sv('<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h1V4zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h-1V4z"/>'),
   chevD: sv('<path d="M6 9l6 6 6-6"/>'),
   chevR: sv('<path d="M9 6l6 6-6 6"/>', 2.2),
   dots: '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
@@ -812,6 +847,7 @@ function render() {
   const tabView = S.view === 'search' ? 'home' : S.view === 'ai' ? 'settings' : S.view === 'editor' ? null : S.view;
   const cur = document.querySelector(`.tab[data-view="${tabView}"]`); if (cur) cur.setAttribute('aria-current','page');
   if (S.view !== 'editor') ed = null;
+  if (S.view !== 'assistant' && dict) dictStop();
   scr.innerHTML = '';
   ({ home:viewHome, files:viewFiles, panel:viewPanel, search:viewSearch, assistant:viewAssistant, settings:viewSettings, ai:viewAI, editor:viewEditor }[S.view] || viewHome)(scr);
 }
@@ -1121,7 +1157,8 @@ async function hoyToggleReview(r, x, btn) {
 }
 
 /* ---------- Assistant (chat → Notion through the Worker) ---------- */
-const CHAT = { loaded:false, loading:false, err:null, msgs:[], more:false, estado:null, config:null, sending:false, failed:null, draft:'', olderLoading:false };
+const CHAT = { loaded:false, loading:false, err:null, msgs:[], more:false, estado:null, config:null, sending:false, failed:null, draft:'', olderLoading:false,
+  chats:[], chatId:null, temporal:false, tmsgs:[] };
 const CHAT_EXAMPLES = ['¿qué clase me toca ahora?','prueba de big data el martes 2','entregar deber de compiladores el viernes','las pruebas de fundamentos son de opción múltiple','¿qué tengo esta semana?'];
 const chatModelKey = () => pref('bitacora.chatModelo', '');
 const localDay = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1129,17 +1166,41 @@ const daysUntil = f => Math.round((Date.parse(f + 'T12:00:00Z') - Date.parse(loc
 const fmtDay = (f, opts={weekday:'short',day:'numeric',month:'short'}) => new Date(f + 'T12:00:00').toLocaleDateString('es', opts);
 const fmtDue = (f, hora) => f ? fmtDay(f) + (hora ? ', ' + hora : '') : 'Sin fecha';
 const shortModel = m => String(m || '').split('/').pop();
+const chatMsgs = () => CHAT.temporal ? CHAT.tmsgs : CHAT.msgs;
+const chatActual = () => CHAT.chats.find(c => c.id === CHAT.chatId) || null;
 
 async function chatLoad() {
   if (CHAT.loading) return; CHAT.loading = true; CHAT.err = null;
-  const [est, cfg, hist] = await Promise.allSettled([api('/asistente/estado'), api('/config/ia'), api('/asistente/historial?limite=50')]);
+  const [est, cfg, lst] = await Promise.allSettled([api('/asistente/estado'), api('/config/ia'), api('/asistente/chats')]);
   CHAT.estado = est.status === 'fulfilled' ? est.value : null;
   CHAT.config = cfg.status === 'fulfilled' ? cfg.value.config : null;
-  if (hist.status === 'fulfilled') { CHAT.msgs = hist.value.mensajes; CHAT.more = CHAT.msgs.length >= 50; }
-  else if (CHAT.estado && !CHAT.estado.historial) CHAT.msgs = [];
-  else CHAT.err = hist.reason?.message || 'No se pudo cargar el chat.';
+  if (lst.status === 'fulfilled') {
+    CHAT.chats = lst.value.chats;
+    const guardado = Number(pref('bitacora.chatActual', 0));
+    CHAT.chatId = CHAT.chats.some(c => c.id === guardado) ? guardado : (CHAT.chats[0]?.id ?? null);
+    try { await chatFetch(); } catch (e) { CHAT.err = e.message; }
+  } else if (CHAT.estado && !CHAT.estado.historial) { CHAT.chats = []; CHAT.msgs = []; }
+  else CHAT.err = lst.reason?.message || 'No se pudo cargar el chat.';
   if (!CHAT.err) CHAT.loaded = true;
   CHAT.loading = false; chatPaint(true);
+}
+async function chatFetch() {
+  CHAT.msgs = []; CHAT.more = false; CHAT.failed = null;
+  if (!CHAT.chatId) return;
+  const r = await api(`/asistente/historial?limite=50&chat=${CHAT.chatId}`);
+  CHAT.msgs = r.mensajes; CHAT.more = CHAT.msgs.length >= 50;
+}
+async function chatOpen(id) {
+  CHAT.temporal = false; CHAT.tmsgs = []; CHAT.chatId = id; setPref('bitacora.chatActual', id || null);
+  CHAT.msgs = []; chatPaint(); 
+  try { await chatFetch(); } catch (e) { toast(e.message); }
+  chatPaint(true);
+}
+function chatNew() { CHAT.temporal = false; CHAT.tmsgs = []; CHAT.chatId = null; setPref('bitacora.chatActual', null); CHAT.msgs = []; CHAT.more = false; CHAT.failed = null; CHAT.draft = ''; chatPaint(true); setTimeout(() => $('#chatIn')?.focus(), 60); }
+function chatTemporal(on) {
+  CHAT.temporal = on; CHAT.tmsgs = []; CHAT.failed = null;
+  if (!on && CHAT.chatId) chatFetch().then(() => chatPaint(true)).catch(e => toast(e.message));
+  chatPaint(true);
 }
 function chatPaint(toBottom=false) {
   if (S.view !== 'assistant') return;
@@ -1158,36 +1219,156 @@ function chatModelo() { // favorite picked in the chat, or null = saved principa
 }
 async function chatSend(text) {
   text = String(text || '').trim(); if (!text || CHAT.sending) return;
+  dictStop();
   CHAT.sending = { texto:text }; CHAT.failed = null; CHAT.draft = ''; chatPaint(true);
+  const temporal = CHAT.temporal;
   try {
     const modelo = chatModelo();
-    const r = await api('/asistente/mensaje', { method:'POST', body: modelo ? { texto:text, modelo } : { texto:text } });
-    CHAT.msgs.push(r.usuario, r.asistente);
+    const body = { texto:text, ...(modelo ? { modelo } : {}) };
+    if (temporal) Object.assign(body, { temporal:true, historial: CHAT.tmsgs.slice(-8).map(m => ({ rol:m.rol, texto:m.texto, datos:m.datos })) });
+    else if (CHAT.chatId) body.chat = CHAT.chatId;
+    const r = await api('/asistente/mensaje', { method:'POST', body });
+    if (temporal) { if (CHAT.temporal) CHAT.tmsgs.push(r.usuario, r.asistente); }
+    else {
+      const c = { ...(CHAT.chats.find(x => x.id === r.chat.id) || { id:r.chat.id, titulo:r.chat.titulo, mensajes:0 }), actualizado: r.asistente.creado };
+      c.mensajes = (c.mensajes || 0) + 2;
+      CHAT.chats = [c, ...CHAT.chats.filter(x => x.id !== c.id)];
+      if (!CHAT.temporal && (CHAT.chatId === r.chat.id || !CHAT.chatId)) { CHAT.chatId = r.chat.id; setPref('bitacora.chatActual', r.chat.id); CHAT.msgs.push(r.usuario, r.asistente); }
+    }
   } catch (e) { CHAT.failed = { texto:text, error:e.message }; }
   finally { CHAT.sending = false; chatPaint(true); }
 }
-async function chatUndo(id, btn) {
+async function chatUndo(m, btn) {
   btn.disabled = true;
-  try { const r = await api('/asistente/deshacer', { method:'POST', body:{ id } });
-    const i = CHAT.msgs.findIndex(m => m.id === id); if (i >= 0) CHAT.msgs[i] = r.mensaje;
-    toast('Cambios deshechos en Notion'); chatPaint(); }
+  try {
+    if (CHAT.temporal || typeof m.id === 'string') { const r = await api('/asistente/deshacer', { method:'POST', body:{ datos:m.datos } }); m.datos = r.datos; }
+    else { const r = await api('/asistente/deshacer', { method:'POST', body:{ id:m.id } }); const i = CHAT.msgs.findIndex(x => x.id === m.id); if (i >= 0) CHAT.msgs[i] = { ...r.mensaje, valoracion: m.valoracion }; }
+    toast('Cambios deshechos'); chatPaint(); }
   catch (e) { toast(e.message); btn.disabled = false; }
 }
 async function chatOlder(btn) {
   if (CHAT.olderLoading || !CHAT.msgs.length) return; CHAT.olderLoading = true; btn.disabled = true;
-  try { const r = await api('/asistente/historial?limite=50&antes=' + CHAT.msgs[0].id);
+  try { const r = await api(`/asistente/historial?limite=50&chat=${CHAT.chatId}&antes=${CHAT.msgs[0].id}`);
     CHAT.msgs = [...r.mensajes, ...CHAT.msgs]; CHAT.more = r.mensajes.length >= 50; }
   catch (e) { toast(e.message); }
   finally { CHAT.olderLoading = false; chatPaint(); }
 }
-function chatMenu() {
-  openSheet({ title:'Asistente', body:[h('div',{class:'acts-list'},
-    act('sparkle','Modelos de IA',()=>{ closeSheet().then(openAI); }),
-    h('div',{class:'act-sep'}),
-    act('trash','Borrar conversación',()=>openSheet({ title:'Borrar conversación', danger:true, confirm:'Borrar',
-      body:[h('p',{text:'Se borra el historial del chat en todos tus dispositivos. Lo que ya está en Notion no cambia.'})],
-      onConfirm: async () => { try { await api('/asistente/historial', { method:'DELETE' }); CHAT.msgs = []; CHAT.more = false; CHAT.failed = null; toast('Conversación borrada'); setTimeout(()=>chatPaint(), 0); }
+const relDate = ts => { const n = daysUntil(localDay(new Date(ts))); return n === 0 ? new Date(ts).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}) : n === -1 ? 'Ayer' : fmtDay(localDay(new Date(ts)),{day:'numeric',month:'short'}); };
+// Sheet with every chat: open, start a new one or a temporary one, rename and delete.
+function chatsSheet() {
+  const list = h('div',{class:'mdl-list'});
+  if (!CHAT.chats.length) list.append(h('p',{class:'msg-meta',style:{margin:'4px'},text:'Aún no hay chats guardados.'}));
+  CHAT.chats.forEach(c => {
+    const cur = !CHAT.temporal && c.id === CHAT.chatId;
+    list.append(h('div',{class:'chat-item'},
+      h('button',{class:'mdl-opt',type:'button','aria-pressed':String(cur),onclick:()=>{ closeSheet().then(() => chatOpen(c.id)); }},
+        h('span',{class:'mdl-ic',html: cur ? ICON.check : ICON.chat}), h('span',{class:'row-t'}, h('b',{text:c.titulo}), h('small',{text:`${relDate(c.actualizado)} · ${c.mensajes || 0} mensajes`}))),
+      h('button',{class:'icon-btn','aria-label':'Opciones de ' + c.titulo,html:ICON.dots,onclick:()=>chatOptions(c)})));
+  });
+  openSheet({ title:'Chats', body:[h('div',{class:'acts-list',style:{marginBottom:'8px'}},
+    act('newChat','Nuevo chat',()=>{ closeSheet().then(chatNew); }),
+    act('ghost', CHAT.temporal ? 'Salir del chat temporal' : 'Chat temporal',()=>{ closeSheet().then(() => chatTemporal(!CHAT.temporal)); })), list] });
+}
+function chatOptions(c) {
+  openSheet({ title:c.titulo, body:[h('div',{class:'acts-list'},
+    act('edit','Cambiar nombre',()=>chatRename(c)),
+    act('trash','Borrar chat',()=>openSheet({ title:'Borrar chat', danger:true, confirm:'Borrar',
+      body:[h('p',{text:`Se borra "${c.titulo}" y sus mensajes en todos tus dispositivos. Lo que ya está en Notion no cambia.`})],
+      onConfirm: async () => { try { await api('/asistente/chats?id=' + c.id, { method:'DELETE' });
+          CHAT.chats = CHAT.chats.filter(x => x.id !== c.id);
+          if (CHAT.chatId === c.id) { CHAT.chatId = CHAT.chats[0]?.id ?? null; setPref('bitacora.chatActual', CHAT.chatId); await chatFetch().catch(()=>{}); }
+          toast('Chat borrado'); setTimeout(() => chatPaint(true), 0); }
         catch (e) { toast(e.message); return false; } } }),'danger'))] });
+}
+function chatRename(c) {
+  const inp = h('input',{class:'input',value:c.titulo,maxlength:'80','aria-label':'Nombre del chat'});
+  openSheet({ title:'Nombre del chat', body:[inp], confirm:'Guardar', focus:inp,
+    onConfirm: async () => { try { const r = await api('/asistente/chats', { method:'PUT', body:{ id:c.id, titulo:inp.value } });
+        CHAT.chats = CHAT.chats.map(x => x.id === c.id ? { ...x, titulo:r.chat.titulo } : x); setTimeout(() => chatPaint(), 0); }
+      catch (e) { toast(e.message); return false; } } });
+}
+function chatMenu() {
+  const c = chatActual();
+  openSheet({ title:'Asistente', body:[h('div',{class:'acts-list'},
+    act('list','Chats',()=>{ closeSheet().then(chatsSheet); }),
+    act('newChat','Nuevo chat',()=>{ closeSheet().then(chatNew); }),
+    act('ghost', CHAT.temporal ? 'Salir del chat temporal' : 'Chat temporal',()=>{ closeSheet().then(() => chatTemporal(!CHAT.temporal)); }),
+    h('div',{class:'act-sep'}),
+    act('brain','Memoria',()=>{ closeSheet().then(memoriaSheet); }),
+    act('sparkle','Modelos de IA',()=>{ closeSheet().then(openAI); }),
+    c && !CHAT.temporal ? h('div',{class:'act-sep'}) : null,
+    c && !CHAT.temporal ? act('edit','Cambiar nombre del chat',()=>chatRename(c)) : null,
+    c && !CHAT.temporal ? act('trash','Borrar este chat',()=>chatOptions(c),'danger') : null)] });
+}
+
+// Memory: facts Kevin asked to remember or accepted when the assistant suggested them.
+async function memoriaSheet() {
+  let items = [];
+  try { items = (await api('/asistente/memoria')).memoria; } catch (e) { toast(e.message); return; }
+  const list = h('div',{class:'mem-list'}); let editando = null;
+  const paint = () => {
+    list.innerHTML = '';
+    if (!items.length) list.append(h('p',{class:'msg-meta',style:{margin:'4px'},text:'Aún no hay nada. Dile al asistente "recuerda que…" o agrégalo aquí.'}));
+    items.forEach(m => { if (m.id === editando) {
+      const e = h('input',{class:'input',value:m.texto,maxlength:'300','aria-label':'Editar recuerdo'});
+      const ok = h('button',{class:'btn primary',type:'button',text:'Guardar'});
+      ok.onclick = async () => { ok.disabled = true; try { const r = await api('/asistente/memoria', { method:'PUT', body:{ id:m.id, texto:e.value } }); m.texto = r.memoria.texto; editando = null; paint(); } catch (er) { toast(er.message); ok.disabled = false; } };
+      list.append(h('div',{class:'mem-add'}, e, ok)); setTimeout(() => e.focus(), 30); return; }
+      list.append(h('div',{class:'mem-item'},
+      h('span',{class:'row-t'}, h('b',{text:m.texto}), h('small',{text: m.origen === 'sugerida' ? 'Sugerida por el asistente y aceptada' : 'Pedida por ti'})),
+      h('button',{class:'icon-btn','aria-label':'Editar: ' + m.texto,html:ICON.edit,onclick:()=>{ editando = m.id; paint(); }}),
+      h('button',{class:'icon-btn','aria-label':'Borrar: ' + m.texto,html:ICON.trash,onclick:()=>{
+        api('/asistente/memoria?id=' + m.id, { method:'DELETE' }).then(() => { items = items.filter(x => x.id !== m.id); paint(); toast('Recuerdo borrado'); }).catch(e => toast(e.message)); }}))); });
+  };
+  paint();
+  const inp = h('input',{class:'input',placeholder:'Ej.: Prefiere respuestas cortas','aria-label':'Nuevo recuerdo',maxlength:'300'});
+  const add = h('button',{class:'btn secondary',type:'button',text:'Agregar'});
+  add.onclick = async () => { if (!inp.value.trim()) return; add.disabled = true;
+    try { const r = await api('/asistente/memoria', { method:'POST', body:{ texto:inp.value } }); if (!r.memoria.repetido) items.push({ ...r.memoria, origen:'usuario' }); inp.value = ''; paint(); }
+    catch (e) { toast(e.message); } finally { add.disabled = false; } };
+  openSheet({ title:'Memoria del asistente', body:[
+    h('p',{class:'msg-meta',style:{margin:'0 0 10px'},text:'El asistente tiene esto en cuenta en cada mensaje. Solo guarda lo que pides o lo que aceptas.'}),
+    list, h('div',{class:'mem-add'}, inp, add)] });
+}
+
+// 👍/👎 for an answer; a thumbs-down asks (optionally) why.
+async function chatRate(m, valor) {
+  const send = async (v, motivo) => {
+    try { await api('/asistente/valorar', { method:'POST', body:{ mensaje:m.id, valor:v, motivo } }); m.valoracion = v || undefined; chatPaint(); if (v) toast(v > 0 ? 'Gracias' : 'Lo tendré en cuenta'); }
+    catch (e) { toast(e.message); } };
+  if (m.valoracion === valor) return send(0);
+  if (valor > 0) return send(1);
+  const motivos = ['Muy larga','Muy corta','Incorrecta','No hizo lo que pedí','Tono'];
+  const otro = h('input',{class:'input',placeholder:'Otro motivo (opcional)',maxlength:'200','aria-label':'Otro motivo'});
+  openSheet({ title:'¿Qué no te gustó?', body:[
+    h('div',{class:'as-ex'}, ...motivos.map(t => h('button',{type:'button',onclick:()=>{ closeSheet().then(() => send(-1, t)); }}, t))), otro],
+    confirm:'Enviar', onConfirm: () => { send(-1, otro.value.trim() || null); } });
+}
+async function chatProposal(m, aceptar, btn) {
+  btn.disabled = true;
+  const r = m.datos.resultados.find(x => x.accion === 'proponer_recuerdo');
+  try {
+    if (typeof m.id === 'string') { if (aceptar) await api('/asistente/memoria', { method:'POST', body:{ texto:r.texto } }); }
+    else await api('/asistente/propuesta', { method:'POST', body:{ mensaje:m.id, aceptar } });
+    r.estado = aceptar ? 'aceptada' : 'rechazada'; if (aceptar) toast('Guardado en la memoria'); chatPaint();
+  } catch (e) { toast(e.message); btn.disabled = false; }
+}
+
+// Voice dictation (Web Speech API; Chrome on Android supports it).
+var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+var dict = null; // var: render() may run before this line during start-up
+function dictStop() { if (dict) { try { dict.rec.stop(); } catch {} dict = null; const b = $('#micBtn'); if (b) b.setAttribute('aria-pressed','false'); } }
+function dictToggle(ta, btn) {
+  if (dict) { dictStop(); return; }
+  const rec = new SpeechRec(); rec.lang = 'es-EC'; rec.continuous = true; rec.interimResults = true;
+  const base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
+  let finals = '';
+  rec.onresult = ev => { let interim = '';
+    for (let i = ev.resultIndex; i < ev.results.length; i++) { const t = ev.results[i][0].transcript; if (ev.results[i].isFinal) finals += t; else interim += t; }
+    ta.value = (base + finals + interim).replace(/\s+/g, ' ').trimStart(); CHAT.draft = ta.value; ta.dispatchEvent(new Event('input')); };
+  rec.onerror = ev => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') toast('Permite el micrófono para dictar'); else if (ev.error !== 'aborted' && ev.error !== 'no-speech') toast('No se pudo dictar: ' + ev.error); };
+  rec.onend = () => { if (dict?.rec === rec) dictStop(); };
+  try { rec.start(); dict = { rec }; btn.setAttribute('aria-pressed','true'); } catch (e) { toast('No se pudo iniciar el dictado'); }
 }
 
 // Sheet to pick the model for the chat: saved principal or one of the favorites.
@@ -1230,6 +1411,8 @@ function resultRow(r) {
     case 'crear_fila': return row('plus', r.titulo, `Nueva en ${r.base}` + (valoresTxt(r.valores, r.titulo) ? ' · ' + valoresTxt(r.valores, r.titulo) : ''), r.url);
     case 'editar_fila': return row('edit', r.titulo, `${r.base} · ` + (valoresTxt(r.valores) || 'Actualizada'), r.url);
     case 'archivar_fila': return row('trash', r.titulo, `En la papelera de Notion${r.base ? ' · ' + r.base : ''}`, r.url);
+    case 'recordar': return row('brain', 'Guardado en la memoria', r.texto);
+    case 'olvidar': return row('brain', 'Borrado de la memoria', r.texto);
     default: return null;
   }
 }
@@ -1254,32 +1437,51 @@ function chatMessage(m) {
   if (m.rol === 'usuario') return h('div',{class:'msg yo',text:m.texto});
   const d = m.datos || {}; const res = d.resultados || [];
   const el = h('div',{class:'msg ia'}, h('div',{class:'txt',text:m.texto}));
-  const actions = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina'].includes(r.accion) || !r.ok).map(resultRow).filter(Boolean);
+  const actions = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','proponer_recuerdo'].includes(r.accion) || !r.ok).map(resultRow).filter(Boolean);
   if (actions.length) el.append(h('div',{class:'res' + (d.deshecho ? ' undone' : '')}, ...actions));
   res.filter(r => r.accion === 'mostrar_tareas' && r.ok).forEach(r => el.append(taskList(r)));
   res.filter(r => r.accion === 'consultar_base' && r.ok && r.mostrar).forEach(r => el.append(rowsList(r)));
   const leidas = res.filter(r => r.ok && (r.accion === 'leer_pagina' || (r.accion === 'consultar_base' && !r.mostrar)));
+  const prop = res.find(r => r.accion === 'proponer_recuerdo' && r.ok);
+  if (prop && prop.estado !== 'rechazada') {
+    const card = h('div',{class:'prop'}, h('span',{class:'res-ic',html:ICON.brain}), h('span',{class:'res-t'},
+      h('b',{text: prop.estado === 'aceptada' ? 'Guardado en la memoria' : '¿Lo recuerdo para la próxima?'}), h('span',{text:prop.texto})));
+    if (prop.estado !== 'aceptada' && !d.deshecho) {
+      const si = h('button',{class:'btn primary sm',type:'button',text:'Recordar'}); si.onclick = () => chatProposal(m, true, si);
+      const no = h('button',{class:'btn secondary sm',type:'button',text:'No'}); no.onclick = () => chatProposal(m, false, no);
+      card.append(h('div',{class:'prop-acts'}, no, si));
+    }
+    el.append(card);
+  }
   const meta = [d.modelo ? shortModel(d.modelo) + (d.respaldo ? ' (respaldo)' : '') : null,
     leidas.length ? 'Consultó ' + [...new Set(leidas.map(r => r.base || r.titulo))].join(', ') : null, d.deshecho ? 'Deshecho' : null].filter(Boolean).join(' · ');
   const canUndo = !d.deshecho && res.some(r => r.ok && r.deshacer);
-  if (canUndo || meta) {
-    const bar = h('div',{class:'msg-acts'}, meta ? h('span',{class:'msg-meta',style:{margin:'0 4px',flex:'1'},text:meta}) : h('span',{style:{flex:'1'}}));
-    if (canUndo) { const b = h('button',{class:'link',type:'button',text:'Deshacer'}); b.onclick = () => chatUndo(m.id, b); bar.append(b); }
-    el.append(bar);
-  }
+  const canRate = typeof m.id === 'number';
+  const bar = h('div',{class:'msg-acts'}, meta ? h('span',{class:'msg-meta',style:{margin:'0 4px',flex:'1'},text:meta}) : h('span',{style:{flex:'1'}}));
+  if (canRate) bar.append(
+    h('button',{class:'rate','aria-label':'Buena respuesta','aria-pressed':String(m.valoracion === 1),html:ICON.thumbUp,onclick:()=>chatRate(m, 1)}),
+    h('button',{class:'rate','aria-label':'Mala respuesta','aria-pressed':String(m.valoracion === -1),html:ICON.thumbDown,onclick:()=>chatRate(m, -1)}));
+  if (canUndo) { const b = h('button',{class:'link',type:'button',text:'Deshacer'}); b.onclick = () => chatUndo(m, b); bar.append(b); }
+  if (canUndo || meta || canRate) el.append(bar);
   if (d.aviso) el.append(h('p',{class:'msg-meta',text:d.aviso}));
   return el;
 }
 
 function viewAssistant(scr) {
-  const head = h('div',{class:'wrap pad'}, h('div',{class:'page-h'}, h('h1',{text:'Asistente'}),
-    S.isOwner && CHAT.loaded ? h('button',{class:'icon-btn','aria-label':'Opciones del asistente',html:ICON.dots,onclick:chatMenu}) : null));
+  const actual = chatActual();
+  const sub = CHAT.temporal ? 'Chat temporal: no se guarda' : actual ? actual.titulo : 'Nuevo chat';
+  const head = h('div',{class:'wrap pad'}, h('div',{class:'page-h'},
+    h('div',{class:'chat-title'}, h('h1',{text:'Asistente'}), S.isOwner && CHAT.loaded ? h('span',{class:'chat-sub' + (CHAT.temporal ? ' temp' : ''),text:sub}) : null),
+    S.isOwner && CHAT.loaded ? h('span',{class:'head-acts'},
+      h('button',{class:'icon-btn','aria-label':'Chats',html:ICON.list,onclick:chatsSheet}),
+      h('button',{class:'icon-btn','aria-label':'Nuevo chat',html:ICON.newChat,onclick:chatNew}),
+      h('button',{class:'icon-btn','aria-label':'Opciones del asistente',html:ICON.dots,onclick:chatMenu})) : null));
   const sc = h('div',{class:'scroll'}); const w = h('div',{class:'wrap pad'}); sc.append(w); scr.append(head, sc);
   const intro = () => h('div',{class:'hoy'}, h('span',{class:'hoy-ic',html:ICON.sparkle}), h('div',{},
     h('p',{text:'Escribe lo que pasó y el asistente lo guarda en tu Notion: pruebas, entregas, datos de docentes y pendientes.'}),
     h('small',{text:'Se guarda al instante; si algo no quedó bien, toca Deshacer.'})));
   if (!S.isOwner) {
-    CHAT.loaded = false; CHAT.msgs = []; CHAT.config = null;
+    CHAT.loaded = false; CHAT.msgs = []; CHAT.config = null; CHAT.tmsgs = []; CHAT.temporal = false; CHAT.chats = [];
     w.append(intro(), h('div',{class:'note-bar'}, h('span',{text:'Ingresa con tu PIN para usar el asistente.'}), h('button',{class:'link',onclick:()=>showLock(true),text:'Ingresar con PIN'})));
     return;
   }
@@ -1294,14 +1496,18 @@ function viewAssistant(scr) {
   if (e && (!e.notion || !e.historial)) w.append(h('div',{class:'note-bar alert',role:'status'}, h('span',{text:
     !e.notion ? 'Falta conectar Notion: guarda el secret NOTION_TOKEN en Cloudflare.' : 'Falta la base D1 del historial en Cloudflare; los mensajes no se guardarán.'})));
 
+  if (CHAT.temporal) w.append(h('div',{class:'note-bar temp',role:'status'}, ic('ghost'),
+    h('span',{text:'Esta conversación no se guarda y se borra al salir. Lo que pidas guardar en Notion sí queda.'}),
+    h('button',{class:'link',onclick:()=>chatTemporal(false),text:'Salir'})));
+  const msgs = chatMsgs();
   const log = h('div',{class:'chat-log'}); w.append(log);
-  if (CHAT.more) { const b = h('button',{class:'btn secondary',type:'button',style:{alignSelf:'center'},text:'Ver mensajes anteriores'}); b.onclick = () => chatOlder(b); log.append(b); }
-  if (!CHAT.msgs.length && !CHAT.sending && !CHAT.failed) {
+  if (CHAT.more && !CHAT.temporal) { const b = h('button',{class:'btn secondary',type:'button',style:{alignSelf:'center'},text:'Ver mensajes anteriores'}); b.onclick = () => chatOlder(b); log.append(b); }
+  if (!msgs.length && !CHAT.sending && !CHAT.failed) {
     log.append(intro(), h('div',{class:'sec-h',style:{marginTop:'8px'}}, h('h2',{style:{fontSize:'18px'},text:'Prueba con'})),
       h('div',{class:'as-ex'}, ...CHAT_EXAMPLES.map(t => h('button',{type:'button',onclick:()=>{ const i = $('#chatIn'); i.value = t; CHAT.draft = t; i.dispatchEvent(new Event('input')); i.focus(); }}, t))));
   }
   let lastDay = null;
-  CHAT.msgs.forEach(m => {
+  msgs.forEach(m => {
     const day = localDay(new Date(m.creado));
     if (day !== lastDay) { lastDay = day; const n = daysUntil(day);
       log.append(h('div',{class:'chat-day',text: n === 0 ? 'Hoy' : n === -1 ? 'Ayer' : fmtDay(day,{weekday:'long',day:'numeric',month:'long'})})); }
@@ -1317,7 +1523,7 @@ function viewAssistant(scr) {
 
   // Composer: text box with the model picker and send button underneath (like Gemini / Claude)
   const comp = h('div',{class:'chat-comp'}); const cw = h('div',{class:'wrap pad'}); comp.append(cw); scr.append(comp);
-  const ta = h('textarea',{class:'comp-in',id:'chatIn',rows:'1',placeholder:'Escribe una tarea o una pregunta','aria-label':'Mensaje para el asistente'});
+  const ta = h('textarea',{class:'comp-in',id:'chatIn',rows:'1',placeholder: CHAT.temporal ? 'Mensaje temporal' : 'Escribe una tarea o una pregunta','aria-label':'Mensaje para el asistente'});
   ta.value = CHAT.draft;
   const send = h('button',{class:'send',type:'button','aria-label':'Enviar',html:ICON.send});
   const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 3, 148) + 'px'; send.disabled = !!CHAT.sending || !ta.value.trim(); };
@@ -1328,7 +1534,8 @@ function viewAssistant(scr) {
   const mdlLabel = cur ? shortModel(cur.modelo) : principal ? shortModel(principal) : 'Modelo';
   const mdl = h('button',{class:'mdl-btn',type:'button','aria-haspopup':'dialog','aria-label':'Modelo: ' + mdlLabel + '. Cambiar modelo',onclick:chatModelSheet},
     h('span',{text:mdlLabel}), ic('chevD'));
-  cw.append(h('div',{class:'comp-box'}, ta, h('div',{class:'comp-foot'}, mdl, send)));
+  const mic = SpeechRec ? h('button',{class:'mic',id:'micBtn',type:'button','aria-label':'Dictar por voz','aria-pressed':String(!!dict),html:ICON.mic,onclick:()=>dictToggle(ta, mic)}) : null;
+  cw.append(h('div',{class:'comp-box' + (CHAT.temporal ? ' temp' : '')}, ta, h('div',{class:'comp-foot'}, mdl, h('span',{class:'comp-right'}, mic, send))));
   requestAnimationFrame(fit);
 }
 
@@ -1370,7 +1577,9 @@ function viewSettings(scr) {
   w.append(h('div',{class:'set-label',text:'Inteligencia artificial'}));
   const aiSum = !S.isOwner ? 'Requiere tu PIN' : AI.loaded && AI.draft?.principal.modelo ? 'Principal: ' + AI.draft.principal.modelo : 'Proveedores, modelos, favoritos y parámetros';
   w.append(h('div',{class:'set-group'}, h('button',{class:'set-row',onclick:openAI}, ic('sparkle'),
-    h('span',{class:'row-t'}, h('b',{text:'Modelos de IA'}), h('span',{text:aiSum})), h('span',{class:'chev',html:ICON.chevR}))));
+    h('span',{class:'row-t'}, h('b',{text:'Modelos de IA'}), h('span',{text:aiSum})), h('span',{class:'chev',html:ICON.chevR})),
+    h('button',{class:'set-row',onclick:()=> S.isOwner ? memoriaSheet() : showLock(true)}, ic('brain'),
+      h('span',{class:'row-t'}, h('b',{text:'Memoria del asistente'}), h('span',{text: S.isOwner ? 'Lo que el asistente recuerda de ti' : 'Requiere tu PIN'})), h('span',{class:'chev',html:ICON.chevR}))));
 
   w.append(h('div',{class:'set-label',text:'Respaldo'}));
   const g3 = h('div',{class:'set-group'});
