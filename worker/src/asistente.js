@@ -76,8 +76,9 @@ ${calendario(fechaHoy)}
 Materias (usa la clave, por ejemplo "m1"):
 ${mats}
 
-Tareas y evaluaciones pendientes (usa la clave, por ejemplo "t1"):
+Tareas y evaluaciones pendientes según Notion en este momento (usa la clave, por ejemplo "t1"):
 ${tareas}
+Esta lista es la única fuente de verdad. El historial de la conversación puede mencionar tareas que Kevin deshizo o borró: si no están en esta lista, ya no existen.
 
 Responde SOLO con un objeto JSON válido, sin texto antes ni después y sin bloques de código, con esta forma:
 {"respuesta": "texto breve para Kevin", "acciones": []}
@@ -99,7 +100,7 @@ Reglas:
 - "ya entregué…", "ya di…" o "terminé…" sobre una tarea pendiente es completar_tarea.
 - Datos de docentes o compañeros (nombre, correo, teléfono, materia, rol) son guardar_persona.
 - Lo que no sea una tarea ni un dato de contacto (cómo son las pruebas, temas, consejos, ideas, pedidos largos) va con nota_inbox.
-- Preguntas sobre sus pendientes ("¿qué tengo esta semana?") se responden con mostrar_tareas y el rango de fechas que corresponda; la lista la muestra la app, no la repitas.
+- Toda pregunta sobre sus pendientes o fechas ("¿qué tengo esta semana?", "¿tengo prueba el martes 17?", "¿el 17 tengo algo?") se responde SIEMPRE con mostrar_tareas y el rango de fechas que corresponda (un solo día si pregunta por un día). Nunca respondas de memoria ni por el historial; la lista la muestra la app, no la repitas. En "respuesta" di solo algo breve como "Esto tienes para el martes 17".
 - Si solo conversa o pide algo ajeno a Notion, responde sin acciones.
 - "respuesta" confirma en pocas palabras; no repite los detalles que ya muestran las acciones.`;
 }
@@ -230,8 +231,9 @@ function resumenParaModelo(m) {
     if (x.accion === 'nota_inbox') return 'guardé una nota en el Inbox';
     return '';
   }).filter(Boolean);
-  const extra = m.datos?.deshecho ? ' (Kevin lo deshizo)' : '';
-  return hechos.length ? `${m.texto}\n[Hecho: ${hechos.join('; ')}${extra}]` : m.texto;
+  if (!hechos.length) return m.texto;
+  if (m.datos?.deshecho) return `${m.texto}\n[DESHECHO: Kevin anuló esto y ya no existe en Notion: ${hechos.join('; ')}]`;
+  return `${m.texto}\n[Hecho: ${hechos.join('; ')}]`;
 }
 
 // Procesa un mensaje completo. Solo guarda en el historial si hubo respuesta del modelo.

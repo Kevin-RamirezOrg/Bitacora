@@ -144,6 +144,43 @@ input.search-field::placeholder{color:var(--muted)}
 .hoy p{margin:0;color:var(--ink-2);font-size:15px}
 .hoy small{display:block;margin-top:6px;color:var(--muted);font-size:13px}
 
+.hoy-card{margin-top:12px;border-radius:var(--r-lg);background:var(--surface);border:1px solid var(--line);padding:14px 14px 12px}
+.hoy-card:first-of-type{margin-top:0}
+.hoy-card h3{margin:0 0 2px;font-size:16px;font-weight:600}
+.hoy-card .sub{margin:0 0 10px;font-size:13px;color:var(--ink-2)}
+.hoy-card .res{margin-top:0;background:transparent;border:0;border-radius:0}
+.hoy-card .res-row{padding:10px 0}
+.hoy-more{margin:8px 0 0;font-size:13px;color:var(--ink-2)}
+.load{display:grid;grid-template-columns:repeat(14,1fr);gap:4px;align-items:end}
+.load-col{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.load-col.wk{border-left:1px dashed var(--line);margin-left:-3px;padding-left:2px}
+.load-bar{width:100%;max-width:18px;height:72px;display:flex;align-items:flex-end}
+.load-bar i{display:block;width:100%;border-radius:4px 4px 2px 2px;background:var(--accent)}
+.load-bar i.hi{background:var(--danger)}
+.load-bar i.zero{height:2px!important;background:var(--line-strong);border-radius:1px}
+.load-d{font-size:11px;line-height:1.15;color:var(--ink-2);text-align:center;font-variant-numeric:tabular-nums}
+.load-d b{display:block;font-weight:500}
+.load-col.today .load-d{color:var(--accent-ink);font-weight:700}
+.load-col.today .load-d b{font-weight:700}
+.load-key{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:12px;color:var(--ink-2)}
+.load-key span{display:inline-flex;align-items:center;gap:6px}
+.load-key i{width:10px;height:10px;border-radius:3px;background:var(--accent)}
+.load-key i.hi{background:var(--danger)}
+.load-peak{margin:10px 0 0;font-size:13px;color:var(--ink-2)}
+.load-peak b{color:var(--ink);font-weight:600}
+.rp-item{padding:10px 0;border-top:1px solid var(--line)}
+.rp-item:first-of-type{border-top:0;padding-top:2px}
+.rp-head{display:flex;align-items:flex-start;gap:10px}
+.rp-head .res-t{flex:1;min-width:0}
+.rp-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.rp{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:var(--r-pill);border:1.5px solid var(--line-strong);background:var(--surface);font-size:13px;font-weight:600;color:var(--ink-2)}
+.rp svg{width:16px;height:16px}
+.rp .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--line-strong);flex:none}
+.rp[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.rp.today{border-color:var(--accent);color:var(--ink)}
+.rp.today[aria-pressed="true"]{color:var(--on-accent)}
+.rp:disabled{opacity:.6}
+
 /* Clipboard */
 .clip{position:relative;border-radius:var(--r-lg);border:1.5px dashed var(--line-strong);background:var(--surface);padding:16px}
 .clip-text{font-family:var(--f-mono);font-size:14px;line-height:1.55;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin:0;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
@@ -379,17 +416,24 @@ input.search-field::placeholder{color:var(--muted)}
 .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
 @keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
 .chat-comp{flex:none;border-top:1px solid var(--line);background:var(--bg);padding-top:8px;padding-bottom:10px}
-.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 calc(-1 * max(18px,env(safe-area-inset-left,0px))) 8px;padding:0 max(18px,env(safe-area-inset-right,0px)) 0 max(18px,env(safe-area-inset-left,0px))}
-.chips::-webkit-scrollbar{display:none}
-.chip{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:36px;max-width:240px;padding:0 12px;border-radius:var(--r-pill);border:1.5px solid var(--line-strong);background:var(--surface);font-size:13px;font-weight:600;color:var(--ink-2)}
-.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chip svg{width:14px;height:14px}
-.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
-.comp-row{display:flex;align-items:flex-end;gap:8px}
-.comp-in{flex:1;min-width:0;min-height:48px;max-height:148px;resize:none;border-radius:24px;background:var(--surface-2);border:1.5px solid var(--line-strong);padding:12px 16px;font-size:16px;line-height:1.4}
-.comp-in:focus{outline:none;border-color:var(--accent)}
-.send{width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;flex:none}
-.send svg{width:22px;height:22px}
+.comp-box{border-radius:24px;background:var(--surface-2);border:1.5px solid var(--line-strong);padding:4px 6px 6px}
+.comp-box:focus-within{border-color:var(--accent)}
+.comp-in{display:block;width:100%;min-height:44px;max-height:148px;resize:none;background:transparent;border:0;padding:10px 10px 4px;font-size:16px;line-height:1.4}
+.comp-in:focus{outline:none}
+.comp-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mdl-btn{display:inline-flex;align-items:center;gap:4px;min-height:44px;max-width:min(70%,280px);padding:0 10px 0 14px;border-radius:var(--r-pill);border:1.5px solid var(--line-strong);background:var(--surface);font-size:13px;font-weight:600;color:var(--ink-2)}
+.mdl-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mdl-btn svg{width:16px;height:16px;flex:none}
+.mdl-list{display:flex;flex-direction:column;gap:6px}
+.mdl-opt{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 12px;border-radius:var(--r-md);border:1.5px solid var(--line);background:var(--surface);text-align:left;width:100%}
+.mdl-opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.mdl-opt .row-t{flex:1;min-width:0}
+.mdl-opt b{display:block;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mdl-opt small{display:block;font-size:13px;color:var(--ink-2)}
+.mdl-opt .mdl-ic{width:22px;height:22px;flex:none;color:var(--accent-ink);display:grid;place-items:center}
+.mdl-opt .mdl-ic svg{width:20px;height:20px}
+.send{width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;flex:none}
+.send svg{width:20px;height:20px}
 .send:disabled{opacity:.55;cursor:default}
 @media (min-width:900px){ .chat-comp{padding-bottom:16px} }
 
@@ -503,6 +547,7 @@ const ICON = {
   md: sv('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15V9l2.5 3L12 9v6M16.5 9v6M14.5 13l2 2 2-2"/>'),
   code: sv('<path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/>', 2.3),
   back: sv('<path d="M15 5l-7 7 7 7"/>', 2.4),
+  chevD: sv('<path d="M6 9l6 6 6-6"/>'),
   chevR: sv('<path d="M9 6l6 6-6 6"/>', 2.2),
   dots: '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
   close: sv('<path d="M6 6l12 12M18 6L6 18"/>', 2.3),
@@ -812,11 +857,8 @@ function viewHome(scr) {
   const mn = modeNote(); if (mn) w.append(mn);
   if (!S.ready) { w.append(h('p',{class:'date',style:{marginTop:'28px'},text:'Cargando tus notas…'})); return; }
 
-  // Hoy (reserved: fills when the assistant connects Notion and the aula virtual)
-  w.append(h('section',{class:'sec'}, h('div',{class:'sec-h'}, h('h2',{text:'Hoy'})),
-    h('div',{class:'hoy'}, h('span',{class:'hoy-ic',html:ICON.cal}),
-      h('div',{}, h('p',{text:'Aquí verás tus pruebas y entregas más cercanas, el plan del día y el tiempo estimado de cada actividad.'}),
-        h('small',{text:'Se activa cuando conectemos Notion y el aula virtual.'})))));
+  // Hoy: urgent list, 14-day load and spaced reviews (rules only; plan with AI comes later)
+  w.append(hoySection());
 
   // Clipboard
   w.append(clipSection());
@@ -934,6 +976,99 @@ function viewSearch(scr) {
   run(); setTimeout(() => inp.focus(), 60);
 }
 
+/* ---------- Hoy panel (Notion through the Worker; rules only) ---------- */
+const HOY = { data:null, loading:false, err:null, at:0 };
+const HOY_PESO = { Examen:3, Proyecto:3, Prueba:2, Tarea:1, Lectura:1, Institucional:1 };
+const HOY_ALTO = 4; // daily load considered heavy (e.g. an exam plus a homework)
+async function hoyLoad(force=false) {
+  if (HOY.loading || (!force && HOY.data && Date.now() - HOY.at < 5 * 60e3)) return;
+  HOY.loading = true; HOY.err = null;
+  try { HOY.data = await api('/hoy'); HOY.at = Date.now(); }
+  catch (e) { HOY.err = e.message || 'No se pudo cargar.'; }
+  finally { HOY.loading = false; if (S.view === 'home') { const top = $('#screen .scroll')?.scrollTop || 0; render(); const sc = $('#screen .scroll'); if (sc) sc.scrollTop = top; } }
+}
+function hoySection() {
+  const sec = h('section',{class:'sec'}, h('div',{class:'sec-h'}, h('h2',{text:'Hoy'}),
+    S.isOwner && HOY.data ? h('button',{class:'link',type:'button',onclick:()=>hoyLoad(true),text: HOY.loading ? 'Actualizando…' : 'Actualizar'}) : null));
+  if (!S.isOwner) {
+    HOY.data = null;
+    sec.append(h('div',{class:'hoy'}, h('span',{class:'hoy-ic',html:ICON.cal}), h('div',{},
+      h('p',{text:'Tus pruebas y entregas más cercanas, la carga de las próximas dos semanas y los repasos.'}),
+      h('button',{class:'link',style:{marginTop:'6px'},onclick:()=>showLock(true),text:'Ingresar con PIN'}))));
+    return sec;
+  }
+  if (!HOY.data) {
+    if (HOY.err) sec.append(h('div',{class:'note-bar alert',role:'alert'}, h('span',{text:'No se pudo cargar el panel: ' + HOY.err}), h('button',{class:'link',onclick:()=>hoyLoad(true),text:'Reintentar'})));
+    else { sec.append(h('p',{class:'date',text:'Cargando tus pendientes…'})); setTimeout(hoyLoad); }
+    return sec;
+  }
+  setTimeout(hoyLoad); // refresh in the background when stale
+  const d = HOY.data; const pend = d.tareas.filter(t => !t.completada && t.fecha);
+  sec.append(hoyUrgent(pend, d.hoy), hoyLoadChart(pend, d.hoy), hoyReviews(d));
+  return sec;
+}
+function hoyUrgent(pend, hoy) {
+  const lim = addDays(hoy, 7);
+  const list = pend.filter(t => t.fecha <= lim).sort((a,b) => a.fecha.localeCompare(b.fecha) || (HOY_PESO[b.tipo]||1) - (HOY_PESO[a.tipo]||1));
+  const card = h('div',{class:'hoy-card'}, h('h3',{text:'Urgente'}), h('p',{class:'sub',text:'Atrasado y lo de los próximos 7 días'}));
+  if (!list.length) { card.append(h('p',{class:'hoy-more',style:{marginTop:'0'},text:'Nada pendiente en los próximos 7 días.'})); return card; }
+  const box = h('div',{class:'res'});
+  list.slice(0, 5).forEach(t => box.append(h('div',{class:'res-row'}, h('span',{class:'res-ic',html:ICON.cal}),
+    h('span',{class:'res-t'}, h('b',{text:t.titulo}), h('span',{text:[t.tipo, t.materia || 'Sin materia', fmtDue(t.fecha, t.hora)].filter(Boolean).join(' · ')}), dueBadge(t)), openLink(t.url))));
+  card.append(box);
+  if (list.length > 5) card.append(h('p',{class:'hoy-more',text:`Y ${list.length - 5} más. Pregúntale al asistente "¿qué tengo esta semana?" para ver todo.`}));
+  return card;
+}
+function addDays(f, n) { const d = new Date(f + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function hoyLoadChart(pend, hoy) {
+  const days = Array.from({length:14}, (_, i) => { const f = addDays(hoy, i); const ts = pend.filter(t => t.fecha === f);
+    return { f, ts, w: ts.reduce((s, t) => s + (HOY_PESO[t.tipo] || 1), 0) }; });
+  const max = Math.max(HOY_ALTO + 1, ...days.map(x => x.w));
+  const card = h('div',{class:'hoy-card'}, h('h3',{text:'Carga de las próximas dos semanas'}), h('p',{class:'sub',text:'Cada barra suma lo que entregas ese día; un examen pesa más que un deber'}));
+  const busy = days.filter(x => x.w).length;
+  const label = busy ? days.filter(x => x.w).map(x => `${fmtDay(x.f,{weekday:'long',day:'numeric'})}: ${x.ts.map(t => t.titulo).join(', ')}`).join('; ') : 'Sin entregas en las próximas dos semanas';
+  const grid = h('div',{class:'load',role:'img','aria-label':'Carga por día. ' + label});
+  days.forEach((x, i) => { const dt = new Date(x.f + 'T12:00:00'); const wd = dt.getDay();
+    const bar = h('i',{class: x.w ? (x.w >= HOY_ALTO ? 'hi' : '') : 'zero', style:{height: x.w ? Math.max(8, Math.round(x.w / max * 72)) + 'px' : ''}});
+    grid.append(h('div',{class:'load-col' + (i === 0 ? ' today' : '') + (wd === 1 && i > 0 ? ' wk' : ''),'aria-hidden':'true'},
+      h('div',{class:'load-bar'}, bar),
+      h('div',{class:'load-d'}, h('b',{text: i === 0 ? 'Hoy' : dt.toLocaleDateString('es',{weekday:'narrow'})}), String(dt.getDate())))); });
+  card.append(grid, h('div',{class:'load-key'}, h('span',{}, h('i'), 'Carga normal'), h('span',{}, h('i',{class:'hi'}), 'Día pesado')));
+  const peaks = days.filter(x => x.w).sort((a,b) => b.w - a.w || a.f.localeCompare(b.f)).slice(0, 2);
+  if (peaks.length) peaks.forEach(x => card.append(h('p',{class:'load-peak'}, h('b',{text: fmtDay(x.f,{weekday:'long',day:'numeric',month:'short'}) + ': '}),
+    x.ts.map(t => `${t.tipo || 'Tarea'} · ${t.titulo}`).join(', '))));
+  else card.append(h('p',{class:'load-peak',text:'Sin entregas registradas en las próximas dos semanas.'}));
+  return card;
+}
+function hoyReviews(d) {
+  const card = h('div',{class:'hoy-card'}, h('h3',{text:'Repasos'}), h('p',{class:'sub',text:'Sesiones cortas en días distintos antes de cada prueba o examen. Toca una al terminarla.'}));
+  const items = d.repasos.filter(r => r.sesiones.length);
+  if (!items.length) { card.append(h('p',{class:'hoy-more',style:{marginTop:'0'},text:'No hay pruebas ni exámenes en las próximas dos semanas.'})); return card; }
+  items.forEach(r => {
+    const done = r.sesiones.filter(x => x.hecho).length;
+    const row = h('div',{class:'rp-row',role:'group','aria-label':'Repasos de ' + r.titulo});
+    r.sesiones.forEach(x => {
+      const today = x.fecha === d.hoy;
+      const b = h('button',{class:'rp' + (today ? ' today' : ''),type:'button','aria-pressed':String(x.hecho),
+        'aria-label':`Repaso del ${fmtDay(x.fecha,{weekday:'long',day:'numeric',month:'long'})}${x.hecho ? ', hecho' : ''}`},
+        x.hecho ? ic('check') : h('span',{class:'dot'}), today ? 'Hoy' : fmtDay(x.fecha,{weekday:'short',day:'numeric'}));
+      b.onclick = () => hoyToggleReview(r, x, b);
+      row.append(b);
+    });
+    card.append(h('div',{class:'rp-item'}, h('div',{class:'rp-head'}, h('span',{class:'res-t'}, h('b',{text:r.titulo}),
+      h('span',{text:[r.tipo, r.materia || 'Sin materia', fmtDay(r.fecha)].join(' · ')}), dueBadge(r)),
+      h('span',{class:'msg-meta',style:{whiteSpace:'nowrap'},text:`${done} de ${r.sesiones.length}`}), openLink(r.url)), row));
+  });
+  if (!d.historial) card.append(h('p',{class:'hoy-more',text:'Falta la base D1: los repasos marcados no se guardarán.'}));
+  return card;
+}
+async function hoyToggleReview(r, x, btn) {
+  btn.disabled = true; const prev = x.hecho; x.hecho = !prev;
+  try { await api('/hoy/repaso', { method:'POST', body:{ tarea:r.tarea, fecha:x.fecha, hecho:x.hecho } }); }
+  catch (e) { x.hecho = prev; toast(e.message); }
+  if (S.view === 'home') { const top = $('#screen .scroll')?.scrollTop || 0; render(); const sc = $('#screen .scroll'); if (sc) sc.scrollTop = top; }
+}
+
 /* ---------- Assistant (chat → Notion through the Worker) ---------- */
 const CHAT = { loaded:false, loading:false, err:null, msgs:[], more:false, estado:null, config:null, sending:false, failed:null, draft:'', olderLoading:false };
 const CHAT_EXAMPLES = ['prueba de big data el martes 2','entregar deber de compiladores el viernes','las pruebas de fundamentos son de opción múltiple','¿qué tengo esta semana?'];
@@ -1002,6 +1137,22 @@ function chatMenu() {
       body:[h('p',{text:'Se borra el historial del chat en todos tus dispositivos. Lo que ya está en Notion no cambia.'})],
       onConfirm: async () => { try { await api('/asistente/historial', { method:'DELETE' }); CHAT.msgs = []; CHAT.more = false; CHAT.failed = null; toast('Conversación borrada'); setTimeout(()=>chatPaint(), 0); }
         catch (e) { toast(e.message); return false; } } }),'danger'))] });
+}
+
+// Sheet to pick the model for the chat: saved principal or one of the favorites.
+function chatModelSheet() {
+  const cfg = CHAT.config || {}; const cur = chatModelo(); const key = cur ? `${cur.proveedor}/${cur.modelo}` : '';
+  const pick = k => { setPref('bitacora.chatModelo', k || null); closeSheet().then(() => chatPaint()); };
+  const opt = (k, title, sub, icon) => h('button',{class:'mdl-opt',type:'button','aria-pressed':String(k === key),onclick:()=>pick(k)},
+    h('span',{class:'mdl-ic',html: k === key ? ICON.check : (ICON[icon] || '')}), h('span',{class:'row-t'}, h('b',{text:title}), h('small',{text:sub})));
+  const p = cfg.principal;
+  const list = h('div',{class:'mdl-list'},
+    opt('', p?.modelo ? shortModel(p.modelo) : 'Principal', p?.modelo ? `Principal · ${provName(p.proveedor)}` + (cfg.respaldo?.modelo ? ` · respaldo: ${shortModel(cfg.respaldo.modelo)}` : '') : 'Sin modelo principal guardado', 'sparkle'),
+    ...(cfg.favoritos || []).map(f => opt(`${f.proveedor}/${f.modelo}`, shortModel(f.modelo), `Favorito · ${provName(f.proveedor)}`, 'starFill')));
+  const body = [list];
+  if (!(cfg.favoritos || []).length) body.push(h('p',{class:'msg-meta',style:{margin:'10px 4px 0'},text:'Marca modelos con la estrella en Modelos de IA para tenerlos aquí.'}));
+  body.push(h('div',{class:'acts-list',style:{marginTop:'8px'}}, act('gear','Modelos de IA',()=>{ closeSheet().then(openAI); })));
+  openSheet({ title:'Modelo para el chat', body });
 }
 
 function dueBadge(t) {
@@ -1097,18 +1248,8 @@ function viewAssistant(scr) {
         h('button',{class:'link',type:'button',onclick:()=>{ CHAT.failed = null; CHAT.draft = f.texto; chatPaint(true); $('#chatIn')?.focus(); },text:'Editar'}))));
   }
 
-  // Composer: favorites as quick model picks + text box
+  // Composer: text box with the model picker and send button underneath (like Gemini / Claude)
   const comp = h('div',{class:'chat-comp'}); const cw = h('div',{class:'wrap pad'}); comp.append(cw); scr.append(comp);
-  const favs = CHAT.config?.favoritos || [];
-  if (favs.length) {
-    const cur = chatModelo(); const key = cur ? `${cur.proveedor}/${cur.modelo}` : '';
-    const pick = k => { setPref('bitacora.chatModelo', k || null); chatPaint(); };
-    const principal = CHAT.config?.principal?.modelo;
-    cw.append(h('div',{class:'chips',role:'group','aria-label':'Modelo para este chat'},
-      h('button',{class:'chip',type:'button','aria-pressed':String(!key),title:principal || '',onclick:()=>pick('')}, h('span',{text: principal ? 'Principal · ' + shortModel(principal) : 'Principal'})),
-      ...favs.map(f => { const k = `${f.proveedor}/${f.modelo}`;
-        return h('button',{class:'chip',type:'button','aria-pressed':String(k === key),title:`${f.modelo} (${provName(f.proveedor)})`,onclick:()=>pick(k)}, h('span',{style:{display:'contents'},html:ICON.starFill}), h('span',{text:shortModel(f.modelo)})); })));
-  }
   const ta = h('textarea',{class:'comp-in',id:'chatIn',rows:'1',placeholder:'Escribe una tarea o una pregunta','aria-label':'Mensaje para el asistente'});
   ta.value = CHAT.draft;
   const send = h('button',{class:'send',type:'button','aria-label':'Enviar',html:ICON.send});
@@ -1116,7 +1257,11 @@ function viewAssistant(scr) {
   ta.addEventListener('input', () => { CHAT.draft = ta.value; fit(); });
   ta.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !matchMedia('(pointer:coarse)').matches) { ev.preventDefault(); send.click(); } });
   send.onclick = () => chatSend(ta.value);
-  cw.append(h('div',{class:'comp-row'}, ta, send));
+  const cur = chatModelo(); const principal = CHAT.config?.principal?.modelo;
+  const mdlLabel = cur ? shortModel(cur.modelo) : principal ? shortModel(principal) : 'Modelo';
+  const mdl = h('button',{class:'mdl-btn',type:'button','aria-haspopup':'dialog','aria-label':'Modelo: ' + mdlLabel + '. Cambiar modelo',onclick:chatModelSheet},
+    h('span',{text:mdlLabel}), ic('chevD'));
+  cw.append(h('div',{class:'comp-box'}, ta, h('div',{class:'comp-foot'}, mdl, send)));
   requestAnimationFrame(fit);
 }
 

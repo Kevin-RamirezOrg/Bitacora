@@ -12,7 +12,12 @@ Este archivo es el contexto completo del proyecto; cualquier asistente (Claude, 
 - **Activación del chat**:
   - ✅ Conexión interna **Bitácora** de Notion creada y conectada solo a la página **Universidad** (decisión de Kevin: acceso mínimo; las páginas personales se compartirán cuando haya una función que las use). Token guardado como secret `NOTION_TOKEN`.
   - ✅ Base D1 `bitacora-chat` creada y enlazada en `worker/wrangler.jsonc` (binding `DB`). La tabla `mensajes` se crea sola en la primera petición.
-  - Falta probar desde la pestaña Asistente: "prueba de big data el martes 2", revisar la fila en Notion, probar **Deshacer** y "¿qué tengo esta semana?".
+  - ✅ Probado con datos reales: crear tarea, Deshacer y "¿qué tengo esta semana?". Corregido: tras Deshacer el modelo respondía por el historial; ahora toda pregunta de fechas usa `mostrar_tareas` y lo deshecho se marca como `[DESHECHO]` en el contexto.
+  - Pendiente de Kevin: cambiar el modelo principal (falla y responde el respaldo de Gemini).
+- **Orden acordado (Kevin eligió B)**: primero el panel "Hoy" (fase 5), después Moodle (fase 4).
+  - ✅ Panel "Hoy" parte A (solo reglas, sin IA): Urgente, carga de 14 días y repasos espaciados.
+  - **Falta parte B** (no olvidar): asistente de cálculo de horas libres de una sola vez (horario de clases, sueño, comidas, traslados, compromisos fijos) que deja horas por día de la semana editables a mano en Ajustes; barra de capacidad (plan vs. horas libres, marca en 70 %); plan del día con IA (máx. 3 prioridades, margen ×1,5/×2); anillo de prioridades hechas; cierre del día con tiempo real (en D1); gráfico estimado vs. real. Pendiente preguntar a Kevin si su horario de clases está en Notion o lo escribe en el formulario.
+  - Ideas aplazadas: marcar tareas como hechas desde el panel.
 - **Después**: fase 4 (sincronización con Moodle por iCal).
 - Los scripts de prueba (Playwright y simulaciones del Worker) no están en el repo; la forma de probar está en "Cómo probar".
 
@@ -113,8 +118,11 @@ Página "Universidad" → "Bases de datos". Ya existen y deben reutilizarse, no 
    - Vars públicas en `wrangler.jsonc`: `NOTION_DS_TAREAS`, `NOTION_DS_MATERIAS`, `NOTION_DS_PERSONAS`, `NOTION_DS_INBOX` (IDs de data source). Secret: `NOTION_TOKEN` (conexión interna "Bitácora" con acceso a la página Universidad). D1: binding `DB` (base `bitacora-chat`).
    - Web: pestaña Asistente con burbujas, resultados con "Abrir" (Notion) y semáforo por días restantes, Deshacer, día separador, mensajes anteriores, menú (Modelos de IA, Borrar conversación), favoritos como chips sobre el campo de texto (elección guardada en `localStorage` `bitacora.chatModelo`), error con Reintentar/Editar y aviso si falta Notion o D1.
    - Privacidad: para el chat conviene un principal de NanoGPT; Gemini gratis puede usar los mensajes para mejorar productos.
+   - Selector de modelo: botón dentro de la caja de escribir (como Gemini/Claude) con el modelo actual; abre una hoja con Principal, favoritos y acceso a Modelos de IA. Reemplazó a los chips.
 4. **Sincronización del aula virtual (Moodle de la universidad)**: Kevin confirmó que existe "Exportar calendario". El Worker lee la URL iCal (como *secret*) una vez al día con un Cron Trigger y crea/actualiza filas en *Tareas y evaluaciones* sin duplicar (usar el UID del evento).
-5. **Panel "Hoy"** (espacio ya reservado en Inicio), combinación de reglas + IA:
+5. **Panel "Hoy"** (en Inicio, solo dueño), combinación de reglas + IA:
+   - ✅ Parte A publicada. Worker `src/hoy.js`: `GET /hoy` (`{hoy, tareas, repasos, historial}`; tareas de -14 a +21 días) y `POST /hoy/repaso` (`{tarea, fecha, hecho}`), tabla D1 `repasos (tarea, fecha, hecho, actualizado)` creada sola. Plan de repaso: Prueba a −6/−3/−1 días, Examen a −10/−6/−3/−1; las sesiones pasadas sin hacer se ocultan.
+   - Web: tarjetas Urgente (atrasado + 7 días, máx. 5), Carga (grid CSS de 14 columnas; peso Examen/Proyecto 3, Prueba 2, resto 1; día pesado ≥ 4 en `--danger`; separador de semana; resumen de los 2 días más cargados) y Repasos (botones de 44 px por sesión, "Hoy" resaltado). Caché de 5 min y botón Actualizar.
    - Lo urgente con semáforo por días restantes (siempre visible, aunque falle la IA).
    - Plan del día con máximo 3 prioridades y tiempo estimado; margen ×1,5 en tareas conocidas y ×2 en nuevas (falacia de planificación).
    - Aviso de sobrecarga si el plan supera ~70 % de las horas libres.

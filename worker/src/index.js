@@ -2,6 +2,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ErrorIA, chat, estadoProveedores, guardarConfig, leerConfig, listarModelos } from './ia.js';
 import { ErrorNotion } from './notion.js';
 import { ErrorAsistente, borrarHistorial, deshacerMensaje, historial, procesarMensaje } from './asistente.js';
+import { datosHoy, marcarRepaso } from './hoy.js';
 
 const ORIGEN = 'https://ellenkev.me';
 const TAMANO_MAXIMO_CUERPO = 200_000;
@@ -106,6 +107,11 @@ const RUTAS = {
     const { id } = await leerCuerpo(req);
     return json({ mensaje: await deshacerMensaje(env, id) });
   },
+
+  // Panel "Hoy" (reglas fijas, sin IA)
+  'GET /hoy': async (req, env) => json(await datosHoy(env)),
+
+  'POST /hoy/repaso': async (req, env) => json(await marcarRepaso(env, await leerCuerpo(req))),
 };
 
 export default {
