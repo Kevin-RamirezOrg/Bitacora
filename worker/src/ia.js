@@ -18,11 +18,14 @@ const TIEMPO_MAXIMO_MS = 60_000;
 // Claves que el campo libre no puede pisar: las controla el Worker.
 const RESERVADAS = new Set(['model', 'messages', 'stream', 'stream_options', 'n']);
 
+const MAX_FAVORITOS = 20;
+
 export const CONFIG_INICIAL = {
   principal: { proveedor: 'nanogpt', modelo: '' },
   respaldo: null,
   parametros: { temperature: 0.7 },
   extra: {},
+  favoritos: [],
 };
 
 export class ErrorIA extends Error {
@@ -80,6 +83,23 @@ function validarExtra(e) {
   return e;
 }
 
+// Modelos marcados con estrella: acceso rápido en el chat. Sin duplicados ni nombres vacíos.
+function validarFavoritos(f) {
+  if (f === undefined) return [];
+  if (!Array.isArray(f)) throw new ErrorIA(400, 'favoritos: debe ser una lista');
+  if (f.length > MAX_FAVORITOS) throw new ErrorIA(400, `favoritos: máximo ${MAX_FAVORITOS}`);
+  const vistos = new Set();
+  const lista = [];
+  f.forEach((m, i) => {
+    const limpio = validarModelo(m, `favoritos[${i}]`);
+    const clave = `${limpio.proveedor}/${limpio.modelo}`;
+    if (!limpio.modelo || vistos.has(clave)) return;
+    vistos.add(clave);
+    lista.push(limpio);
+  });
+  return lista;
+}
+
 export function validarConfig(c) {
   if (!esObjetoPlano(c)) throw new ErrorIA(400, 'Configuración inválida');
   return {
@@ -87,6 +107,7 @@ export function validarConfig(c) {
     respaldo: c.respaldo ? validarModelo(c.respaldo, 'respaldo') : null,
     parametros: validarParametros(c.parametros),
     extra: validarExtra(c.extra),
+    favoritos: validarFavoritos(c.favoritos),
   };
 }
 
@@ -109,7 +130,8 @@ function validarMensajes(mensajes) {
 
 export async function leerConfig(env) {
   const guardada = await env.CONFIG.get(CLAVE_KV, 'json');
-  return guardada || CONFIG_INICIAL;
+  // Completa campos agregados después (por ejemplo, favoritos) en configuraciones antiguas.
+  return { ...CONFIG_INICIAL, ...(guardada || {}) };
 }
 
 export async function guardarConfig(env, config) {
