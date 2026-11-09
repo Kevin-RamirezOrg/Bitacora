@@ -344,7 +344,54 @@ input.search-field::placeholder{color:var(--muted)}
 
 /* ---------- Assistant ---------- */
 .as-ex{display:flex;flex-direction:column;gap:8px;margin-top:12px}
-.as-ex span{align-self:flex-start;max-width:90%;padding:10px 14px;border-radius:18px 18px 18px 6px;background:var(--surface);border:1px solid var(--line);font-size:15px}
+.as-ex span,.as-ex button{align-self:flex-start;max-width:90%;padding:10px 14px;border-radius:18px 18px 18px 6px;background:var(--surface);border:1px solid var(--line-strong);font-size:15px;text-align:left;min-height:44px}
+.as-ex button:hover{background:var(--surface-2)}
+.chat-log{display:flex;flex-direction:column;gap:12px;padding-top:6px;padding-bottom:16px}
+.chat-day{align-self:center;font-size:13px;font-weight:600;color:var(--muted);margin-top:6px}
+.msg{max-width:min(88%,620px);font-size:16px;line-height:1.5;word-break:break-word}
+.msg.yo{align-self:flex-end;background:var(--accent-soft);border:1px solid var(--line-strong);padding:10px 14px;border-radius:18px 18px 6px 18px;white-space:pre-wrap}
+.msg.ia{align-self:flex-start;width:min(88%,620px)}
+.msg.ia > .txt{background:var(--surface);border:1px solid var(--line);padding:10px 14px;border-radius:18px 18px 18px 6px;white-space:pre-wrap}
+.msg.err > .txt{background:var(--danger-soft);border-color:var(--danger)}
+.msg-acts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}
+.msg-acts .link{min-height:40px;font-size:14px}
+.msg-meta{font-size:13px;color:var(--muted);margin:6px 4px 0}
+.res{margin-top:8px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line);overflow:hidden}
+.res-row{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.res-row:last-child{border-bottom:0}
+.res-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);flex:none}
+.res-ic svg{width:18px;height:18px}
+.res-row.bad .res-ic{background:var(--danger-soft);color:var(--danger)}
+.res-t{flex:1;min-width:0}
+.res-t b{display:block;font-weight:600;font-size:15px}
+.res-t span{display:block;font-size:13px;color:var(--ink-2)}
+.res-t .clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.res-row.bad .res-t span{color:var(--danger)}
+.res-open{font-size:14px;font-weight:600;color:var(--accent-ink);min-height:32px;display:inline-flex;align-items:center;padding:0 4px;flex:none;text-decoration:none}
+.undone .res-t b,.undone .res-t span{text-decoration:line-through;color:var(--muted)}
+.res-h{padding:10px 12px;font-size:14px;font-weight:600;color:var(--ink-2);border-bottom:1px solid var(--line)}
+.due,.res-t .due{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-2);margin-top:2px}
+.due i{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.due.soon i{background:var(--warn)}.due.now i{background:var(--danger)}.due.done i{background:var(--muted)}
+.res-row.done .res-t b{text-decoration:line-through;color:var(--muted)}
+.typing{display:inline-flex;gap:5px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:18px 18px 18px 6px}
+.typing i{width:8px;height:8px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite ease-in-out}
+.typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
+.chat-comp{flex:none;border-top:1px solid var(--line);background:var(--bg);padding-top:8px;padding-bottom:10px}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 calc(-1 * max(18px,env(safe-area-inset-left,0px))) 8px;padding:0 max(18px,env(safe-area-inset-right,0px)) 0 max(18px,env(safe-area-inset-left,0px))}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:36px;max-width:240px;padding:0 12px;border-radius:var(--r-pill);border:1.5px solid var(--line-strong);background:var(--surface);font-size:13px;font-weight:600;color:var(--ink-2)}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip svg{width:14px;height:14px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.comp-row{display:flex;align-items:flex-end;gap:8px}
+.comp-in{flex:1;min-width:0;min-height:48px;max-height:148px;resize:none;border-radius:24px;background:var(--surface-2);border:1.5px solid var(--line-strong);padding:12px 16px;font-size:16px;line-height:1.4}
+.comp-in:focus{outline:none;border-color:var(--accent)}
+.send{width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;flex:none}
+.send svg{width:22px;height:22px}
+.send:disabled{opacity:.55;cursor:default}
+@media (min-width:900px){ .chat-comp{padding-bottom:16px} }
 
 /* ---------- Lock ---------- */
 .lock{position:fixed;inset:0;z-index:80;background:var(--bg);display:grid;place-items:center;overflow:auto;padding:max(20px,env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) max(20px,env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px))}
@@ -485,6 +532,11 @@ const ICON = {
   star: sv('<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>'),
   starFill: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
   test: sv('<path d="M9 3h6M10 3v6L5 19a1.5 1.5 0 0 0 1.3 2h11.4a1.5 1.5 0 0 0 1.3-2l-5-10V3"/><path d="M7.5 14h9"/>'),
+  send: sv('<path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/>'),
+  user: sv('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+  inbox: sv('<path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/>'),
+  done: sv('<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>'),
+  alert: sv('<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/>'),
 };
 
 /* ================= Constants ================= */
@@ -706,6 +758,7 @@ function render() {
 function onData() {
   // The AI panel keeps unsaved edits in its form; note changes don't affect it, so don't redraw it under the user.
   if (S.view === 'ai' && S.isOwner && AI.loaded) return;
+  if (S.view === 'assistant' && S.isOwner && CHAT.loaded) return; // same for the chat composer
   if (S.view === 'editor') {
     const it = get(S.fileId);
     if (!it && S.ready) { ed = null; navigate('home', {}, 'replace'); return; }
@@ -881,15 +934,190 @@ function viewSearch(scr) {
   run(); setTimeout(() => inp.focus(), 60);
 }
 
-/* ---------- Assistant (reserved) ---------- */
+/* ---------- Assistant (chat → Notion through the Worker) ---------- */
+const CHAT = { loaded:false, loading:false, err:null, msgs:[], more:false, estado:null, config:null, sending:false, failed:null, draft:'', olderLoading:false };
+const CHAT_EXAMPLES = ['prueba de big data el martes 2','entregar deber de compiladores el viernes','las pruebas de fundamentos son de opción múltiple','¿qué tengo esta semana?'];
+const chatModelKey = () => pref('bitacora.chatModelo', '');
+const localDay = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const daysUntil = f => Math.round((Date.parse(f + 'T12:00:00Z') - Date.parse(localDay() + 'T12:00:00Z')) / 86400000);
+const fmtDay = (f, opts={weekday:'short',day:'numeric',month:'short'}) => new Date(f + 'T12:00:00').toLocaleDateString('es', opts);
+const fmtDue = (f, hora) => f ? fmtDay(f) + (hora ? ', ' + hora : '') : 'Sin fecha';
+const shortModel = m => String(m || '').split('/').pop();
+
+async function chatLoad() {
+  if (CHAT.loading) return; CHAT.loading = true; CHAT.err = null;
+  const [est, cfg, hist] = await Promise.allSettled([api('/asistente/estado'), api('/config/ia'), api('/asistente/historial?limite=50')]);
+  CHAT.estado = est.status === 'fulfilled' ? est.value : null;
+  CHAT.config = cfg.status === 'fulfilled' ? cfg.value.config : null;
+  if (hist.status === 'fulfilled') { CHAT.msgs = hist.value.mensajes; CHAT.more = CHAT.msgs.length >= 50; }
+  else if (CHAT.estado && !CHAT.estado.historial) CHAT.msgs = [];
+  else CHAT.err = hist.reason?.message || 'No se pudo cargar el chat.';
+  if (!CHAT.err) CHAT.loaded = true;
+  CHAT.loading = false; chatPaint(true);
+}
+function chatPaint(toBottom=false) {
+  if (S.view !== 'assistant') return;
+  const prev = $('#screen .scroll'); const fromBottom = prev ? prev.scrollHeight - prev.scrollTop : 0;
+  const focused = document.activeElement?.id === 'chatIn';
+  render();
+  const sc = $('#screen .scroll'); if (!sc) return;
+  sc.scrollTop = toBottom ? sc.scrollHeight : sc.scrollHeight - fromBottom;
+  if (focused) $('#chatIn')?.focus({preventScroll:true});
+}
+function chatModelo() { // favorite picked in the chat, or null = saved principal
+  const key = chatModelKey(); if (!key) return null;
+  const f = (CHAT.config?.favoritos || []).find(x => `${x.proveedor}/${x.modelo}` === key);
+  if (!f) { setPref('bitacora.chatModelo', null); return null; }
+  return f;
+}
+async function chatSend(text) {
+  text = String(text || '').trim(); if (!text || CHAT.sending) return;
+  CHAT.sending = { texto:text }; CHAT.failed = null; CHAT.draft = ''; chatPaint(true);
+  try {
+    const modelo = chatModelo();
+    const r = await api('/asistente/mensaje', { method:'POST', body: modelo ? { texto:text, modelo } : { texto:text } });
+    CHAT.msgs.push(r.usuario, r.asistente);
+  } catch (e) { CHAT.failed = { texto:text, error:e.message }; }
+  finally { CHAT.sending = false; chatPaint(true); }
+}
+async function chatUndo(id, btn) {
+  btn.disabled = true;
+  try { const r = await api('/asistente/deshacer', { method:'POST', body:{ id } });
+    const i = CHAT.msgs.findIndex(m => m.id === id); if (i >= 0) CHAT.msgs[i] = r.mensaje;
+    toast('Cambios deshechos en Notion'); chatPaint(); }
+  catch (e) { toast(e.message); btn.disabled = false; }
+}
+async function chatOlder(btn) {
+  if (CHAT.olderLoading || !CHAT.msgs.length) return; CHAT.olderLoading = true; btn.disabled = true;
+  try { const r = await api('/asistente/historial?limite=50&antes=' + CHAT.msgs[0].id);
+    CHAT.msgs = [...r.mensajes, ...CHAT.msgs]; CHAT.more = r.mensajes.length >= 50; }
+  catch (e) { toast(e.message); }
+  finally { CHAT.olderLoading = false; chatPaint(); }
+}
+function chatMenu() {
+  openSheet({ title:'Asistente', body:[h('div',{class:'acts-list'},
+    act('sparkle','Modelos de IA',()=>{ closeSheet().then(openAI); }),
+    h('div',{class:'act-sep'}),
+    act('trash','Borrar conversación',()=>openSheet({ title:'Borrar conversación', danger:true, confirm:'Borrar',
+      body:[h('p',{text:'Se borra el historial del chat en todos tus dispositivos. Lo que ya está en Notion no cambia.'})],
+      onConfirm: async () => { try { await api('/asistente/historial', { method:'DELETE' }); CHAT.msgs = []; CHAT.more = false; CHAT.failed = null; toast('Conversación borrada'); setTimeout(()=>chatPaint(), 0); }
+        catch (e) { toast(e.message); return false; } } }),'danger'))] });
+}
+
+function dueBadge(t) {
+  if (t.completada) return h('span',{class:'due done'}, h('i'), 'Hecha');
+  if (!t.fecha) return h('span',{class:'due'}, h('i'), 'Sin fecha');
+  const n = daysUntil(t.fecha);
+  const label = n < 0 ? `Atrasada ${-n} día${n===-1?'':'s'}` : n === 0 ? 'Hoy' : n === 1 ? 'Mañana' : `En ${n} días`;
+  return h('span',{class:'due' + (n <= 1 ? ' now' : n <= 3 ? ' soon' : '')}, h('i'), label);
+}
+const openLink = url => url ? h('a',{class:'res-open',href:url,target:'_blank',rel:'noopener','aria-label':'Abrir en Notion'}, 'Abrir') : null;
+function resultRow(r) {
+  if (!r.ok) return h('div',{class:'res-row bad'}, h('span',{class:'res-ic',html:ICON.alert}),
+    h('span',{class:'res-t'}, h('b',{text: r.titulo ? `No se pudo: ${r.titulo}` : 'No se pudo completar una acción'}), h('span',{text:r.error})));
+  const row = (icon, title, sub, url, extra) => h('div',{class:'res-row'}, h('span',{class:'res-ic',html:ICON[icon]}),
+    h('span',{class:'res-t'}, h('b',{text:title}), sub ? h('span',{class:'clamp',text:sub}) : null, extra || null), openLink(url));
+  switch (r.accion) {
+    case 'crear_tarea': return row('cal', r.titulo, [r.tipo, r.materia || 'Sin materia', fmtDue(r.fecha, r.hora), r.grupal ? 'Grupal' : null].filter(Boolean).join(' · '), r.url,
+      r.fecha ? dueBadge({ fecha:r.fecha }) : null);
+    case 'completar_tarea': return row('done', 'Hecha: ' + r.titulo, 'Marcada como completada en Notion', r.url);
+    case 'guardar_persona': return row('user', r.nombre,
+      [r.creada ? 'Nueva en Personas' : r.sinCambios ? 'Ya estaba al día' : 'Actualizada', r.rol, (r.materias || []).join(', ')].filter(Boolean).join(' · '), r.url);
+    case 'nota_inbox': return row('inbox', 'Nota en el Inbox' + (r.materia ? ' · ' + r.materia : ''), r.texto, r.url);
+    default: return null;
+  }
+}
+function taskList(r) {
+  const box = h('div',{class:'res'}, h('div',{class:'res-h',text: r.desde === r.hasta ? fmtDay(r.desde,{weekday:'long',day:'numeric',month:'long'})
+    : `Del ${fmtDay(r.desde,{weekday:'short',day:'numeric'})} al ${fmtDay(r.hasta,{weekday:'short',day:'numeric',month:'short'})}`}));
+  if (!r.tareas.length) box.append(h('div',{class:'res-row'}, h('span',{class:'res-t'}, h('span',{text:'No hay nada en esas fechas.'}))));
+  r.tareas.forEach(t => box.append(h('div',{class:'res-row' + (t.completada ? ' done' : '')}, h('span',{class:'res-ic',html:ICON.cal}),
+    h('span',{class:'res-t'}, h('b',{text:t.titulo}), h('span',{text:[t.tipo, t.materia || 'Sin materia', fmtDue(t.fecha, t.hora)].filter(Boolean).join(' · ')}), dueBadge(t)), openLink(t.url))));
+  return box;
+}
+function chatMessage(m) {
+  if (m.rol === 'usuario') return h('div',{class:'msg yo',text:m.texto});
+  const d = m.datos || {}; const res = d.resultados || [];
+  const el = h('div',{class:'msg ia'}, h('div',{class:'txt',text:m.texto}));
+  const actions = res.filter(r => r.accion !== 'mostrar_tareas').map(resultRow).filter(Boolean);
+  if (actions.length) el.append(h('div',{class:'res' + (d.deshecho ? ' undone' : '')}, ...actions));
+  res.filter(r => r.accion === 'mostrar_tareas' && r.ok).forEach(r => el.append(taskList(r)));
+  const meta = [d.modelo ? shortModel(d.modelo) + (d.respaldo ? ' (respaldo)' : '') : null, d.deshecho ? 'Deshecho' : null].filter(Boolean).join(' · ');
+  const canUndo = !d.deshecho && res.some(r => r.ok && r.deshacer);
+  if (canUndo || meta) {
+    const bar = h('div',{class:'msg-acts'}, meta ? h('span',{class:'msg-meta',style:{margin:'0 4px',flex:'1'},text:meta}) : h('span',{style:{flex:'1'}}));
+    if (canUndo) { const b = h('button',{class:'link',type:'button',text:'Deshacer'}); b.onclick = () => chatUndo(m.id, b); bar.append(b); }
+    el.append(bar);
+  }
+  if (d.aviso) el.append(h('p',{class:'msg-meta',text:d.aviso}));
+  return el;
+}
+
 function viewAssistant(scr) {
-  const sc = h('div',{class:'scroll'}); const w = h('div',{class:'wrap pad'}); sc.append(w); scr.append(sc);
-  w.append(h('div',{class:'page-h'}, h('h1',{text:'Asistente'})));
-  w.append(h('div',{class:'hoy'}, h('span',{class:'hoy-ic',html:ICON.sparkle}), h('div',{},
-    h('p',{text:'Escribe lo que pasó y el asistente lo organiza en tu Notion: pruebas, entregas, datos de docentes y pendientes.'}),
-    h('small',{text:'Lo activaremos en el siguiente paso, junto con el panel Hoy.'}))));
-  w.append(h('div',{class:'sec'}, h('div',{class:'sec-h'}, h('h2',{text:'Así lo usarás'})),
-    h('div',{class:'as-ex'}, ...['prueba de big data el martes 2','entregar deber de compiladores el viernes','las pruebas de fundamentos son de opción múltiple','¿qué tengo esta semana?'].map(t=>h('span',{text:t})))));
+  const head = h('div',{class:'wrap pad'}, h('div',{class:'page-h'}, h('h1',{text:'Asistente'}),
+    S.isOwner && CHAT.loaded ? h('button',{class:'icon-btn','aria-label':'Opciones del asistente',html:ICON.dots,onclick:chatMenu}) : null));
+  const sc = h('div',{class:'scroll'}); const w = h('div',{class:'wrap pad'}); sc.append(w); scr.append(head, sc);
+  const intro = () => h('div',{class:'hoy'}, h('span',{class:'hoy-ic',html:ICON.sparkle}), h('div',{},
+    h('p',{text:'Escribe lo que pasó y el asistente lo guarda en tu Notion: pruebas, entregas, datos de docentes y pendientes.'}),
+    h('small',{text:'Se guarda al instante; si algo no quedó bien, toca Deshacer.'})));
+  if (!S.isOwner) {
+    CHAT.loaded = false; CHAT.msgs = []; CHAT.config = null;
+    w.append(intro(), h('div',{class:'note-bar'}, h('span',{text:'Ingresa con tu PIN para usar el asistente.'}), h('button',{class:'link',onclick:()=>showLock(true),text:'Ingresar con PIN'})));
+    return;
+  }
+  if (!CHAT.loaded) {
+    if (CHAT.err) w.append(h('div',{class:'note-bar alert',role:'alert'}, h('span',{text:'No se pudo cargar el chat: ' + CHAT.err}), h('button',{class:'link',onclick:()=>{ CHAT.err = null; chatPaint(); },text:'Reintentar'})));
+    else { w.append(h('p',{class:'date',style:{marginTop:'12px'},text:'Cargando conversación…'})); setTimeout(chatLoad); }
+    return;
+  }
+
+  // Setup notes
+  const e = CHAT.estado;
+  if (e && (!e.notion || !e.historial)) w.append(h('div',{class:'note-bar alert',role:'status'}, h('span',{text:
+    !e.notion ? 'Falta conectar Notion: guarda el secret NOTION_TOKEN en Cloudflare.' : 'Falta la base D1 del historial en Cloudflare; los mensajes no se guardarán.'})));
+
+  const log = h('div',{class:'chat-log'}); w.append(log);
+  if (CHAT.more) { const b = h('button',{class:'btn secondary',type:'button',style:{alignSelf:'center'},text:'Ver mensajes anteriores'}); b.onclick = () => chatOlder(b); log.append(b); }
+  if (!CHAT.msgs.length && !CHAT.sending && !CHAT.failed) {
+    log.append(intro(), h('div',{class:'sec-h',style:{marginTop:'8px'}}, h('h2',{style:{fontSize:'18px'},text:'Prueba con'})),
+      h('div',{class:'as-ex'}, ...CHAT_EXAMPLES.map(t => h('button',{type:'button',onclick:()=>{ const i = $('#chatIn'); i.value = t; CHAT.draft = t; i.dispatchEvent(new Event('input')); i.focus(); }}, t))));
+  }
+  let lastDay = null;
+  CHAT.msgs.forEach(m => {
+    const day = localDay(new Date(m.creado));
+    if (day !== lastDay) { lastDay = day; const n = daysUntil(day);
+      log.append(h('div',{class:'chat-day',text: n === 0 ? 'Hoy' : n === -1 ? 'Ayer' : fmtDay(day,{weekday:'long',day:'numeric',month:'long'})})); }
+    log.append(chatMessage(m));
+  });
+  if (CHAT.sending) log.append(h('div',{class:'msg yo',text:CHAT.sending.texto}), h('div',{class:'typing',role:'status','aria-label':'El asistente está escribiendo'}, h('i'), h('i'), h('i')));
+  if (CHAT.failed) {
+    const f = CHAT.failed;
+    log.append(h('div',{class:'msg yo',text:f.texto}), h('div',{class:'msg ia err',role:'alert'}, h('div',{class:'txt',text:'No se pudo procesar: ' + f.error}),
+      h('div',{class:'msg-acts'}, h('button',{class:'link',type:'button',onclick:()=>chatSend(f.texto),text:'Reintentar'}),
+        h('button',{class:'link',type:'button',onclick:()=>{ CHAT.failed = null; CHAT.draft = f.texto; chatPaint(true); $('#chatIn')?.focus(); },text:'Editar'}))));
+  }
+
+  // Composer: favorites as quick model picks + text box
+  const comp = h('div',{class:'chat-comp'}); const cw = h('div',{class:'wrap pad'}); comp.append(cw); scr.append(comp);
+  const favs = CHAT.config?.favoritos || [];
+  if (favs.length) {
+    const cur = chatModelo(); const key = cur ? `${cur.proveedor}/${cur.modelo}` : '';
+    const pick = k => { setPref('bitacora.chatModelo', k || null); chatPaint(); };
+    const principal = CHAT.config?.principal?.modelo;
+    cw.append(h('div',{class:'chips',role:'group','aria-label':'Modelo para este chat'},
+      h('button',{class:'chip',type:'button','aria-pressed':String(!key),title:principal || '',onclick:()=>pick('')}, h('span',{text: principal ? 'Principal · ' + shortModel(principal) : 'Principal'})),
+      ...favs.map(f => { const k = `${f.proveedor}/${f.modelo}`;
+        return h('button',{class:'chip',type:'button','aria-pressed':String(k === key),title:`${f.modelo} (${provName(f.proveedor)})`,onclick:()=>pick(k)}, h('span',{style:{display:'contents'},html:ICON.starFill}), h('span',{text:shortModel(f.modelo)})); })));
+  }
+  const ta = h('textarea',{class:'comp-in',id:'chatIn',rows:'1',placeholder:'Escribe una tarea o una pregunta','aria-label':'Mensaje para el asistente'});
+  ta.value = CHAT.draft;
+  const send = h('button',{class:'send',type:'button','aria-label':'Enviar',html:ICON.send});
+  const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 3, 148) + 'px'; send.disabled = !!CHAT.sending || !ta.value.trim(); };
+  ta.addEventListener('input', () => { CHAT.draft = ta.value; fit(); });
+  ta.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !matchMedia('(pointer:coarse)').matches) { ev.preventDefault(); send.click(); } });
+  send.onclick = () => chatSend(ta.value);
+  cw.append(h('div',{class:'comp-row'}, ta, send));
+  requestAnimationFrame(fit);
 }
 
 /* ---------- Settings ---------- */
