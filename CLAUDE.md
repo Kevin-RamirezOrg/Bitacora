@@ -38,6 +38,7 @@ Este archivo es el contexto completo del proyecto; cualquier asistente (Claude, 
   - Firestore, región `us-east1`. Colección `items` (carpetas, notas y portapapeles) y documento `config/access` (modo de acceso).
   - Authentication con correo/contraseña. Un solo usuario dueño: UID `mOlFltUhUNQrTTxtIWuCFJzMCFI3`, correo identificador `matias@gmail.com`. La contraseña es el **PIN**; la app solo pide el PIN.
   - La config web de Firebase está en `index.html` y es pública por diseño; la seguridad la dan las reglas.
+- **App instalable (PWA)**: `manifest.webmanifest` (standalone, colores Pizarra, accesos directos `?v=assistant` y `?v=panel`), íconos en `icons/` (192, 512, maskable, apple-touch, favicon) y `sw.js` mínimo: red primero para la página y, sin conexión, la última copia guardada; no cachea nada más. Verificado sin errores con `Page.getInstallabilityErrors`.
 - Librerías por CDN: Firebase compat 10.12.2 (gstatic), marked 12.0.2, DOMPurify 3.1.6, highlight.js 11.9.0 (cdnjs). Fuentes: Lora (títulos), Figtree (texto), JetBrains Mono (código).
 
 ### Worker de Cloudflare (fase 2, en curso)
@@ -130,7 +131,7 @@ Página "Universidad" → "Bases de datos". Ya existen y deben reutilizarse, no 
      - Chat temporal: `POST /asistente/mensaje` con `temporal:true` e `historial` del cliente; no se guarda en D1; vive solo en memoria de la página (se borra al salir del modo, recargar o bloquear). Deshacer manda los `datos` del mensaje (`POST /asistente/deshacer {datos}`). Lo guardado en Notion sí queda.
      - Memoria (D1 `memoria`, máx. 60, claves `k1…` en el prompt): acciones `recordar` (solo si Kevin lo pide), `olvidar` y `proponer_recuerdo` (tarjeta Recordar/No; `POST /asistente/propuesta`). Ajustes → Memoria del asistente y menú del chat: ver, editar, borrar y agregar. Rutas `GET/POST/PUT/DELETE /asistente/memoria`. Nunca proponer sobre salud, dinero, familia u otros temas delicados.
      - Valoraciones 👍/👎 por respuesta (D1 `valoraciones`; 👎 pide motivo); el prompt recibe un resumen de las últimas 30.
-     - Dictado por voz: botón de micrófono (Web Speech API, `es-EC`), oculto si el navegador no lo soporta; se detiene al enviar o salir.
+     - Dictado por voz: botón de micrófono (Web Speech API, `es-EC`), oculto si el navegador no lo soporta; se detiene al enviar o al cambiar de vista. También en el editor (texto enriquecido y Markdown): primer botón de la barra; escribe cada frase donde está el cursor y muestra lo parcial en una franja sobre la barra (`dictStart`/`dictEditor`, un solo reconocedor a la vez).
    - Selector de modelo: botón dentro de la caja de escribir (como Gemini/Claude) con el modelo actual; abre una hoja con Principal, favoritos y acceso a Modelos de IA. Reemplazó a los chips.
 4. **Sincronización del aula virtual (Moodle de la universidad)**: Kevin confirmó que existe "Exportar calendario". El Worker lee la URL iCal (como *secret*) una vez al día con un Cron Trigger y crea/actualiza filas en *Tareas y evaluaciones* sin duplicar (usar el UID del evento).
 5. **Panel "Hoy"** (en Inicio, solo dueño), combinación de reglas + IA:

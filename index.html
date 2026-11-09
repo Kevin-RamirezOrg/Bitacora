@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1C2723" id="themeColor">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Bitácora</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -247,6 +252,9 @@ input.search-field::placeholder{color:var(--muted)}
 .ed-body{flex:1;min-height:0;display:flex;flex-direction:column}
 .ed-tools{flex:none;display:flex;align-items:center;gap:4px;overflow-x:auto;scrollbar-width:none;padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));background:var(--surface);border-top:1px solid var(--line)}
 .ed-tools::-webkit-scrollbar{display:none}
+.dict-bar{flex:none;padding:8px max(16px,env(safe-area-inset-left,0px));font-size:14px;color:var(--ink);background:var(--accent-soft);border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dict-bar[hidden]{display:none}
+.tb.on[aria-label="Dictar por voz"]{background:var(--danger);color:var(--bg)}
 .tb{flex:none;min-width:44px;height:44px;padding:0 8px;border-radius:12px;display:inline-grid;place-items:center;color:var(--ink);font-size:16px;font-weight:700}
 .tb svg{width:22px;height:22px}
 .tb:active,.tb.on{background:var(--accent-soft);color:var(--accent-ink)}
@@ -847,7 +855,7 @@ function render() {
   const tabView = S.view === 'search' ? 'home' : S.view === 'ai' ? 'settings' : S.view === 'editor' ? null : S.view;
   const cur = document.querySelector(`.tab[data-view="${tabView}"]`); if (cur) cur.setAttribute('aria-current','page');
   if (S.view !== 'editor') ed = null;
-  if (S.view !== 'assistant' && dict) dictStop();
+  if (dict && dict.view !== S.view) dictStop();
   scr.innerHTML = '';
   ({ home:viewHome, files:viewFiles, panel:viewPanel, search:viewSearch, assistant:viewAssistant, settings:viewSettings, ai:viewAI, editor:viewEditor }[S.view] || viewHome)(scr);
 }
@@ -1354,21 +1362,46 @@ async function chatProposal(m, aceptar, btn) {
   } catch (e) { toast(e.message); btn.disabled = false; }
 }
 
-// Voice dictation (Web Speech API; Chrome on Android supports it).
+// Voice dictation (Web Speech API; Chrome on Android supports it). One recognizer at a time, shared by chat and editor.
 var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 var dict = null; // var: render() may run before this line during start-up
-function dictStop() { if (dict) { try { dict.rec.stop(); } catch {} dict = null; const b = $('#micBtn'); if (b) b.setAttribute('aria-pressed','false'); } }
-function dictToggle(ta, btn) {
-  if (dict) { dictStop(); return; }
+function dictStop() {
+  if (!dict) return; const d = dict; dict = null;
+  try { d.rec.stop(); } catch {}
+  d.btn?.setAttribute('aria-pressed','false'); d.btn?.classList.remove('on'); d.onEnd?.();
+}
+// Starts listening; onText(final, interim) is called as results arrive.
+function dictStart(btn, { onFinal, onInterim, onEnd } = {}) {
+  if (dict) { const same = dict.btn === btn; dictStop(); if (same) return; }
   const rec = new SpeechRec(); rec.lang = 'es-EC'; rec.continuous = true; rec.interimResults = true;
-  const base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
-  let finals = '';
   rec.onresult = ev => { let interim = '';
-    for (let i = ev.resultIndex; i < ev.results.length; i++) { const t = ev.results[i][0].transcript; if (ev.results[i].isFinal) finals += t; else interim += t; }
-    ta.value = (base + finals + interim).replace(/\s+/g, ' ').trimStart(); CHAT.draft = ta.value; ta.dispatchEvent(new Event('input')); };
+    for (let i = ev.resultIndex; i < ev.results.length; i++) { const t = ev.results[i][0].transcript; if (ev.results[i].isFinal) onFinal?.(t); else interim += t; }
+    onInterim?.(interim); };
   rec.onerror = ev => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') toast('Permite el micrófono para dictar'); else if (ev.error !== 'aborted' && ev.error !== 'no-speech') toast('No se pudo dictar: ' + ev.error); };
   rec.onend = () => { if (dict?.rec === rec) dictStop(); };
-  try { rec.start(); dict = { rec }; btn.setAttribute('aria-pressed','true'); } catch (e) { toast('No se pudo iniciar el dictado'); }
+  try { rec.start(); dict = { rec, btn, onEnd, view:S.view }; btn.setAttribute('aria-pressed','true'); btn.classList.add('on'); } catch { toast('No se pudo iniciar el dictado'); }
+}
+function dictToggle(ta, btn) {
+  if (dict) { dictStop(); return; }
+  const base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
+  let finals = '';
+  const show = interim => { ta.value = (base + finals + interim).replace(/\s+/g, ' ').trimStart(); CHAT.draft = ta.value; ta.dispatchEvent(new Event('input')); };
+  dictStart(btn, { onFinal: t => { finals += t + ' '; show(''); }, onInterim: show });
+}
+// Editor: each final phrase is typed at the cursor; the partial phrase shows in a bar above the toolbar.
+function dictEditor(target, btn, bar) {
+  let range = null;
+  const keep = () => { const s = getSelection(); if (s.rangeCount && target.contains(s.anchorNode)) range = s.getRangeAt(0).cloneRange(); };
+  keep();
+  const put = t => {
+    if (document.activeElement !== target) { target.focus({ preventScroll:true }); if (range && target.isContentEditable) { const s = getSelection(); s.removeAllRanges(); s.addRange(range); } }
+    let txt = t.trim(); if (!txt) return;
+    if (target.tagName === 'TEXTAREA') { const prev = target.value.slice(0, target.selectionStart); if (prev && !/\s$/.test(prev)) txt = ' ' + txt; }
+    if (!document.execCommand('insertText', false, txt + ' ') && target.tagName === 'TEXTAREA') { target.setRangeText(txt + ' ', target.selectionStart, target.selectionEnd, 'end'); target.dispatchEvent(new Event('input')); }
+    keep();
+  };
+  bar.hidden = false; bar.textContent = 'Escuchando… habla y el texto aparecerá donde está el cursor.';
+  dictStart(btn, { onFinal: put, onInterim: t => { bar.textContent = t ? '… ' + t : 'Escuchando…'; }, onEnd: () => { bar.hidden = true; } });
 }
 
 // Sheet to pick the model for the chat: saved principal or one of the favorites.
@@ -2018,8 +2051,10 @@ function richEditor(host, it) {
   const B = { bold:tb('<b>B</b>','Negrita',()=>exec('bold')), italic:tb('<i style="font-family:Georgia,serif">I</i>','Cursiva',()=>exec('italic')),
     underline:tb('<u>U</u>','Subrayado',()=>exec('underline')), strike:tb('<s>S</s>','Tachado',()=>exec('strikeThrough')) };
   const pasteBtn = tb('<span style="font-size:13px;font-weight:600">Texto plano</span>','Pegar sin formato',()=>{ S.pastePlain = !S.pastePlain; pasteBtn.classList.toggle('on', S.pastePlain); toast(S.pastePlain ? 'Pegarás solo el texto' : 'Pegarás con formato'); }, 'txt'+(S.pastePlain?' on':''));
+  const dictBar = h('div',{class:'dict-bar',role:'status',hidden:true});
+  const micB = SpeechRec ? tb('mic','Dictar por voz',()=>dictEditor(area, micB, dictBar)) : null;
   const tools = h('div',{class:'ed-tools',role:'toolbar','aria-label':'Formato'},
-    tb('undo','Deshacer',()=>exec('undo')), tb('redo','Rehacer',()=>exec('redo')), tsep(),
+    micB, micB ? tsep() : null, tb('undo','Deshacer',()=>exec('undo')), tb('redo','Rehacer',()=>exec('redo')), tsep(),
     tb('<span style="font-family:var(--f-display);font-weight:700">T1</span>','Título',()=>block('h1')), tb('<span style="font-family:var(--f-display);font-weight:700">T2</span>','Subtítulo',()=>block('h2')), tb('<span style="font-weight:600">¶</span>','Párrafo',()=>exec('formatBlock','p')), tsep(),
     B.bold, B.italic, B.underline, B.strike, tb('palette','Color y resaltado',colorSheetRich), tsep(),
     tb('list','Lista',()=>exec('insertUnorderedList')), tb('olist','Lista numerada',()=>exec('insertOrderedList')),
@@ -2038,7 +2073,7 @@ function richEditor(host, it) {
     if (!S.pastePlain && html) document.execCommand('insertHTML', false, DOMPurify.sanitize(html, {FORBID_TAGS:['style','meta','font','script','iframe','form','input','button'], FORBID_ATTR:['style','class','id','width','height','bgcolor','color','face','size']}));
     else document.execCommand('insertText', false, txt);
     changed(); });
-  host.append(area); if (S.canWrite) host.append(tools);
+  host.append(area); if (S.canWrite) host.append(dictBar, tools);
   return { getContent:()=>area.innerHTML, setContent:v=>{ area.innerHTML = DOMPurify.sanitize(v,{ADD_ATTR:['data-check','data-checked']}); },
     isFocused:()=>area.contains(document.activeElement)||document.activeElement===area, text:()=>area.innerText,
     stats:()=>{ const n = countWords(area.innerText||''); return `${n.toLocaleString('es')} palabra${n===1?'':'s'}`; } };
@@ -2074,7 +2109,9 @@ function mdEditor(host, it) {
   const apply = () => { wrap.classList.toggle('split', mode==='split'); ta.classList.toggle('hide', mode==='view'); prev.classList.toggle('hide', mode==='edit');
     seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.m===mode))); if (mode!=='edit') renderMd(ta.value, prev); };
   let pt; const rerender = () => { clearTimeout(pt); pt = setTimeout(()=>{ if (mode!=='edit') renderMd(ta.value, prev); }, 140); };
-  const tools = h('div',{class:'ed-tools',role:'toolbar','aria-label':'Formato Markdown'}, seg, tsep(),
+  const dictBar = h('div',{class:'dict-bar',role:'status',hidden:true});
+  const micB = SpeechRec ? tb('mic','Dictar por voz',()=>{ if (mode === 'view') { mode = 'edit'; apply(); } dictEditor(ta, micB, dictBar); }) : null;
+  const tools = h('div',{class:'ed-tools',role:'toolbar','aria-label':'Formato Markdown'}, micB, micB ? tsep() : null, seg, tsep(),
     tb('<span style="font-family:var(--f-display);font-weight:700">H1</span>','Título',()=>prefixLines(ta,'# ')), tb('<span style="font-family:var(--f-display);font-weight:700">H2</span>','Subtítulo',()=>prefixLines(ta,'## ')),
     tb('<b>B</b>','Negrita',()=>insertAround(ta,'**','**')), tb('<i style="font-family:Georgia,serif">I</i>','Cursiva',()=>insertAround(ta,'*','*')),
     tb('list','Lista',()=>prefixLines(ta,'- ')), tb('olist','Lista numerada',()=>prefixLines(ta,'1. ')), tb('check','Tarea',()=>prefixLines(ta,'- [ ] ')),
@@ -2083,7 +2120,7 @@ function mdEditor(host, it) {
   ta.addEventListener('input', () => { changed(); rerender(); });
   ta.addEventListener('blur', flushSave);
   ta.addEventListener('keydown', e => { if (e.key==='Tab') { e.preventDefault(); insertAround(ta,'    ','',''); } });
-  wrap.append(ta, prev); host.append(wrap); if (S.canWrite) host.append(tools); apply();
+  wrap.append(ta, prev); host.append(wrap); if (S.canWrite) host.append(dictBar, tools); apply();
   return { getContent:()=>ta.value, setContent:v=>{ ta.value=v; if (mode!=='edit') renderMd(v, prev); }, isFocused:()=>document.activeElement===ta, text:()=>ta.value,
     stats:()=>{ const n = countWords(ta.value); return `${n.toLocaleString('es')} palabra${n===1?'':'s'}`; } };
 }
@@ -2171,8 +2208,13 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) flush
 window.addEventListener('pagehide', flushSave);
 setInterval(() => { if (S.view==='editor' && !S.dirty) updateMeta(); }, 30000);
 
-history.replaceState({ view:'home', depth:0 }, '');
+// Accesos directos de la app instalada (?v=assistant, ?v=panel) abren esa sección.
+const vIni = new URLSearchParams(location.search).get('v');
+const vista0 = ['assistant','panel','files'].includes(vIni) ? vIni : 'home';
+history.replaceState({ view:vista0, depth:0 }, '', location.pathname);
+S.view = vista0;
 render();
+if ('serviceWorker' in navigator && isSecureContext && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js').catch(() => {});
 auth.onAuthStateChanged(u => { S.isOwner = !!u && u.uid === OWNER_UID; S.authKnown = true; if (u && !S.isOwner) auth.signOut(); recompute(); });
 fdb.doc('config/access').onSnapshot(snap => { const m = snap.exists ? snap.data().mode : 'private'; S.access = MODES[m] ? m : 'private'; recompute(); }, () => { S.access = 'private'; recompute(); });
 })();
