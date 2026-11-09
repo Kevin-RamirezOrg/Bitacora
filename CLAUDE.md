@@ -4,6 +4,19 @@ Web personal de notas y organización de estudio de Kevin, estudiante universita
 
 > Este repositorio es público: no agregues aquí secretos, claves ni datos personales que no sean necesarios para el proyecto.
 
+## Estado actual y siguientes pasos (8 nov 2026)
+
+Este archivo es el contexto completo del proyecto; cualquier asistente (Claude, Gemini u otro) debe leerlo antes de continuar.
+
+- **Publicado y probado**: Worker con verificación de sesión, proveedores de IA (NanoGPT y Gemini), panel Ajustes → Modelos de IA con favoritos, y el código completo del chat del Asistente (Worker y web).
+- **Falta para activar el chat** (en este orden):
+  1. Kevin crea la conexión interna **Bitácora** en `https://app.notion.com/developers/connections` (Build → Internal connections → Create a new connection), la conecta a la página **Universidad** (••• → Connections → + Add connection) y guarda su **API token** en Cloudflare como secret `NOTION_TOKEN` (bitacora-worker → Settings → Variables and Secrets, tipo *Secret*).
+  2. Kevin crea la base D1 `bitacora-chat` (Cloudflare → Storage & databases → D1 SQL Database → Create) y comparte el **Database ID** (no es secreto).
+  3. Agregar en `worker/wrangler.jsonc`: `"d1_databases": [{ "binding": "DB", "database_name": "bitacora-chat", "database_id": "<ID>" }]` y hacer push a `main`. La tabla `mensajes` se crea sola en la primera petición.
+  4. Probar desde la pestaña Asistente: "prueba de big data el martes 2", revisar la fila en Notion, probar **Deshacer** y "¿qué tengo esta semana?".
+- **Después**: fase 4 (sincronización con Moodle por iCal).
+- Los scripts de prueba (Playwright y simulaciones del Worker) no están en el repo; la forma de probar está en "Cómo probar".
+
 ## Cómo trabajar con Kevin
 
 - Responde en español, tratándolo de tú, con tono claro y profesional.
