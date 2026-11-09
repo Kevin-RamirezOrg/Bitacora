@@ -56,6 +56,11 @@
   --sx-k:#6240CF; --sx-s:#1C7A4B; --sx-n:#B35400; --sx-c:#6F7D75; --sx-f:#1D5FBF; --sx-t:#9A6200; --sx-a:#0B7C79;
 }
 
+/* Palette: Uva (purple). Same structure as Pizarra; the light variant wins by higher specificity. */
+:root[data-palette="uva"]{ --bg:#221B2B; --surface:#2B2236; --surface-2:#352A42; --surface-3:#40334F; --line:#3B3048; --line-strong:#8F80A4; --ink:#F1EDF5; --ink-2:#D9D1E3; --muted:#B3A7C2; --accent:#C9AEFF; --on-accent:#221B2B; --accent-ink:#C9AEFF; --accent-soft:rgba(201,174,255,.17); --scrim:rgba(12,8,18,.62); }
+@media (prefers-color-scheme: light){:root[data-palette="uva"]:not([data-theme="dark"]){ color-scheme:light; --bg:#F5F2F8; --surface:#FFFFFF; --surface-2:#ECE6F2; --surface-3:#DFD7E8; --line:#E2DAEA; --line-strong:#7F7196; --ink:#1E1828; --ink-2:#352C42; --muted:#5F5471; --accent:#6A3FC2; --on-accent:#FFFFFF; --accent-ink:#6A3FC2; --accent-soft:rgba(106,63,194,.12); --scrim:rgba(24,16,34,.45); }}
+:root[data-palette="uva"][data-theme="light"]{ color-scheme:light; --bg:#F5F2F8; --surface:#FFFFFF; --surface-2:#ECE6F2; --surface-3:#DFD7E8; --line:#E2DAEA; --line-strong:#7F7196; --ink:#1E1828; --ink-2:#352C42; --muted:#5F5471; --accent:#6A3FC2; --on-accent:#FFFFFF; --accent-ink:#6A3FC2; --accent-soft:rgba(106,63,194,.12); --scrim:rgba(24,16,34,.45); }
+
 *{box-sizing:border-box}
 html{height:100%;-webkit-text-size-adjust:100%;background:var(--bg)}
 body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent}
@@ -285,6 +290,16 @@ input.search-field::placeholder{color:var(--muted)}
 .set-row > svg{width:22px;height:22px;color:var(--ink-2)}
 .set-row .row-t b{font-weight:600}
 .set-row.danger,.set-row.danger > svg{color:var(--danger)}
+.pal-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:100%;margin-top:4px}
+.pal{border:1.5px solid var(--line-strong);border-radius:var(--r-md);padding:10px;display:flex;align-items:center;gap:10px;background:var(--surface-2);font-weight:600;font-size:15px;text-align:left;min-height:56px}
+.pal[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.pal i{width:34px;height:34px;border-radius:10px;flex:none;position:relative;border:1px solid rgba(127,127,127,.35)}
+.pal i::after{content:"";position:absolute;right:-4px;bottom:-4px;width:16px;height:16px;border-radius:50%;background:var(--pa);border:2px solid var(--surface-2)}
+.acc-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;width:100%;margin-top:4px}
+.acc-row input[type=color]{width:44px;height:44px;border:1.5px solid var(--line-strong);border-radius:50%;padding:0;background:none;cursor:pointer;overflow:hidden}
+.acc-row input[type=color]::-webkit-color-swatch-wrapper{padding:0}.acc-row input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}
+.set-col{flex-direction:column;align-items:stretch}
+.set-col .row-t span{white-space:normal}
 .set-label{font-size:14px;font-weight:600;color:var(--muted);margin:22px 4px 8px}
 
 /* ---------- Assistant ---------- */
@@ -462,9 +477,30 @@ const plainOf = it => { if (!it) return ''; if (it.format==='rich') { const d=do
 const whereOf = id => pathOf(id).map(([,f])=>f.name).join(' / ') || 'Sin carpeta';
 
 /* ================= Theme ================= */
+const pref = (k, d) => { try { return localStorage.getItem(k) || d; } catch { return d; } };
+const setPref = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
+const hexRgb = x => { x = x.replace('#',''); if (x.length===3) x = x.split('').map(c=>c+c).join(''); return [0,2,4].map(i=>parseInt(x.slice(i,i+2),16)); };
+const toHex = rgb => '#' + rgb.map(v=>Math.round(Math.max(0,Math.min(255,v))).toString(16).padStart(2,'0')).join('');
+const relLum = hx => { const f = c => { c/=255; return c<=0.03928 ? c/12.92 : ((c+0.055)/1.055)**2.4; }; const [r,g,b] = hexRgb(hx); return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b); };
+const contrast = (a,b) => { const [x,y] = [relLum(a),relLum(b)].sort((m,n)=>n-m); return (x+0.05)/(y+0.05); };
+const mixHex = (a,b,t) => { const A = hexRgb(a), B = hexRgb(b); return toHex(A.map((v,i)=>v+(B[i]-v)*t)); };
+const PALETTES = { pizarra:{label:'Pizarra', bg:'#1C2723', acc:'#F2D67A'}, uva:{label:'Uva', bg:'#221B2B', acc:'#C9AEFF'} };
+const ACCENTS = ['#F2D67A','#C9AEFF','#F2A7B8','#9CC7E8','#A8DDB5','#F5B987','#FF8A80','#7FE0D4'];
 function applyTheme() {
-  let t = 'auto'; try { t = localStorage.getItem('bitacora.theme') || 'auto'; } catch {}
-  if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+  const root = document.documentElement;
+  const t = pref('bitacora.theme','auto'); if (t === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t);
+  const pal = pref('bitacora.palette','pizarra'); if (pal === 'pizarra' || !PALETTES[pal]) root.removeAttribute('data-palette'); else root.setAttribute('data-palette', pal);
+  ['--accent','--on-accent','--accent-ink','--accent-soft'].forEach(p => root.style.removeProperty(p));
+  const custom = pref('bitacora.accent', null);
+  if (custom && /^#[0-9a-f]{6}$/i.test(custom)) {
+    const cs = getComputedStyle(root); const bg = cs.getPropertyValue('--bg').trim(); const ink = cs.getPropertyValue('--ink').trim();
+    const on = contrast(custom,'#FFFFFF') >= contrast(custom,'#151515') ? '#FFFFFF' : '#151515';
+    let btn = custom, k = 0; while (contrast(btn, bg) < 3 && k < 10) { k++; btn = mixHex(custom, ink, k/10); }
+    let txt = custom; k = 0; while (contrast(txt, bg) < 4.5 && k < 10) { k++; txt = mixHex(custom, ink, k/10); }
+    const [r,g,b] = hexRgb(custom);
+    root.style.setProperty('--accent', btn); root.style.setProperty('--on-accent', contrast(btn,'#FFFFFF') >= contrast(btn,'#151515') ? '#FFFFFF' : '#151515');
+    root.style.setProperty('--accent-ink', txt); root.style.setProperty('--accent-soft', `rgba(${r},${g},${b},.16)`);
+  }
   requestAnimationFrame(() => { $('#themeColor').setAttribute('content', getComputedStyle(document.body).backgroundColor); });
 }
 applyTheme();
@@ -830,10 +866,21 @@ function viewSettings(scr) {
   w.append(g1);
 
   w.append(h('div',{class:'set-label',text:'Apariencia'}));
-  let t = 'auto'; try { t = localStorage.getItem('bitacora.theme') || 'auto'; } catch {}
-  const seg = h('div',{class:'seg',role:'group','aria-label':'Tema'}, ...[['auto','Automático'],['dark','Oscuro'],['light','Claro']].map(([v,l]) =>
-    h('button',{'aria-pressed':String(t===v),onclick:()=>{ try { localStorage.setItem('bitacora.theme', v); } catch {} applyTheme(); render(); }}, l)));
-  w.append(h('div',{class:'set-group'}, h('div',{class:'set-row',style:{flexWrap:'wrap'}}, ic('sun'), h('span',{class:'row-t'}, h('b',{text:'Tema'})), seg)));
+  const t = pref('bitacora.theme','auto'); const pal = pref('bitacora.palette','pizarra'); const acc = pref('bitacora.accent', null);
+  const upd = (k, v) => { setPref(k, v); applyTheme(); const top = $('#screen .scroll')?.scrollTop || 0; render(); const sc2 = $('#screen .scroll'); if (sc2) sc2.scrollTop = top; };
+  const seg = h('div',{class:'seg',role:'group','aria-label':'Modo'}, ...[['auto','Automático'],['dark','Oscuro'],['light','Claro']].map(([v,l]) =>
+    h('button',{'aria-pressed':String(t===v),onclick:()=>upd('bitacora.theme', v)}, l)));
+  const pals = h('div',{class:'pal-row'}, ...Object.entries(PALETTES).map(([k,p]) =>
+    h('button',{class:'pal','aria-pressed':String(pal===k),onclick:()=>upd('bitacora.palette', k)}, h('i',{style:{background:p.bg,'--pa':p.acc}}), p.label)));
+  const picker = h('input',{type:'color','aria-label':'Elegir otro color',value: acc || (PALETTES[pal]||PALETTES.pizarra).acc});
+  picker.addEventListener('change', () => upd('bitacora.accent', picker.value.toUpperCase()));
+  const accs = h('div',{class:'acc-row'},
+    h('button',{class:'sw none','aria-pressed':String(!acc),'aria-label':'Color de la paleta',onclick:()=>upd('bitacora.accent', null)},'—'),
+    ...ACCENTS.map(c => h('button',{class:'sw','aria-pressed':String(acc===c),'aria-label':'Acento '+c,style:{background:c},onclick:()=>upd('bitacora.accent', c)})), picker);
+  w.append(h('div',{class:'set-group'},
+    h('div',{class:'set-row set-col'}, h('span',{class:'row-t'}, h('b',{text:'Modo'}), h('span',{text:'Automático sigue la configuración de tu dispositivo'})), seg),
+    h('div',{class:'set-row set-col'}, h('span',{class:'row-t'}, h('b',{text:'Paleta'}), h('span',{text:'Colores de fondo y superficies'})), pals),
+    h('div',{class:'set-row set-col'}, h('span',{class:'row-t'}, h('b',{text:'Color de acento'}), h('span',{text:'Botones, enlaces y marcas. Se ajusta solo para que siempre se lea bien.'})), accs)));
 
   w.append(h('div',{class:'set-label',text:'Respaldo'}));
   const g3 = h('div',{class:'set-group'});

@@ -1,0 +1,5 @@
+# GitHub Pages: no publicar archivos internos del proyecto
+exclude:
+  - CLAUDE.md
+  - worker
+  - README.md
