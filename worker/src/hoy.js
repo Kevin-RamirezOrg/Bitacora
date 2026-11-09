@@ -3,6 +3,7 @@
 
 import { consultarTareas, hoy, materias as leerMaterias, sumarDias } from './notion.js';
 import { ErrorAsistente } from './asistente.js';
+import { clasesDelDia, horarioSemana, proximoDiaConClases } from './horario.js';
 
 const DIAS_ATRAS = 14;
 const DIAS_ADELANTE = 21;
@@ -35,10 +36,14 @@ export function sesionesRepaso(tarea, fechaHoy, hechas = new Set()) {
     .map((f) => ({ fecha: f, hecho: hechas.has(f) }));
 }
 
-export async function datosHoy(env) {
+export async function datosHoy(env, { refrescar = false } = {}) {
   const fechaHoy = hoy();
-  const lista = await leerMaterias(env);
-  const tareas = await consultarTareas(env, { desde: sumarDias(fechaHoy, -DIAS_ATRAS), hasta: sumarDias(fechaHoy, DIAS_ADELANTE), limite: 100 }, lista);
+  const lista = await leerMaterias(env, refrescar);
+  const [tareas, semana] = await Promise.all([
+    consultarTareas(env, { desde: sumarDias(fechaHoy, -DIAS_ATRAS), hasta: sumarDias(fechaHoy, DIAS_ADELANTE), limite: 100 }, lista),
+    horarioSemana(env, lista, refrescar).catch(() => null),
+  ]);
+  const proximo = semana ? proximoDiaConClases(semana, fechaHoy) : null;
 
   const evaluaciones = tareas.filter((t) => PLAN_REPASO[t.tipo] && t.fecha && t.fecha >= fechaHoy && t.fecha <= sumarDias(fechaHoy, HORIZONTE_REPASOS));
   let marcadas = [];
@@ -53,7 +58,11 @@ export async function datosHoy(env) {
     return { tarea: t.id, titulo: t.titulo, tipo: t.tipo, materia: t.materia, fecha: t.fecha, url: t.url, sesiones: sesionesRepaso(t, fechaHoy, hechas) };
   });
 
-  return { hoy: fechaHoy, tareas, repasos, historial: Boolean(env.DB) };
+  return {
+    hoy: fechaHoy, tareas, repasos, historial: Boolean(env.DB),
+    horario: Boolean(semana), clases: semana ? clasesDelDia(semana, fechaHoy) : [],
+    proximo: proximo ? { fecha: proximo.fecha, clases: proximo.clases } : null,
+  };
 }
 
 export async function marcarRepaso(env, { tarea, fecha, hecho }) {

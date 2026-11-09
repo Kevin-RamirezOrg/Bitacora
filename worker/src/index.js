@@ -109,7 +109,7 @@ const RUTAS = {
   },
 
   // Panel "Hoy" (reglas fijas, sin IA)
-  'GET /hoy': async (req, env) => json(await datosHoy(env)),
+  'GET /hoy': async (req, env) => json(await datosHoy(env, { refrescar: new URL(req.url).searchParams.get('refrescar') === '1' })),
 
   'POST /hoy/repaso': async (req, env) => json(await marcarRepaso(env, await leerCuerpo(req))),
 };

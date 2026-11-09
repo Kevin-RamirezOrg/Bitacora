@@ -3,7 +3,7 @@
 
 const API = 'https://api.notion.com/v1';
 const VERSION = '2026-03-11';
-const ZONA = 'America/Guayaquil';
+export const ZONA = 'America/Guayaquil';
 const CLAVE_MATERIAS = 'notion:materias';
 const TTL_MATERIAS = 6 * 60 * 60; // segundos; las materias cambian poco (pocas escrituras en KV al día)
 
@@ -17,7 +17,7 @@ export class ErrorNotion extends Error {
   }
 }
 
-async function notion(env, ruta, { method = 'GET', body } = {}, intento = 0) {
+export async function notion(env, ruta, { method = 'GET', body } = {}, intento = 0) {
   if (!env.NOTION_TOKEN) throw new ErrorNotion(503, 'Falta el secret NOTION_TOKEN en Cloudflare');
   let r;
   try {
@@ -54,9 +54,9 @@ async function notion(env, ruta, { method = 'GET', body } = {}, intento = 0) {
 
 // ---------- Lectura de propiedades ----------
 
-const texto = (p) => (p?.title || p?.rich_text || []).map((t) => t.plain_text ?? t.text?.content ?? '').join('');
-const rich = (s) => [{ type: 'text', text: { content: String(s).slice(0, 2000) } }];
-const sinGuiones = (id) => String(id || '').replace(/-/g, '');
+export const texto = (p) => (p?.title || p?.rich_text || []).map((t) => t.plain_text ?? t.text?.content ?? '').join('');
+export const rich = (s) => [{ type: 'text', text: { content: String(s).slice(0, 2000) } }];
+export const sinGuiones = (id) => String(id || '').replace(/-/g, '');
 
 // ---------- Fechas ----------
 
@@ -73,6 +73,11 @@ export function sumarDias(fecha, dias) {
 
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 export const diaSemana = (fecha) => DIAS[new Date(fecha + 'T12:00:00Z').getUTCDay()];
+
+// Hora actual (HH:MM) en Ecuador.
+export function horaActual(ahora = new Date()) {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: ZONA, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(ahora);
+}
 
 // ---------- Materias (con caché en KV) ----------
 
@@ -186,7 +191,7 @@ export async function notaInbox(env, { texto: contenido, materia }) {
 
 // ---------- Personas ----------
 
-const normal = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+export const normal = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 // Crea la persona o completa su ficha si ya existe (mismo nombre, sin importar tildes ni mayúsculas).
 // Devuelve lo necesario para deshacer: la página creada o los valores anteriores de lo que cambió.
@@ -258,5 +263,7 @@ export async function deshacer(env, paso) {
     await notion(env, `/pages/${paso.id}`, { method: 'PATCH', body: { in_trash: true } });
   } else if (paso.tipo === 'propiedades') {
     await notion(env, `/pages/${paso.id}`, { method: 'PATCH', body: { properties: paso.propiedades } });
+  } else if (paso.tipo === 'restaurar') {
+    await notion(env, `/pages/${paso.id}`, { method: 'PATCH', body: { in_trash: false } });
   }
 }

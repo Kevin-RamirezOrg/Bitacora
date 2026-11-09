@@ -85,7 +85,11 @@ svg{flex:none}
 .tab[aria-current="page"]{color:var(--ink)}
 .tab[aria-current="page"] .tab-ic{background:var(--accent-soft);color:var(--accent-ink)}
 .tab-ic{width:52px;height:30px;border-radius:var(--r-pill);display:grid;place-items:center}
-.fab{width:58px;height:58px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;box-shadow:0 8px 22px rgba(0,0,0,.35);margin-top:-22px;border:3px solid var(--bg)}
+.tab.main{min-width:72px;justify-content:flex-end;padding-bottom:2px}
+.tab.main .tab-ic{width:58px;height:58px;border-radius:50%;background:var(--accent);color:var(--on-accent);margin-top:-26px;border:3px solid var(--bg);box-shadow:0 8px 22px rgba(0,0,0,.35)}
+.tab.main .tab-ic svg{width:26px;height:26px}
+.tab.main[aria-current="page"] .tab-ic{background:var(--accent);color:var(--on-accent);box-shadow:0 0 0 3px var(--accent-soft),0 8px 22px rgba(0,0,0,.35)}
+.fab{position:absolute;right:max(18px,env(safe-area-inset-right,0px));bottom:18px;z-index:5;width:58px;height:58px;border-radius:18px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;box-shadow:0 8px 22px rgba(0,0,0,.35)}
 .fab svg{width:28px;height:28px}
 .app.in-editor .tabbar{display:none}
 
@@ -180,6 +184,16 @@ input.search-field::placeholder{color:var(--muted)}
 .rp.today{border-color:var(--accent);color:var(--ink)}
 .rp.today[aria-pressed="true"]{color:var(--on-accent)}
 .rp:disabled{opacity:.6}
+
+.cls-list{display:flex;flex-direction:column;gap:6px}
+.cls{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:var(--r-md);border:1.5px solid transparent}
+.cls-h{display:flex;flex-direction:column;align-items:flex-end;min-width:48px;font-variant-numeric:tabular-nums;font-size:12px;color:var(--ink-2)}
+.cls-h b{font-size:15px;font-weight:600;color:var(--ink)}
+.cls.now{border-color:var(--accent);background:var(--accent-soft)}
+.cls.next{border-color:var(--line-strong)}
+.cls.done .res-t b,.cls.done .cls-h b{color:var(--muted)}
+.cls-tag{display:inline-block!important;margin-top:4px;font-size:12px!important;font-weight:600;color:var(--accent-ink)!important}
+.cls.next .cls-tag{color:var(--ink-2)!important}
 
 /* Clipboard */
 .clip{position:relative;border-radius:var(--r-lg);border:1.5px dashed var(--line-strong);background:var(--surface);padding:16px}
@@ -461,7 +475,9 @@ input.search-field::placeholder{color:var(--muted)}
   .app{flex-direction:row}
   .tabbar{order:-1;flex-direction:column;justify-content:flex-start;gap:8px;width:96px;height:auto;border-top:0;border-right:1px solid var(--line);padding:22px 0}
   .tab{min-width:76px;height:64px}
-  .fab{margin:0 0 14px;order:-1}
+  .tab.main{justify-content:center;padding-bottom:0}
+  .tab.main .tab-ic{margin-top:0;width:52px;height:52px}
+  .fab{right:32px;bottom:28px}
   .app.in-editor .tabbar{display:flex}
   .sheet-scrim{align-items:center;padding:20px}
   .sheet{border-radius:24px;border-bottom:1px solid var(--line);max-height:84vh}
@@ -481,8 +497,8 @@ input.search-field::placeholder{color:var(--muted)}
   <nav class="tabbar" id="tabbar" aria-label="Secciones">
     <button class="tab" data-view="home"><span class="tab-ic" data-ic="home"></span>Inicio</button>
     <button class="tab" data-view="files"><span class="tab-ic" data-ic="folder"></span>Archivos</button>
-    <button class="fab write-only" id="fab" aria-label="Crear"><span data-ic="plus"></span></button>
-    <button class="tab" data-view="assistant"><span class="tab-ic" data-ic="chat"></span>Asistente</button>
+    <button class="tab main" data-view="assistant"><span class="tab-ic" data-ic="chat"></span>Asistente</button>
+    <button class="tab" data-view="panel"><span class="tab-ic" data-ic="chart"></span>Panel</button>
     <button class="tab" data-view="settings"><span class="tab-ic" data-ic="gear"></span>Ajustes</button>
   </nav>
 </div>
@@ -547,6 +563,7 @@ const ICON = {
   md: sv('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15V9l2.5 3L12 9v6M16.5 9v6M14.5 13l2 2 2-2"/>'),
   code: sv('<path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/>', 2.3),
   back: sv('<path d="M15 5l-7 7 7 7"/>', 2.4),
+  chart: sv('<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>'),
   chevD: sv('<path d="M6 9l6 6 6-6"/>'),
   chevR: sv('<path d="M9 6l6 6-6 6"/>', 2.2),
   dots: '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
@@ -698,7 +715,6 @@ function recompute() {
   const canRead = S.isOwner || S.access === 'read' || S.access === 'open';
   const prevW = S.canWrite; S.canWrite = S.isOwner || S.access === 'open';
   document.body.classList.toggle('ro', !S.canWrite);
-  $('#fab').hidden = !S.canWrite;
   armIdle();
   if (!canRead) { flushSave(); Store.unsubscribe(); S.items = new Map(); S.ready = false; ed = null; S.fileId = null; showLock(); render(); return; }
   if (!lockDismissible) hideLock();
@@ -786,7 +802,6 @@ document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () =>
   navigate(v, {}, S.view === 'editor' ? 'push' : 'replace');
 }));
 document.querySelectorAll('[data-ic]').forEach(el => { el.innerHTML = ICON[el.dataset.ic]; });
-$('#fab').addEventListener('click', () => createSheet());
 
 /* ================= Rendering ================= */
 let ed = null; let saveT = null;
@@ -798,7 +813,7 @@ function render() {
   const cur = document.querySelector(`.tab[data-view="${tabView}"]`); if (cur) cur.setAttribute('aria-current','page');
   if (S.view !== 'editor') ed = null;
   scr.innerHTML = '';
-  ({ home:viewHome, files:viewFiles, search:viewSearch, assistant:viewAssistant, settings:viewSettings, ai:viewAI, editor:viewEditor }[S.view] || viewHome)(scr);
+  ({ home:viewHome, files:viewFiles, panel:viewPanel, search:viewSearch, assistant:viewAssistant, settings:viewSettings, ai:viewAI, editor:viewEditor }[S.view] || viewHome)(scr);
 }
 function onData() {
   // The AI panel keeps unsaved edits in its form; note changes don't affect it, so don't redraw it under the user.
@@ -857,7 +872,7 @@ function viewHome(scr) {
   const mn = modeNote(); if (mn) w.append(mn);
   if (!S.ready) { w.append(h('p',{class:'date',style:{marginTop:'28px'},text:'Cargando tus notas…'})); return; }
 
-  // Hoy: urgent list, 14-day load and spaced reviews (rules only; plan with AI comes later)
+  // Urgente (the charts and today's classes live in the Panel tab)
   w.append(hoySection());
 
   // Clipboard
@@ -955,7 +970,8 @@ function viewFiles(scr) {
     items.forEach(([k,v]) => list.append(v.type==='folder' ? folderRow(k,v) : fileRow(k,v)));
     w.append(list);
   }
-  w.append(h('div',{class:'bottom-space'}));
+  w.append(h('div',{class:'bottom-space'}), h('div',{style:{height:'72px'}}));
+  if (S.canWrite) scr.append(h('button',{class:'fab',type:'button','aria-label': f ? 'Crear en ' + f.name : 'Crear',html:ICON.plus,onclick:()=>createSheet(fid)}));
 }
 
 /* ---------- Search ---------- */
@@ -983,34 +999,69 @@ const HOY_ALTO = 4; // daily load considered heavy (e.g. an exam plus a homework
 async function hoyLoad(force=false) {
   if (HOY.loading || (!force && HOY.data && Date.now() - HOY.at < 5 * 60e3)) return;
   HOY.loading = true; HOY.err = null;
-  try { HOY.data = await api('/hoy'); HOY.at = Date.now(); }
+  try { HOY.data = await api(force ? '/hoy?refrescar=1' : '/hoy'); HOY.at = Date.now(); }
   catch (e) { HOY.err = e.message || 'No se pudo cargar.'; }
-  finally { HOY.loading = false; if (S.view === 'home') { const top = $('#screen .scroll')?.scrollTop || 0; render(); const sc = $('#screen .scroll'); if (sc) sc.scrollTop = top; } }
+  finally { HOY.loading = false; if (S.view === 'home' || S.view === 'panel') { const top = $('#screen .scroll')?.scrollTop || 0; render(); const sc = $('#screen .scroll'); if (sc) sc.scrollTop = top; } }
 }
-function hoySection() {
-  const sec = h('section',{class:'sec'}, h('div',{class:'sec-h'}, h('h2',{text:'Hoy'}),
-    S.isOwner && HOY.data ? h('button',{class:'link',type:'button',onclick:()=>hoyLoad(true),text: HOY.loading ? 'Actualizando…' : 'Actualizar'}) : null));
+// Shared loading/locked states for the Hoy data (Inicio shows Urgente; Panel shows the rest).
+function hoyGate(sec, lockedText) {
   if (!S.isOwner) {
     HOY.data = null;
     sec.append(h('div',{class:'hoy'}, h('span',{class:'hoy-ic',html:ICON.cal}), h('div',{},
-      h('p',{text:'Tus pruebas y entregas más cercanas, la carga de las próximas dos semanas y los repasos.'}),
-      h('button',{class:'link',style:{marginTop:'6px'},onclick:()=>showLock(true),text:'Ingresar con PIN'}))));
-    return sec;
+      h('p',{text:lockedText}), h('button',{class:'link',style:{marginTop:'6px'},onclick:()=>showLock(true),text:'Ingresar con PIN'}))));
+    return false;
   }
   if (!HOY.data) {
-    if (HOY.err) sec.append(h('div',{class:'note-bar alert',role:'alert'}, h('span',{text:'No se pudo cargar el panel: ' + HOY.err}), h('button',{class:'link',onclick:()=>hoyLoad(true),text:'Reintentar'})));
+    if (HOY.err) sec.append(h('div',{class:'note-bar alert',role:'alert'}, h('span',{text:'No se pudo cargar: ' + HOY.err}), h('button',{class:'link',onclick:()=>hoyLoad(true),text:'Reintentar'})));
     else { sec.append(h('p',{class:'date',text:'Cargando tus pendientes…'})); setTimeout(hoyLoad); }
-    return sec;
+    return false;
   }
   setTimeout(hoyLoad); // refresh in the background when stale
-  const d = HOY.data; const pend = d.tareas.filter(t => !t.completada && t.fecha);
-  sec.append(hoyUrgent(pend, d.hoy), hoyLoadChart(pend, d.hoy), hoyReviews(d));
+  return true;
+}
+const hoyRefresh = () => S.isOwner && HOY.data ? h('button',{class:'link',type:'button',onclick:()=>hoyLoad(true),text: HOY.loading ? 'Actualizando…' : 'Actualizar'}) : null;
+function hoySection() {
+  const sec = h('section',{class:'sec'}, h('div',{class:'sec-h'}, h('h2',{text:'Urgente'}), hoyRefresh()));
+  if (!hoyGate(sec, 'Tus pruebas y entregas más cercanas aparecen aquí.')) return sec;
+  const d = HOY.data;
+  sec.append(hoyUrgent(d.tareas.filter(t => !t.completada && t.fecha), d.hoy));
   return sec;
+}
+function viewPanel(scr) {
+  const sc = h('div',{class:'scroll'}); const w = h('div',{class:'wrap pad'}); sc.append(w); scr.append(sc);
+  w.append(h('div',{class:'page-h'}, h('h1',{text:'Panel'}), hoyRefresh()));
+  const sec = h('div',{style:{marginTop:'4px'}}); w.append(sec);
+  if (hoyGate(sec, 'Tus clases de hoy, la carga de las próximas dos semanas y los repasos.')) {
+    const d = HOY.data; const pend = d.tareas.filter(t => !t.completada && t.fecha);
+    sec.append(hoyClasses(d), hoyLoadChart(pend, d.hoy), hoyReviews(d));
+  }
+  w.append(h('div',{class:'bottom-space'}));
+}
+// Today's classes from the Horario base, with the current or next one highlighted.
+function hoyClasses(d) {
+  const card = h('div',{class:'hoy-card'}, h('h3',{text:'Clases de hoy'}));
+  const cl = d.clases || [];
+  if (!d.horario) { card.append(h('p',{class:'hoy-more',style:{marginTop:'4px'},text:'No encontré la base Horario en Notion.'})); return card; }
+  if (!cl.length) { card.append(h('p',{class:'hoy-more',style:{marginTop:'4px'},text: d.proximo?.clases?.length ? `Hoy no tienes clases. La próxima es el ${fmtDay(d.proximo.fecha,{weekday:'long',day:'numeric'})} a las ${d.proximo.clases[0].inicio}: ${d.proximo.clases[0].titulo}.` : 'Hoy no tienes clases.'})); return card; }
+  const now = new Date(); const mins = now.getHours() * 60 + now.getMinutes();
+  const toM = t => { const [hh, mm] = String(t || '').split(':').map(Number); return hh * 60 + (mm || 0); };
+  const curI = cl.findIndex(c => toM(c.inicio) <= mins && mins < toM(c.fin));
+  const nextI = curI >= 0 ? -1 : cl.findIndex(c => toM(c.inicio) > mins);
+  card.append(h('p',{class:'sub',text: curI >= 0 ? `Ahora: ${cl[curI].titulo}, hasta las ${cl[curI].fin}` : nextI >= 0 ? `Siguiente: ${cl[nextI].titulo} a las ${cl[nextI].inicio}` : 'Terminaste las clases de hoy'}));
+  const list = h('div',{class:'cls-list'});
+  cl.forEach((c, i) => { const done = toM(c.fin) <= mins; const st = i === curI ? 'now' : i === nextI ? 'next' : done ? 'done' : '';
+    list.append(h('div',{class:'cls' + (st ? ' ' + st : '')},
+      h('span',{class:'cls-h'}, h('b',{text:c.inicio}), h('span',{text:c.fin})),
+      h('span',{class:'res-t'}, h('b',{text:c.titulo}), h('span',{text:[c.materia && c.materia !== c.titulo ? c.materia : null, c.aula ? 'Aula ' + c.aula : null].filter(Boolean).join(' · ') || ' '}),
+        st === 'now' ? h('span',{class:'cls-tag',text:'En curso'}) : st === 'next' ? h('span',{class:'cls-tag',text:'Siguiente'}) : null),
+      openLink(c.url))); });
+  card.append(list);
+  return card;
 }
 function hoyUrgent(pend, hoy) {
   const lim = addDays(hoy, 7);
   const list = pend.filter(t => t.fecha <= lim).sort((a,b) => a.fecha.localeCompare(b.fecha) || (HOY_PESO[b.tipo]||1) - (HOY_PESO[a.tipo]||1));
-  const card = h('div',{class:'hoy-card'}, h('h3',{text:'Urgente'}), h('p',{class:'sub',text:'Atrasado y lo de los próximos 7 días'}));
+  const card = h('div',{class:'hoy-card'}, h('p',{class:'sub',text:'Lo atrasado y lo de los próximos 7 días'}));
   if (!list.length) { card.append(h('p',{class:'hoy-more',style:{marginTop:'0'},text:'Nada pendiente en los próximos 7 días.'})); return card; }
   const box = h('div',{class:'res'});
   list.slice(0, 5).forEach(t => box.append(h('div',{class:'res-row'}, h('span',{class:'res-ic',html:ICON.cal}),
@@ -1066,12 +1117,12 @@ async function hoyToggleReview(r, x, btn) {
   btn.disabled = true; const prev = x.hecho; x.hecho = !prev;
   try { await api('/hoy/repaso', { method:'POST', body:{ tarea:r.tarea, fecha:x.fecha, hecho:x.hecho } }); }
   catch (e) { x.hecho = prev; toast(e.message); }
-  if (S.view === 'home') { const top = $('#screen .scroll')?.scrollTop || 0; render(); const sc = $('#screen .scroll'); if (sc) sc.scrollTop = top; }
+  if (S.view === 'home' || S.view === 'panel') { const top = $('#screen .scroll')?.scrollTop || 0; render(); const sc = $('#screen .scroll'); if (sc) sc.scrollTop = top; }
 }
 
 /* ---------- Assistant (chat → Notion through the Worker) ---------- */
 const CHAT = { loaded:false, loading:false, err:null, msgs:[], more:false, estado:null, config:null, sending:false, failed:null, draft:'', olderLoading:false };
-const CHAT_EXAMPLES = ['prueba de big data el martes 2','entregar deber de compiladores el viernes','las pruebas de fundamentos son de opción múltiple','¿qué tengo esta semana?'];
+const CHAT_EXAMPLES = ['¿qué clase me toca ahora?','prueba de big data el martes 2','entregar deber de compiladores el viernes','las pruebas de fundamentos son de opción múltiple','¿qué tengo esta semana?'];
 const chatModelKey = () => pref('bitacora.chatModelo', '');
 const localDay = (d=new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const daysUntil = f => Math.round((Date.parse(f + 'T12:00:00Z') - Date.parse(localDay() + 'T12:00:00Z')) / 86400000);
@@ -1175,8 +1226,20 @@ function resultRow(r) {
     case 'guardar_persona': return row('user', r.nombre,
       [r.creada ? 'Nueva en Personas' : r.sinCambios ? 'Ya estaba al día' : 'Actualizada', r.rol, (r.materias || []).join(', ')].filter(Boolean).join(' · '), r.url);
     case 'nota_inbox': return row('inbox', 'Nota en el Inbox' + (r.materia ? ' · ' + r.materia : ''), r.texto, r.url);
+    case 'crear_fila': return row('plus', r.titulo, `Nueva en ${r.base}` + (valoresTxt(r.valores, r.titulo) ? ' · ' + valoresTxt(r.valores, r.titulo) : ''), r.url);
+    case 'editar_fila': return row('edit', r.titulo, `${r.base} · ` + (valoresTxt(r.valores) || 'Actualizada'), r.url);
+    case 'archivar_fila': return row('trash', r.titulo, `En la papelera de Notion${r.base ? ' · ' + r.base : ''}`, r.url);
     default: return null;
   }
+}
+const valoresTxt = (v, skip) => Object.entries(v || {}).filter(([, x]) => x !== skip).slice(0, 4)
+  .map(([k, x]) => `${k}: ${Array.isArray(x) ? x.join(', ') : x && typeof x === 'object' ? [x.inicio, x.fin].filter(Boolean).join(' → ') : x === true ? 'sí' : x === false ? 'no' : x ?? '—'}`).join(' · ');
+function rowsList(r) {
+  const box = h('div',{class:'res'}, h('div',{class:'res-h',text:`${r.base}: ${r.total} resultado${r.total === 1 ? '' : 's'}${r.mas ? ' (hay más)' : ''}`}));
+  if (!r.filas.length) box.append(h('div',{class:'res-row'}, h('span',{class:'res-t'}, h('span',{text:'Sin resultados.'}))));
+  r.filas.forEach(f => box.append(h('div',{class:'res-row'}, h('span',{class:'res-ic',html:ICON.doc}),
+    h('span',{class:'res-t'}, h('b',{text:f.titulo}), f.resumen ? h('span',{class:'clamp',text:f.resumen}) : null), openLink(f.url))));
+  return box;
 }
 function taskList(r) {
   const box = h('div',{class:'res'}, h('div',{class:'res-h',text: r.desde === r.hasta ? fmtDay(r.desde,{weekday:'long',day:'numeric',month:'long'})
@@ -1190,10 +1253,13 @@ function chatMessage(m) {
   if (m.rol === 'usuario') return h('div',{class:'msg yo',text:m.texto});
   const d = m.datos || {}; const res = d.resultados || [];
   const el = h('div',{class:'msg ia'}, h('div',{class:'txt',text:m.texto}));
-  const actions = res.filter(r => r.accion !== 'mostrar_tareas').map(resultRow).filter(Boolean);
+  const actions = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina'].includes(r.accion) || !r.ok).map(resultRow).filter(Boolean);
   if (actions.length) el.append(h('div',{class:'res' + (d.deshecho ? ' undone' : '')}, ...actions));
   res.filter(r => r.accion === 'mostrar_tareas' && r.ok).forEach(r => el.append(taskList(r)));
-  const meta = [d.modelo ? shortModel(d.modelo) + (d.respaldo ? ' (respaldo)' : '') : null, d.deshecho ? 'Deshecho' : null].filter(Boolean).join(' · ');
+  res.filter(r => r.accion === 'consultar_base' && r.ok && r.mostrar).forEach(r => el.append(rowsList(r)));
+  const leidas = res.filter(r => r.ok && (r.accion === 'leer_pagina' || (r.accion === 'consultar_base' && !r.mostrar)));
+  const meta = [d.modelo ? shortModel(d.modelo) + (d.respaldo ? ' (respaldo)' : '') : null,
+    leidas.length ? 'Consultó ' + [...new Set(leidas.map(r => r.base || r.titulo))].join(', ') : null, d.deshecho ? 'Deshecho' : null].filter(Boolean).join(' · ');
   const canUndo = !d.deshecho && res.some(r => r.ok && r.deshacer);
   if (canUndo || meta) {
     const bar = h('div',{class:'msg-acts'}, meta ? h('span',{class:'msg-meta',style:{margin:'0 4px',flex:'1'},text:meta}) : h('span',{style:{flex:'1'}}));
