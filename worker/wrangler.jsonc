@@ -6,5 +6,9 @@
   "vars": {
     "FIREBASE_PROJECT_ID": "bitacora-c20b4",
     "OWNER_UID": "mOlFltUhUNQrTTxtIWuCFJzMCFI3"
-  }
+  },
+  // Configuración que cambia poco (modelos de IA, precálculos diarios). No guardar aquí datos que cambien a cada rato.
+  "kv_namespaces": [
+    { "binding": "CONFIG", "id": "51140c87073e441987819a061506828b" }
+  ]
 }
