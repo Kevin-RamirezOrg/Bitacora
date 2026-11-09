@@ -208,9 +208,11 @@ async function completar(env, destino, mensajes, parametros, extra) {
 
 // Envía la conversación al modelo principal y, si falla, al de respaldo.
 // Si se pasa `configPrueba` (botón Probar del panel), se usa en lugar de la guardada.
-export async function chat(env, { mensajes, config: configPrueba }) {
+// Si se pasa `modelo` (un favorito elegido en el chat), reemplaza solo al principal.
+export async function chat(env, { mensajes, config: configPrueba, modelo }) {
   const lista = validarMensajes(mensajes);
   const config = configPrueba ? validarConfig(configPrueba) : await leerConfig(env);
+  if (modelo) config.principal = validarModelo(modelo, 'modelo');
 
   const intentos = [config.principal, config.respaldo].filter(Boolean);
   const fallos = [];

@@ -5,7 +5,12 @@
   // Datos públicos (también están en index.html); las claves de IA irán como secrets.
   "vars": {
     "FIREBASE_PROJECT_ID": "bitacora-c20b4",
-    "OWNER_UID": "mOlFltUhUNQrTTxtIWuCFJzMCFI3"
+    "OWNER_UID": "mOlFltUhUNQrTTxtIWuCFJzMCFI3",
+    // Bases de Notion (data sources) de la página Universidad
+    "NOTION_DS_TAREAS": "9d29b687-0cb9-460d-a9d6-6bb20708f43d",
+    "NOTION_DS_MATERIAS": "3e437374-bea5-4ea9-9f90-6b94515982d8",
+    "NOTION_DS_PERSONAS": "a2fc3865-10e3-4ec2-9164-e9993939579b",
+    "NOTION_DS_INBOX": "10c76b66-23ce-4659-bd33-fabedf8b64c3"
   },
   // Configuración que cambia poco (modelos de IA, precálculos diarios). No guardar aquí datos que cambien a cada rato.
   "kv_namespaces": [

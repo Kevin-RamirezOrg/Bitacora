@@ -1,5 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ErrorIA, chat, estadoProveedores, guardarConfig, leerConfig, listarModelos } from './ia.js';
+import { ErrorNotion } from './notion.js';
+import { ErrorAsistente, borrarHistorial, deshacerMensaje, historial, procesarMensaje } from './asistente.js';
 
 const ORIGEN = 'https://ellenkev.me';
 const TAMANO_MAXIMO_CUERPO = 200_000;
@@ -12,7 +14,7 @@ const CLAVES_FIREBASE = createRemoteJWKSet(
 
 const CORS = {
   'Access-Control-Allow-Origin': ORIGEN,
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Max-Age': '86400',
 };
@@ -84,6 +86,26 @@ const RUTAS = {
   'PUT /config/ia': async (req, env) => json({ ok: true, config: await guardarConfig(env, await leerCuerpo(req)) }),
 
   'POST /ia/chat': async (req, env) => json(await chat(env, await leerCuerpo(req))),
+
+  // Asistente (Notion + historial en D1)
+  'GET /asistente/estado': (req, env) => json({ notion: Boolean(env.NOTION_TOKEN), historial: Boolean(env.DB) }),
+
+  'GET /asistente/historial': async (req, env) => {
+    const p = new URL(req.url).searchParams;
+    return json({ mensajes: await historial(env, { antes: p.get('antes'), limite: p.get('limite') }) });
+  },
+
+  'DELETE /asistente/historial': async (req, env) => {
+    await borrarHistorial(env);
+    return json({ ok: true });
+  },
+
+  'POST /asistente/mensaje': async (req, env) => json(await procesarMensaje(env, await leerCuerpo(req))),
+
+  'POST /asistente/deshacer': async (req, env) => {
+    const { id } = await leerCuerpo(req);
+    return json({ mensaje: await deshacerMensaje(env, id) });
+  },
 };
 
 export default {
@@ -112,6 +134,9 @@ export default {
       }
       if (error instanceof ErrorIA) {
         return json({ error: error.message, detalle: error.detalle ?? null }, error.status);
+      }
+      if (error instanceof ErrorNotion || error instanceof ErrorAsistente) {
+        return json({ error: error.message }, error.status);
       }
       console.error(error);
       return json({ error: 'Error interno' }, 500);
