@@ -1,0 +1,8 @@
+{
+  "name": "bitacora-worker",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "jose": "^6.0.0"
+  }
+}
