@@ -15,5 +15,9 @@
   // Configuración que cambia poco (modelos de IA, precálculos diarios). No guardar aquí datos que cambien a cada rato.
   "kv_namespaces": [
     { "binding": "CONFIG", "id": "51140c87073e441987819a061506828b" }
+  ],
+  // Historial del chat del Asistente (la tabla `mensajes` se crea sola en la primera petición).
+  "d1_databases": [
+    { "binding": "DB", "database_name": "bitacora-chat", "database_id": "21ff5fbb-0a06-41c5-9f3c-2e1ee4c436bf" }
   ]
 }

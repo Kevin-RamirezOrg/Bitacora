@@ -4,16 +4,15 @@ Web personal de notas y organización de estudio de Kevin, estudiante universita
 
 > Este repositorio es público: no agregues aquí secretos, claves ni datos personales que no sean necesarios para el proyecto.
 
-## Estado actual y siguientes pasos (8 nov 2026)
+## Estado actual y siguientes pasos (9 nov 2026)
 
 Este archivo es el contexto completo del proyecto; cualquier asistente (Claude, Gemini u otro) debe leerlo antes de continuar.
 
 - **Publicado y probado**: Worker con verificación de sesión, proveedores de IA (NanoGPT y Gemini), panel Ajustes → Modelos de IA con favoritos, y el código completo del chat del Asistente (Worker y web).
-- **Falta para activar el chat** (en este orden):
-  1. Kevin crea la conexión interna **Bitácora** en `https://app.notion.com/developers/connections` (Build → Internal connections → Create a new connection), la conecta a la página **Universidad** (••• → Connections → + Add connection) y guarda su **API token** en Cloudflare como secret `NOTION_TOKEN` (bitacora-worker → Settings → Variables and Secrets, tipo *Secret*).
-  2. Kevin crea la base D1 `bitacora-chat` (Cloudflare → Storage & databases → D1 SQL Database → Create) y comparte el **Database ID** (no es secreto).
-  3. Agregar en `worker/wrangler.jsonc`: `"d1_databases": [{ "binding": "DB", "database_name": "bitacora-chat", "database_id": "<ID>" }]` y hacer push a `main`. La tabla `mensajes` se crea sola en la primera petición.
-  4. Probar desde la pestaña Asistente: "prueba de big data el martes 2", revisar la fila en Notion, probar **Deshacer** y "¿qué tengo esta semana?".
+- **Activación del chat**:
+  - ✅ Conexión interna **Bitácora** de Notion creada y conectada solo a la página **Universidad** (decisión de Kevin: acceso mínimo; las páginas personales se compartirán cuando haya una función que las use). Token guardado como secret `NOTION_TOKEN`.
+  - ✅ Base D1 `bitacora-chat` creada y enlazada en `worker/wrangler.jsonc` (binding `DB`). La tabla `mensajes` se crea sola en la primera petición.
+  - Falta probar desde la pestaña Asistente: "prueba de big data el martes 2", revisar la fila en Notion, probar **Deshacer** y "¿qué tengo esta semana?".
 - **Después**: fase 4 (sincronización con Moodle por iCal).
 - Los scripts de prueba (Playwright y simulaciones del Worker) no están en el repo; la forma de probar está en "Cómo probar".
 
@@ -111,7 +110,7 @@ Página "Universidad" → "Bases de datos". Ya existen y deben reutilizarse, no 
    - Worker: `src/notion.js` (Notion-Version `2026-03-11`, páginas con `parent: {type:'data_source_id'}`, papelera con `in_trash`, consulta con `POST /data_sources/{id}/query`; materias en caché de KV `notion:materias` por 6 h) y `src/asistente.js` (prompt con fecha de Ecuador y calendario de -3 a +35 días, materias y pendientes con claves cortas `m1`/`t1`, validación de acciones, ejecución, deshacer en orden inverso, historial en D1 con la tabla `mensajes` creada sola).
    - Acciones: `crear_tarea`, `completar_tarea`, `guardar_persona` (crea o completa la ficha; une notas y materias), `nota_inbox` (lo complejo o informativo) y `mostrar_tareas` (la lista la arma el Worker desde Notion). Máximo 5 por mensaje.
    - Rutas: `GET /asistente/estado`, `GET`/`DELETE /asistente/historial`, `POST /asistente/mensaje` (`{texto, modelo?}`; `modelo` es un favorito y reemplaza solo al principal), `POST /asistente/deshacer` (`{id}`).
-   - Vars públicas en `wrangler.jsonc`: `NOTION_DS_TAREAS`, `NOTION_DS_MATERIAS`, `NOTION_DS_PERSONAS`, `NOTION_DS_INBOX` (IDs de data source). Secret: `NOTION_TOKEN` (conexión interna "Bitácora" con acceso a la página Universidad). D1: binding `DB` (base `bitacora-chat`, pendiente de crear).
+   - Vars públicas en `wrangler.jsonc`: `NOTION_DS_TAREAS`, `NOTION_DS_MATERIAS`, `NOTION_DS_PERSONAS`, `NOTION_DS_INBOX` (IDs de data source). Secret: `NOTION_TOKEN` (conexión interna "Bitácora" con acceso a la página Universidad). D1: binding `DB` (base `bitacora-chat`).
    - Web: pestaña Asistente con burbujas, resultados con "Abrir" (Notion) y semáforo por días restantes, Deshacer, día separador, mensajes anteriores, menú (Modelos de IA, Borrar conversación), favoritos como chips sobre el campo de texto (elección guardada en `localStorage` `bitacora.chatModelo`), error con Reintentar/Editar y aviso si falta Notion o D1.
    - Privacidad: para el chat conviene un principal de NanoGPT; Gemini gratis puede usar los mensajes para mejorar productos.
 4. **Sincronización del aula virtual (Moodle de la universidad)**: Kevin confirmó que existe "Exportar calendario". El Worker lee la URL iCal (como *secret*) una vez al día con un Cron Trigger y crea/actualiza filas en *Tareas y evaluaciones* sin duplicar (usar el UID del evento).
