@@ -193,62 +193,96 @@ export async function notaInbox(env, { texto: contenido, materia }) {
 
 export const normal = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
-// Crea la persona o completa su ficha si ya existe (mismo nombre, sin importar tildes ni mayúsculas).
+// Fecha corta para anteponer a las notas: "9 nov".
+const fechaCorta = (f) => new Date(f + 'T12:00:00Z').toLocaleDateString('es', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+// "AAAA-MM-DD" se guarda tal cual; "MM-DD" (sin año) se guarda como la próxima vez que se cumple.
+export function fechaCumple(v, fechaHoy = hoy()) {
+  if (typeof v !== 'string') return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const m = v.match(/^(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const anio = Number(fechaHoy.slice(0, 4));
+  const este = `${anio}-${m[1]}-${m[2]}`;
+  return este >= fechaHoy ? este : `${anio + 1}-${m[1]}-${m[2]}`;
+}
+
+async function buscarPersona(env, { nombre, apodo, profesorDe }) {
+  const consulta = (filter) => notion(env, `/data_sources/${env.NOTION_DS_PERSONAS}/query`, { method: 'POST', body: { page_size: 20, filter } }).then((r) => r.results || []);
+  const apodos = (p) => texto(p.properties?.Apodo).split(/[,;]/).map(normal).filter(Boolean);
+  if (nombre) {
+    const palabra = nombre.split(/\s+/).sort((x, y) => y.length - x.length)[0];
+    const porNombre = (await consulta({ property: 'Nombre', title: { contains: palabra } })).find((p) => normal(texto(p.properties?.Nombre)) === normal(nombre));
+    if (porNombre) return porNombre;
+  }
+  for (const a of [apodo, nombre].filter(Boolean)) {
+    const porApodo = (await consulta({ property: 'Apodo', rich_text: { contains: a.split(/\s+/)[0] } })).find((p) => apodos(p).includes(normal(a)));
+    if (porApodo) return porApodo;
+  }
+  if (profesorDe) {
+    const profes = await consulta({ and: [{ property: 'Rol', select: { equals: 'Profesor' } }, { property: 'Materias', relation: { contains: profesorDe } }] });
+    if (profes.length === 1) return profes[0];
+  }
+  return null;
+}
+
+// Crea la persona o completa su ficha si ya existe (por nombre, apodo o "el profesor de tal materia").
 // Devuelve lo necesario para deshacer: la página creada o los valores anteriores de lo que cambió.
-export async function guardarPersona(env, { nombre, rol, correo, telefono, notas, materias: ids = [] }) {
-  const palabra = nombre.split(/\s+/).sort((a, b) => b.length - a.length)[0];
-  const r = await notion(env, `/data_sources/${env.NOTION_DS_PERSONAS}/query`, {
-    method: 'POST',
-    body: { page_size: 20, filter: { property: 'Nombre', title: { contains: palabra } } },
-  });
-  const existente = (r.results || []).find((p) => normal(texto(p.properties?.Nombre)) === normal(nombre));
+export async function guardarPersona(env, { nombre, apodo, profesorDe, rol, correo, telefono, notas, grupo, cumpleanos, materias: ids = [] }) {
+  const existente = await buscarPersona(env, { nombre, apodo, profesorDe });
+  const fecha = hoy();
+  const notaConFecha = notas ? `${fechaCorta(fecha)}: ${notas}` : null;
+  const cumple = fechaCumple(cumpleanos, fecha);
+  const todasMaterias = profesorDe && !ids.some((id) => sinGuiones(id) === sinGuiones(profesorDe)) ? [...ids, profesorDe] : ids;
 
   if (!existente) {
+    if (!nombre) {
+      const quien = apodo || 'esa persona';
+      throw new ErrorNotion(400, `No sé quién es ${quien}. Dime su nombre y lo guardo en Personas.`);
+    }
     const properties = { Nombre: { title: rich(nombre) } };
-    if (rol) properties.Rol = { select: { name: rol } };
+    if (rol || profesorDe) properties.Rol = { select: { name: rol || 'Profesor' } };
     if (correo) properties.Correo = { email: correo };
     if (telefono) properties['Teléfono'] = { phone_number: telefono };
-    if (notas) properties.Notas = { rich_text: rich(notas) };
-    if (ids.length) properties.Materias = { relation: ids.map((id) => ({ id })) };
+    if (notaConFecha) properties.Notas = { rich_text: rich(notaConFecha) };
+    if (apodo) properties.Apodo = { rich_text: rich(apodo) };
+    if (grupo) properties.Grupo = { rich_text: rich(grupo) };
+    if (cumple) properties['Cumpleaños'] = { date: { start: cumple } };
+    if (todasMaterias.length) properties.Materias = { relation: todasMaterias.map((id) => ({ id })) };
     const p = await notion(env, '/pages', {
       method: 'POST',
       body: { parent: { type: 'data_source_id', data_source_id: env.NOTION_DS_PERSONAS }, properties },
     });
-    return { creada: true, id: p.id, url: p.url, deshacer: { tipo: 'papelera', id: p.id } };
+    return { creada: true, nombre, id: p.id, url: p.url, deshacer: { tipo: 'papelera', id: p.id } };
   }
 
   const prev = existente.properties || {};
   const nuevos = {};
   const anteriores = {};
-  if (rol && prev.Rol?.select?.name !== rol) {
-    nuevos.Rol = { select: { name: rol } };
-    anteriores.Rol = { select: prev.Rol?.select ? { name: prev.Rol.select.name } : null };
-  }
-  if (correo && prev.Correo?.email !== correo) {
-    nuevos.Correo = { email: correo };
-    anteriores.Correo = { email: prev.Correo?.email || null };
-  }
-  if (telefono && prev['Teléfono']?.phone_number !== telefono) {
-    nuevos['Teléfono'] = { phone_number: telefono };
-    anteriores['Teléfono'] = { phone_number: prev['Teléfono']?.phone_number || null };
+  const cambiar = (n, nuevo, anterior) => { nuevos[n] = nuevo; anteriores[n] = anterior; };
+  if (rol && prev.Rol?.select?.name !== rol) cambiar('Rol', { select: { name: rol } }, { select: prev.Rol?.select ? { name: prev.Rol.select.name } : null });
+  if (correo && prev.Correo?.email !== correo) cambiar('Correo', { email: correo }, { email: prev.Correo?.email || null });
+  if (telefono && prev['Teléfono']?.phone_number !== telefono) cambiar('Teléfono', { phone_number: telefono }, { phone_number: prev['Teléfono']?.phone_number || null });
+  const textoAntes = (n) => { const t = texto(prev[n]); return { rich_text: t ? rich(t) : [] }; };
+  if (grupo && texto(prev.Grupo) !== grupo) cambiar('Grupo', { rich_text: rich(grupo) }, textoAntes('Grupo'));
+  if (cumple && prev['Cumpleaños']?.date?.start !== cumple) cambiar('Cumpleaños', { date: { start: cumple } }, { date: prev['Cumpleaños']?.date ? { start: prev['Cumpleaños'].date.start } : null });
+  if (apodo) {
+    const antes = texto(prev.Apodo);
+    if (!antes.split(/[,;]/).map(normal).includes(normal(apodo))) cambiar('Apodo', { rich_text: rich(antes ? `${antes}, ${apodo}` : apodo) }, textoAntes('Apodo'));
   }
   if (notas) {
     const antes = texto(prev.Notas);
-    if (!normal(antes).includes(normal(notas))) {
-      nuevos.Notas = { rich_text: rich(antes ? `${antes}\n${notas}` : notas) };
-      anteriores.Notas = { rich_text: antes ? rich(antes) : [] };
-    }
+    if (!normal(antes).includes(normal(notas))) cambiar('Notas', { rich_text: rich(antes ? `${antes}\n${notaConFecha}` : notaConFecha) }, textoAntes('Notas'));
   }
   const actuales = (prev.Materias?.relation || []).map((x) => x.id);
-  const faltan = ids.filter((id) => !actuales.some((a) => sinGuiones(a) === sinGuiones(id)));
-  if (faltan.length) {
-    nuevos.Materias = { relation: [...actuales, ...faltan].map((id) => ({ id })) };
-    anteriores.Materias = { relation: actuales.map((id) => ({ id })) };
-  }
-  if (!Object.keys(nuevos).length) return { creada: false, sinCambios: true, id: existente.id, url: existente.url, deshacer: null };
+  const faltan = todasMaterias.filter((id) => !actuales.some((a) => sinGuiones(a) === sinGuiones(id)));
+  if (faltan.length) cambiar('Materias', { relation: [...actuales, ...faltan].map((id) => ({ id })) }, { relation: actuales.map((id) => ({ id })) });
+  const nombreReal = texto(prev.Nombre) || nombre;
+  if (!Object.keys(nuevos).length) return { creada: false, nombre: nombreReal, sinCambios: true, id: existente.id, url: existente.url, deshacer: null };
   await notion(env, `/pages/${existente.id}`, { method: 'PATCH', body: { properties: nuevos } });
   return {
     creada: false,
+    nombre: nombreReal,
     id: existente.id,
     url: existente.url,
     cambios: Object.keys(nuevos),
@@ -263,6 +297,8 @@ export async function deshacer(env, paso) {
     await notion(env, `/pages/${paso.id}`, { method: 'PATCH', body: { in_trash: true } });
   } else if (paso.tipo === 'propiedades') {
     await notion(env, `/pages/${paso.id}`, { method: 'PATCH', body: { properties: paso.propiedades } });
+  } else if (paso.tipo === 'bloques') {
+    for (const id of paso.ids || []) await notion(env, `/blocks/${id}`, { method: 'DELETE' });
   } else if (paso.tipo === 'restaurar') {
     await notion(env, `/pages/${paso.id}`, { method: 'PATCH', body: { in_trash: false } });
   }

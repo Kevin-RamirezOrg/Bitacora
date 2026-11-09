@@ -1223,6 +1223,7 @@ function resultRow(r) {
     case 'crear_tarea': return row('cal', r.titulo, [r.tipo, r.materia || 'Sin materia', fmtDue(r.fecha, r.hora), r.grupal ? 'Grupal' : null].filter(Boolean).join(' · '), r.url,
       r.fecha ? dueBadge({ fecha:r.fecha }) : null);
     case 'completar_tarea': return row('done', 'Hecha: ' + r.titulo, 'Marcada como completada en Notion', r.url);
+    case 'apunte_clase': return row('doc', r.titulo, [r.materia, r.creada ? 'Clase nueva' + (r.semana ? ' · ' + r.semana : '') + (r.numero ? ' · ' + r.numero : '') : 'Agregado a la clase', `${r.lineas} apunte${r.lineas === 1 ? '' : 's'}`].filter(Boolean).join(' · '), r.url);
     case 'guardar_persona': return row('user', r.nombre,
       [r.creada ? 'Nueva en Personas' : r.sinCambios ? 'Ya estaba al día' : 'Actualizada', r.rol, (r.materias || []).join(', ')].filter(Boolean).join(' · '), r.url);
     case 'nota_inbox': return row('inbox', 'Nota en el Inbox' + (r.materia ? ' · ' + r.materia : ''), r.texto, r.url);

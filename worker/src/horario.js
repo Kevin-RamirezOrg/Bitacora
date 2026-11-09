@@ -3,7 +3,8 @@
 
 import { diaSemana, notion, sinGuiones, sumarDias, texto } from './notion.js';
 
-const CLAVE = 'notion:horario';
+export const CLAVE_HORARIO = 'notion:horario:v2';
+const CLAVE = CLAVE_HORARIO;
 const TTL = 6 * 60 * 60; // el horario cambia pocas veces por semestre
 const ORDEN = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 
@@ -17,14 +18,17 @@ export function leerHora(t) {
   return { inicio: f(m[1], m[2]), fin: f(m[3], m[4]) };
 }
 
-async function semestreActual(env) {
+// Semestre marcado como Actual: { id, inicio } (inicio = fecha AAAA-MM-DD o null).
+export async function semestreInfo(env) {
   if (!env.NOTION_DS_SEMESTRES) return null;
   const r = await notion(env, `/data_sources/${env.NOTION_DS_SEMESTRES}/query`, {
     method: 'POST',
     body: { page_size: 5, filter: { property: 'Actual', checkbox: { equals: true } } },
   });
-  return r.results?.[0]?.id || null;
+  const p = r.results?.[0];
+  return p ? { id: p.id, inicio: p.properties?.Inicio?.date?.start?.slice(0, 10) || null } : null;
 }
+const semestreActual = async (env) => (await semestreInfo(env))?.id || null;
 
 // Devuelve todas las clases del semestre actual, ordenadas por día y hora. null si no hay base Horario.
 export async function horarioSemana(env, materias = [], refrescar = false) {
@@ -52,6 +56,7 @@ export async function horarioSemana(env, materias = [], refrescar = false) {
       inicio: hora.inicio, fin: hora.fin,
       aula: texto(pr.Aula) || null,
       materia: rel ? nombreMateria(rel) : null,
+      materiaId: rel || null,
     });
   }
   clases.sort((a, b) => ORDEN.indexOf(a.dia) - ORDEN.indexOf(b.dia) || a.inicio.localeCompare(b.inicio));

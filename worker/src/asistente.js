@@ -6,7 +6,8 @@ import {
   ROLES, TIPOS_TAREA, consultarTareas, crearTarea, deshacer as deshacerPaso, diaSemana, guardarPersona,
   horaActual, hoy, marcarTarea, materias as leerMaterias, normal, notaInbox, sinGuiones, sumarDias,
 } from './notion.js';
-import { horarioParaPrompt, horarioSemana } from './horario.js';
+import { CLAVE_HORARIO, horarioParaPrompt, horarioSemana } from './horario.js';
+import { claseReciente, guardarApunte } from './clases.js';
 import {
   ErrorBase, archivarFila, bases as leerBases, basesParaPrompt, buscarPorTitulo, consultar, crearFila, editarFila,
   leerPagina, propiedadesEscritura,
@@ -101,7 +102,8 @@ Responde SOLO con un objeto JSON válido, sin texto antes ni después y sin bloq
 Acciones posibles (máximo ${MAX_ACCIONES} por mensaje):
 {"accion": "crear_tarea", "titulo": "Prueba 2 de Big Data", "tipo": "${TIPOS_TAREA.join('|')}", "fecha": "AAAA-MM-DD" o null, "hora": "HH:MM" o null, "materia": "m1" o null, "grupal": false}
 {"accion": "completar_tarea", "tarea": "t1"}
-{"accion": "guardar_persona", "nombre": "Nombre completo", "rol": "${ROLES.join('|')}" o null, "correo": null, "telefono": null, "notas": null, "materias": ["m1"]}
+{"accion": "guardar_persona", "nombre": "Nombre completo" o null, "apodo": "Pulu" o null, "profesor_de": "m1" o null, "rol": "${ROLES.join('|')}" o null, "correo": null, "telefono": null, "grupo": null, "cumpleanos": "AAAA-MM-DD" o "MM-DD" o null, "notas": null, "materias": ["m1"]}
+{"accion": "apunte_clase", "materia": "m1" o null, "fecha": "AAAA-MM-DD" o null, "tema": "tema corto de la clase", "contenido": ["idea 1", "idea 2"]}
 {"accion": "nota_inbox", "texto": "nota clara y autosuficiente", "materia": "m1" o null}
 {"accion": "mostrar_tareas", "desde": "AAAA-MM-DD", "hasta": "AAAA-MM-DD"}
 {"accion": "consultar_base", "base": "b1", "buscar": "texto en el título" o null, "filtros": [{"propiedad": "Nombre exacto", "valor": "...", "op": "igual|contiene|desde|hasta|mayor|menor"}], "limite": 15, "mostrar": false}
@@ -125,7 +127,9 @@ Reglas:
 - Tipo: "prueba", "test" o "lección" es Prueba; "examen" es Examen; "deber", "taller" o "informe" es Tarea; "proyecto" es Proyecto; "leer" es Lectura; matrículas, trámites o eventos de la universidad son Institucional.
 - No dupliques: si ya existe una tarea pendiente igual, no la crees y dilo.
 - "ya entregué…", "ya di…" o "terminé…" sobre una tarea pendiente es completar_tarea.
-- Datos de docentes o compañeros (nombre, correo, teléfono, materia, rol) son guardar_persona.
+- Apuntes de clase ("en la clase de hoy de Big Data vimos…", "en la clase nos dieron…", "el licen explicó que…") son apunte_clase. "materia" va solo si Kevin la nombra o es obvia; si dice "la clase" sin materia, usa null y el Worker la deduce del horario. "fecha" null significa hoy. "contenido": una viñeta por idea, con las mismas palabras de Kevin, solo corrigiendo ortografía y puntuación; no agregues explicaciones, definiciones ni datos que él no dijo, y no quites ninguno. "tema": 3 a 8 palabras sobre lo principal.
+- Datos de docentes o compañeros son guardar_persona: nombre, apodo, rol, correo, teléfono, grupo, cumpleaños, materias y notas (personalidad, gustos, cómo prefiere que le escriban…; una frase clara por dato). Si Kevin no dice el nombre pero sí "el licen/profe de Big Data", usa "profesor_de" con esa materia y "nombre" null. Si usa un apodo ("el licen Pulu"), ponlo en "apodo". Cumpleaños sin año: "MM-DD".
+- Lo que un profesor dijo sobre la materia (temas, cómo será la prueba) va como apunte_clase; si además da una fecha de entrega o evaluación, agrega crear_tarea. Lo que describe a la persona va en guardar_persona. Un mismo mensaje puede tener varias acciones.
 - Lo que no sea una tarea ni un dato de contacto (cómo son las pruebas, temas, consejos, ideas, pedidos largos) va con nota_inbox.
 - Toda pregunta sobre sus pendientes o fechas ("¿qué tengo esta semana?", "¿tengo prueba el martes 17?", "¿el 17 tengo algo?") se responde SIEMPRE con mostrar_tareas y el rango de fechas que corresponda (un solo día si pregunta por un día). Nunca respondas de memoria ni por el historial; la lista la muestra la app, no la repitas. En "respuesta" di solo algo breve como "Esto tienes para el martes 17".
 - Si solo conversa o pide algo ajeno a Notion, responde sin acciones.
@@ -273,16 +277,33 @@ export function validarAcciones(acciones, claves) {
         validas.push({ accion: tipo, id: t.id, titulo: t.titulo, url: t.url });
       } else if (tipo === 'guardar_persona') {
         const nombre = cadena(a.nombre, 120);
-        if (!nombre) throw new Error('la persona no tiene nombre');
+        const apodo = cadena(a.apodo, 80);
+        const prof = materia(a.profesor_de);
+        if (!nombre && !apodo && !prof) throw new Error('no sé de quién se trata; falta el nombre');
         const mats = (Array.isArray(a.materias) ? a.materias : []).map(materia).filter(Boolean);
         validas.push({
-          accion: tipo, nombre,
+          accion: tipo, nombre, apodo, profesorDe: prof?.id || null,
           rol: ROLES.includes(a.rol) ? a.rol : null,
           correo: esCorreo(a.correo) ? a.correo.trim() : null,
           telefono: cadena(a.telefono, 40),
           notas: cadena(a.notas, 1000),
-          materias: mats.map((m) => m.id), materiasNombres: mats.map((m) => m.nombre),
+          grupo: cadena(a.grupo, 60),
+          cumpleanos: typeof a.cumpleanos === 'string' && /^(\d{4}-)?\d{2}-\d{2}$/.test(a.cumpleanos) ? a.cumpleanos : null,
+          materias: mats.map((m) => m.id), materiasNombres: [...mats.map((m) => m.nombre), ...(prof && !mats.includes(prof) ? [prof.nombre] : [])],
         });
+      } else if (tipo === 'apunte_clase') {
+        const lineas = (Array.isArray(a.contenido) ? a.contenido : [a.contenido]).map((x) => cadena(x, 1900)).filter(Boolean);
+        if (!lineas.length) throw new Error('el apunte está vacío');
+        if (a.fecha != null && !esFecha(a.fecha)) throw new Error(`fecha inválida (${a.fecha})`);
+        const fecha = a.fecha || claves.fecha;
+        let m = materia(a.materia);
+        if (!m && fecha === claves.fecha) {
+          const c = claseReciente(claves.clases, fecha, claves.hora);
+          if (c?.materiaId) m = claves.materias.find((x) => sinGuiones(x.id) === sinGuiones(c.materiaId)) || { id: c.materiaId, nombre: c.materia || c.titulo };
+        }
+        if (!m) throw new Error('no sé de qué materia es la clase; dime la materia y lo guardo');
+        if (!claves.dsClases) throw new Error('falta configurar la base Clases');
+        validas.push({ accion: tipo, materiaId: m.id, materiaNombre: m.nombre, fecha, tema: cadena(a.tema, 120), lineas });
       } else if (tipo === 'nota_inbox') {
         const texto = cadena(a.texto, 1900);
         if (!texto) throw new Error('la nota está vacía');
@@ -310,7 +331,7 @@ function resumenFila(props) {
     .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v === true ? 'sí' : v === false ? 'no' : v}`).join(' · ');
 }
 
-async function ejecutar(env, a, lista) {
+async function ejecutar(env, a, lista, ctx = {}) {
   switch (a.accion) {
     case 'crear_tarea': {
       const p = await crearTarea(env, a);
@@ -322,9 +343,14 @@ async function ejecutar(env, a, lista) {
       return { accion: a.accion, ok: true, titulo: a.titulo, url: a.url,
         deshacer: { tipo: 'propiedades', id: a.id, propiedades: { Completada: { checkbox: false } } } };
     }
+    case 'apunte_clase': {
+      const r = await guardarApunte(env, a, { clases: ctx.clases, base: ctx.bases.find((b) => sinGuiones(b.id) === sinGuiones(env.NOTION_DS_CLASES)) });
+      return { accion: a.accion, ok: true, titulo: r.titulo, materia: a.materiaNombre, fecha: a.fecha, creada: r.creada, semana: r.semana, numero: r.numero,
+        lineas: a.lineas.length, url: r.url, deshacer: r.deshacer };
+    }
     case 'guardar_persona': {
       const r = await guardarPersona(env, a);
-      return { accion: a.accion, ok: true, nombre: a.nombre, rol: a.rol, materias: a.materiasNombres, creada: r.creada, sinCambios: !!r.sinCambios,
+      return { accion: a.accion, ok: true, nombre: r.nombre || a.nombre, rol: a.rol, materias: a.materiasNombres, creada: r.creada, sinCambios: !!r.sinCambios,
         cambios: r.cambios || null, url: r.url, deshacer: r.deshacer };
     }
     case 'nota_inbox': {
@@ -363,6 +389,7 @@ function resumenParaModelo(m) {
     if (x.accion === 'completar_tarea') return `marqué como hecha "${x.titulo}"`;
     if (x.accion === 'guardar_persona') return `guardé a ${x.nombre}`;
     if (x.accion === 'nota_inbox') return 'guardé una nota en el Inbox';
+    if (x.accion === 'apunte_clase') return `agregué ${x.lineas} apunte(s) a la clase "${x.titulo}" (${x.materia}, ${x.fecha})`;
     if (x.accion === 'crear_fila') return `creé "${x.titulo}" en ${x.base}`;
     if (x.accion === 'editar_fila') return `cambié ${Object.keys(x.valores || {}).join(', ')} de "${x.titulo}" en ${x.base}`;
     if (x.accion === 'archivar_fila') return `mandé "${x.titulo}" a la papelera`;
@@ -396,7 +423,8 @@ export async function procesarMensaje(env, { texto, modelo }) {
     bases: basesConClave,
     basesTexto: basesConClave.length ? basesParaPrompt(basesConClave) : '(no se pudieron leer)',
     filas: [], nombres: new Map(),
-    dsHorario: env.NOTION_DS_HORARIO, dsTareas: env.NOTION_DS_TAREAS,
+    dsHorario: env.NOTION_DS_HORARIO, dsTareas: env.NOTION_DS_TAREAS, dsClases: env.NOTION_DS_CLASES,
+    fecha: fechaHoy,
     hora: horaActual(),
   };
 
@@ -438,7 +466,7 @@ export async function procesarMensaje(env, { texto, modelo }) {
     const { validas, descartadas } = validarAcciones(acciones, claves);
     for (const a of validas) {
       try {
-        resultados.push(await ejecutar(env, a, lista));
+        resultados.push(await ejecutar(env, a, lista, claves));
       } catch (e) {
         resultados.push({ accion: a.accion, ok: false, error: e.message, titulo: a.titulo || a.nombre || a.fila?.titulo || null });
       }
@@ -498,7 +526,7 @@ export async function procesarMensaje(env, { texto, modelo }) {
   const tocadas = resultados.filter((x) => x.ok && ['crear_fila', 'editar_fila', 'archivar_fila'].includes(x.accion)).map((x) => x.base);
   if (env.CONFIG && tocadas.length) {
     const nombreDe = (id) => claves.bases.find((b) => sinGuiones(b.id) === sinGuiones(id))?.nombre;
-    if (tocadas.includes(nombreDe(env.NOTION_DS_HORARIO))) await env.CONFIG.delete('notion:horario').catch(() => {});
+    if (tocadas.includes(nombreDe(env.NOTION_DS_HORARIO))) await env.CONFIG.delete(CLAVE_HORARIO).catch(() => {});
     if (tocadas.includes(nombreDe(env.NOTION_DS_MATERIAS))) await env.CONFIG.delete('notion:materias').catch(() => {});
   }
   const datos = {

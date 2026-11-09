@@ -3,7 +3,7 @@
 
 import { normal, notion, rich, sinGuiones, texto } from './notion.js';
 
-const CLAVE = 'notion:bases';
+const CLAVE = 'notion:bases:v2';
 const TTL = 6 * 60 * 60;
 const MAX_FILAS = 25;
 const MAX_TEXTO_PAGINA = 6000;
