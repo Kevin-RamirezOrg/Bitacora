@@ -297,6 +297,8 @@ export async function deshacer(env, paso) {
     await notion(env, `/pages/${paso.id}`, { method: 'PATCH', body: { in_trash: true } });
   } else if (paso.tipo === 'propiedades') {
     await notion(env, `/pages/${paso.id}`, { method: 'PATCH', body: { properties: paso.propiedades } });
+  } else if (paso.tipo === 'papeleras') {
+    for (const id of paso.ids || []) await notion(env, `/pages/${id}`, { method: 'PATCH', body: { in_trash: true } });
   } else if (paso.tipo === 'bloques') {
     for (const id of paso.ids || []) await notion(env, `/blocks/${id}`, { method: 'DELETE' });
   } else if (paso.tipo === 'restaurar') {

@@ -433,7 +433,9 @@ input.search-field::placeholder{color:var(--muted)}
 .due i{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
 .due.soon i{background:var(--warn)}.due.now i{background:var(--danger)}.due.done i{background:var(--muted)}
 .res-row.done .res-t b{text-decoration:line-through;color:var(--muted)}
-.typing{display:inline-flex;gap:5px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:18px 18px 18px 6px}
+.typing .dots{display:inline-flex;gap:5px}
+.typing .etapa{font-size:13px;color:var(--ink-2)}
+.typing{display:inline-flex;align-items:center;gap:10px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:18px 18px 18px 6px}
 .typing i{width:8px;height:8px;border-radius:50%;background:var(--muted);animation:blink 1.2s infinite ease-in-out}
 .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
 @keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
@@ -455,6 +457,17 @@ input.search-field::placeholder{color:var(--muted)}
 .mdl-opt .mdl-ic{width:22px;height:22px;flex:none;color:var(--accent-ink);display:grid;place-items:center}
 .mdl-opt .mdl-ic svg{width:20px;height:20px}
 .comp-right{display:flex;align-items:center;gap:6px}
+.pc{padding:12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.pc:last-child{border-bottom:0}
+.pc-q{display:flex;gap:10px;width:100%;align-items:flex-start}
+.pc-q b{flex:1;font-weight:600;font-size:15px}
+.pc-a{margin:0;font-size:15px;color:var(--ink-2);white-space:pre-wrap}
+.pc-d{display:flex;flex-wrap:wrap;gap:6px}
+.sugs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:8px}
+.sugs::-webkit-scrollbar{display:none}
+.sugs[hidden]{display:none}
+.sug{flex:none;min-height:44px;padding:0 14px;border-radius:var(--r-pill);border:1.5px solid var(--line-strong);background:var(--surface);font-size:14px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.sug:hover{background:var(--surface-2)}
 .mic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line-strong);background:var(--surface);color:var(--ink-2)}
 .mic svg{width:20px;height:20px}
 .mic[aria-pressed="true"]{background:var(--danger);border-color:var(--danger);color:var(--bg);animation:pulse 1.4s ease-in-out infinite}
@@ -1045,7 +1058,7 @@ async function hoyLoad(force=false) {
   HOY.loading = true; HOY.err = null;
   try { HOY.data = await api(force ? '/hoy?refrescar=1' : '/hoy'); HOY.at = Date.now(); }
   catch (e) { HOY.err = e.message || 'No se pudo cargar.'; }
-  finally { HOY.loading = false; if (S.view === 'home' || S.view === 'panel') { const top = $('#screen .scroll')?.scrollTop || 0; render(); const sc = $('#screen .scroll'); if (sc) sc.scrollTop = top; } }
+  finally { HOY.loading = false; if (S.view === 'assistant') { if (!CHAT.sending && !$('#chatIn')?.value) chatPaint(); } else if (S.view === 'home' || S.view === 'panel') { const top = $('#screen .scroll')?.scrollTop || 0; render(); const sc = $('#screen .scroll'); if (sc) sc.scrollTop = top; } }
 }
 // Shared loading/locked states for the Hoy data (Inicio shows Urgente; Panel shows the rest).
 function hoyGate(sec, lockedText) {
@@ -1235,7 +1248,7 @@ async function chatSend(text) {
     const body = { texto:text, ...(modelo ? { modelo } : {}) };
     if (temporal) Object.assign(body, { temporal:true, historial: CHAT.tmsgs.slice(-8).map(m => ({ rol:m.rol, texto:m.texto, datos:m.datos })) });
     else if (CHAT.chatId) body.chat = CHAT.chatId;
-    const r = await api('/asistente/mensaje', { method:'POST', body });
+    const r = await apiStream('/asistente/mensaje', body, t => { if (CHAT.sending) { CHAT.sending.etapa = t; const el = $('#chatTyping .etapa'); if (el) el.textContent = t; } });
     if (temporal) { if (CHAT.temporal) CHAT.tmsgs.push(r.usuario, r.asistente); }
     else {
       const c = { ...(CHAT.chats.find(x => x.id === r.chat.id) || { id:r.chat.id, titulo:r.chat.titulo, mensajes:0 }), actualizado: r.asistente.creado };
@@ -1362,6 +1375,22 @@ async function chatProposal(m, aceptar, btn) {
   } catch (e) { toast(e.message); btn.disabled = false; }
 }
 
+// Suggestions for the moment: notes of the class in progress, practice before a test, tomorrow's plan.
+function chatSugerencias() {
+  const out = []; const d = HOY.data; const now = new Date(); const mins = now.getHours() * 60 + now.getMinutes();
+  const toM = t => { const [hh, mm] = String(t || '').split(':').map(Number); return hh * 60 + (mm || 0); };
+  const cl = d?.clases || [];
+  const reciente = cl.find(c => toM(c.inicio) <= mins && mins < toM(c.fin)) || cl.filter(c => toM(c.fin) <= mins && mins - toM(c.fin) <= 180).pop();
+  if (reciente) out.push({ t:`Apuntes de ${reciente.titulo}`, prefill:`En la clase de ${reciente.titulo} de hoy vimos ` });
+  const prueba = (d?.tareas || []).filter(t => !t.completada && t.fecha && t.materia && (t.tipo === 'Prueba' || t.tipo === 'Examen'))
+    .map(t => ({ ...t, n: daysUntil(t.fecha) })).filter(t => t.n >= 0 && t.n <= 5).sort((a, b) => a.n - b.n)[0];
+  if (prueba) out.push({ t:`Practicar ${prueba.materia}`, send:`Quiero practicar ${prueba.materia}` });
+  if (now.getHours() >= 18) out.push({ t:'¿Qué tengo mañana?', send:'¿Qué tengo mañana?' });
+  else if (cl.some(c => toM(c.fin) > mins)) out.push({ t:'¿Qué clase me toca?', send:'¿Qué clase me toca ahora?' });
+  if (now.getDay() === 5 || now.getDay() === 6 || now.getDay() === 0) out.push({ t:'Resumir la semana', prefill:'Resume la semana de ' });
+  return out.slice(0, 3);
+}
+
 // Voice dictation (Web Speech API; Chrome on Android supports it). One recognizer at a time, shared by chat and editor.
 var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 var dict = null; // var: render() may run before this line during start-up
@@ -1444,6 +1473,7 @@ function resultRow(r) {
     case 'crear_fila': return row('plus', r.titulo, `Nueva en ${r.base}` + (valoresTxt(r.valores, r.titulo) ? ' · ' + valoresTxt(r.valores, r.titulo) : ''), r.url);
     case 'editar_fila': return row('edit', r.titulo, `${r.base} · ` + (valoresTxt(r.valores) || 'Actualizada'), r.url);
     case 'archivar_fila': return row('trash', r.titulo, `En la papelera de Notion${r.base ? ' · ' + r.base : ''}`, r.url);
+    case 'resumen_semanal': return row('doc', r.titulo, r.yaExistia ? `Ya existía en Resúmenes · Semana ${r.semana}` : `Nuevo en Resúmenes · Semana ${r.semana} · ${r.puntos} puntos`, r.url);
     case 'recordar': return row('brain', 'Guardado en la memoria', r.texto);
     case 'olvidar': return row('brain', 'Borrado de la memoria', r.texto);
     default: return null;
@@ -1458,6 +1488,32 @@ function rowsList(r) {
     h('span',{class:'res-t'}, h('b',{text:f.titulo}), f.resumen ? h('span',{class:'clamp',text:f.resumen}) : null), openLink(f.url))));
   return box;
 }
+// Practice cards: question → "Ver respuesta" → how well it was known (updates Dominio in Notion).
+function practiceCards(m, r, undone) {
+  const head = r.accion === 'preguntas_estudio'
+    ? `${r.tarjetas.length} pregunta${r.tarjetas.length === 1 ? '' : 's'} nueva${r.tarjetas.length === 1 ? '' : 's'} en el Banco · ${r.materia} · Semana ${r.semana}`
+    : `Práctica · ${r.materia} · ${r.tarjetas.length} de ${r.total}`;
+  const box = h('div',{class:'res' + (undone ? ' undone' : '')}, h('div',{class:'res-h',text:head}));
+  const card = (t, i) => {
+    const el = h('div',{class:'pc'});
+    const paint = (open) => {
+      el.innerHTML = '';
+      el.append(h('div',{class:'pc-q'}, h('b',{text:t.pregunta}), openLink(t.url)));
+      if (!open && !t.marcado) { el.append(h('button',{class:'btn secondary sm',type:'button',text:'Ver respuesta',onclick:()=>paint(true)})); return; }
+      el.append(h('p',{class:'pc-a',text:t.respuesta || '(sin respuesta guardada)'}));
+      if (undone) return;
+      el.append(h('div',{class:'pc-d',role:'group','aria-label':'¿Qué tan bien la sabías?'}, ...['No la sé','Más o menos','La sé'].map(dm => {
+        const b = h('button',{class:'rp',type:'button','aria-pressed':String(t.marcado === dm),text:dm});
+        b.onclick = async () => { b.disabled = true;
+          try { await api('/estudio/dominio', { method:'POST', body:{ id:t.id, dominio:dm, ...(typeof m.id === 'number' ? { mensaje:m.id, indice:i } : {}) } }); t.marcado = dm; paint(true); }
+          catch (e) { toast(e.message); b.disabled = false; } };
+        return b; })));
+    };
+    paint(false); return el;
+  };
+  r.tarjetas.forEach((t, i) => box.append(card(t, i)));
+  return box;
+}
 function taskList(r) {
   const box = h('div',{class:'res'}, h('div',{class:'res-h',text: r.desde === r.hasta ? fmtDay(r.desde,{weekday:'long',day:'numeric',month:'long'})
     : `Del ${fmtDay(r.desde,{weekday:'short',day:'numeric'})} al ${fmtDay(r.hasta,{weekday:'short',day:'numeric',month:'short'})}`}));
@@ -1470,10 +1526,11 @@ function chatMessage(m) {
   if (m.rol === 'usuario') return h('div',{class:'msg yo',text:m.texto});
   const d = m.datos || {}; const res = d.resultados || [];
   const el = h('div',{class:'msg ia'}, h('div',{class:'txt',text:m.texto}));
-  const actions = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','proponer_recuerdo'].includes(r.accion) || !r.ok).map(resultRow).filter(Boolean);
+  const actions = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','proponer_recuerdo','preguntas_estudio','practicar'].includes(r.accion) || !r.ok).map(resultRow).filter(Boolean);
   if (actions.length) el.append(h('div',{class:'res' + (d.deshecho ? ' undone' : '')}, ...actions));
   res.filter(r => r.accion === 'mostrar_tareas' && r.ok).forEach(r => el.append(taskList(r)));
   res.filter(r => r.accion === 'consultar_base' && r.ok && r.mostrar).forEach(r => el.append(rowsList(r)));
+  res.filter(r => (r.accion === 'preguntas_estudio' || r.accion === 'practicar') && r.ok).forEach(r => el.append(practiceCards(m, r, d.deshecho)));
   const leidas = res.filter(r => r.ok && (r.accion === 'leer_pagina' || (r.accion === 'consultar_base' && !r.mostrar)));
   const prop = res.find(r => r.accion === 'proponer_recuerdo' && r.ok);
   if (prop && prop.estado !== 'rechazada') {
@@ -1546,7 +1603,8 @@ function viewAssistant(scr) {
       log.append(h('div',{class:'chat-day',text: n === 0 ? 'Hoy' : n === -1 ? 'Ayer' : fmtDay(day,{weekday:'long',day:'numeric',month:'long'})})); }
     log.append(chatMessage(m));
   });
-  if (CHAT.sending) log.append(h('div',{class:'msg yo',text:CHAT.sending.texto}), h('div',{class:'typing',role:'status','aria-label':'El asistente está escribiendo'}, h('i'), h('i'), h('i')));
+  if (CHAT.sending) log.append(h('div',{class:'msg yo',text:CHAT.sending.texto}), h('div',{class:'typing',id:'chatTyping',role:'status','aria-live':'polite'},
+    h('span',{class:'dots','aria-hidden':'true'}, h('i'), h('i'), h('i')), h('span',{class:'etapa',text:CHAT.sending.etapa || 'Enviando…'})));
   if (CHAT.failed) {
     const f = CHAT.failed;
     log.append(h('div',{class:'msg yo',text:f.texto}), h('div',{class:'msg ia err',role:'alert'}, h('div',{class:'txt',text:'No se pudo procesar: ' + f.error}),
@@ -1560,7 +1618,7 @@ function viewAssistant(scr) {
   ta.value = CHAT.draft;
   const send = h('button',{class:'send',type:'button','aria-label':'Enviar',html:ICON.send});
   const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 3, 148) + 'px'; send.disabled = !!CHAT.sending || !ta.value.trim(); };
-  ta.addEventListener('input', () => { CHAT.draft = ta.value; fit(); });
+  ta.addEventListener('input', () => { CHAT.draft = ta.value; fit(); const sg = $('.sugs'); if (sg) sg.hidden = !!ta.value.trim(); });
   ta.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !matchMedia('(pointer:coarse)').matches) { ev.preventDefault(); send.click(); } });
   send.onclick = () => chatSend(ta.value);
   const cur = chatModelo(); const principal = CHAT.config?.principal?.modelo;
@@ -1568,6 +1626,12 @@ function viewAssistant(scr) {
   const mdl = h('button',{class:'mdl-btn',type:'button','aria-haspopup':'dialog','aria-label':'Modelo: ' + mdlLabel + '. Cambiar modelo',onclick:chatModelSheet},
     h('span',{text:mdlLabel}), ic('chevD'));
   const mic = SpeechRec ? h('button',{class:'mic',id:'micBtn',type:'button','aria-label':'Dictar por voz','aria-pressed':String(!!dict),html:ICON.mic,onclick:()=>dictToggle(ta, mic)}) : null;
+  if (!CHAT.sending && !CHAT.draft.trim()) {
+    if (!HOY.data && !HOY.loading && !HOY.err) setTimeout(hoyLoad);
+    const sg = chatSugerencias();
+    if (sg.length) cw.append(h('div',{class:'sugs',role:'group','aria-label':'Sugerencias'}, ...sg.map(x => h('button',{class:'sug',type:'button',text:x.t,onclick:()=>{
+      if (x.send) chatSend(x.send); else { CHAT.draft = x.prefill; chatPaint(true); const i = $('#chatIn'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } } }}))));
+  }
   cw.append(h('div',{class:'comp-box' + (CHAT.temporal ? ' temp' : '')}, ta, h('div',{class:'comp-foot'}, mdl, h('span',{class:'comp-right'}, mic, send))));
   requestAnimationFrame(fit);
 }
@@ -1642,6 +1706,30 @@ async function api(path, { method='GET', body } = {}) {
   const data = await r.json().catch(() => ({}));
   if (!r.ok) { const e = new Error(data.error || 'El Worker respondió ' + r.status); e.status = r.status; e.detalle = data.detalle; throw e; }
   return data;
+}
+
+// Same as api() but reads the Worker's line-by-line progress ({etapa}) until the final {fin} or {error}.
+async function apiStream(path, body, onEtapa) {
+  const user = auth.currentUser;
+  if (!user || user.uid !== OWNER_UID) throw new Error('Ingresa con tu PIN para continuar.');
+  const token = await user.getIdToken();
+  let r;
+  try { r = await fetch(WORKER_URL + path, { method:'POST', body: JSON.stringify(body),
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type':'application/json', Accept:'application/x-ndjson' } }); }
+  catch { throw new Error('No se pudo conectar con el Worker. Revisa tu conexión.'); }
+  if (!r.ok || !(r.headers.get('Content-Type') || '').includes('ndjson') || !r.body) {
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { const e = new Error(data.error || 'El Worker respondió ' + r.status); e.status = r.status; throw e; }
+    return data;
+  }
+  const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = ''; let fin = null;
+  const linea = l => { if (!l.trim()) return; let o; try { o = JSON.parse(l); } catch { return; }
+    if (o.etapa) onEtapa?.(o.etapa); else if (o.fin) fin = o.fin; else if (o.error) { const e = new Error(o.error); e.status = o.status; throw e; } };
+  for (;;) { const { value, done } = await reader.read(); if (done) break; buf += dec.decode(value, { stream:true });
+    let i; while ((i = buf.indexOf('\n')) >= 0) { linea(buf.slice(0, i)); buf = buf.slice(i + 1); } }
+  linea(buf);
+  if (!fin) throw new Error('La respuesta se cortó; revisa el chat en un momento.');
+  return fin;
 }
 
 // Form state keeps numbers as typed text; fromDraft validates like the Worker does.

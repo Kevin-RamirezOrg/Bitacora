@@ -13,7 +13,9 @@
     "NOTION_DS_INBOX": "10c76b66-23ce-4659-bd33-fabedf8b64c3",
     "NOTION_DS_HORARIO": "40da13d3-6727-4155-a8e7-589a135ea18b",
     "NOTION_DS_SEMESTRES": "71ec6804-f0c9-4431-819f-869e67f15c7a",
-    "NOTION_DS_CLASES": "c9d0514a-fd5d-4242-b227-422d045edd6d"
+    "NOTION_DS_CLASES": "c9d0514a-fd5d-4242-b227-422d045edd6d",
+    "NOTION_DS_PREGUNTAS": "352cec6e-c767-44d9-84ec-36c86121e6e5",
+    "NOTION_DS_RESUMENES": "f9a7bb8a-1f7e-45c4-8fd3-e2a3b830e643"
   },
   // Configuración que cambia poco (modelos de IA, precálculos diarios). No guardar aquí datos que cambien a cada rato.
   "kv_namespaces": [

@@ -3,9 +3,10 @@ import { ErrorIA, chat, estadoProveedores, guardarConfig, leerConfig, listarMode
 import { ErrorNotion } from './notion.js';
 import {
   ErrorAsistente, agregarMemoria, borrarChat, borrarHistorial, borrarMemoria, crearChat, deshacerMensaje, deshacerTemporal,
-  editarMemoria, historial, listarChats, listarMemoria, procesarMensaje, renombrarChat, responderPropuesta, valorar,
+  editarMemoria, guardarMarcaTarjeta, historial, listarChats, listarMemoria, procesarMensaje, renombrarChat, responderPropuesta, valorar,
 } from './asistente.js';
 import { datosHoy, marcarRepaso } from './hoy.js';
+import { ErrorEstudio, marcarDominio } from './estudio.js';
 
 const ORIGEN = 'https://ellenkev.me';
 const TAMANO_MAXIMO_CUERPO = 200_000;
@@ -113,7 +114,37 @@ const RUTAS = {
     return json({ ok: true });
   },
 
-  'POST /asistente/mensaje': async (req, env) => json(await procesarMensaje(env, await leerCuerpo(req))),
+  // Con "Accept: application/x-ndjson" responde en líneas: {etapa} mientras trabaja y al final {fin} o {error}.
+  'POST /asistente/mensaje': async (req, env, sesion, ctx) => {
+    const cuerpo = await leerCuerpo(req);
+    if (!(req.headers.get('Accept') || '').includes('application/x-ndjson')) return json(await procesarMensaje(env, cuerpo));
+    const { readable, writable } = new TransformStream();
+    const w = writable.getWriter();
+    const enc = new TextEncoder();
+    const enviar = (o) => w.write(enc.encode(JSON.stringify(o) + '\n')).catch(() => {});
+    const tarea = (async () => {
+      try {
+        const r = await procesarMensaje(env, { ...cuerpo, progreso: (t) => { enviar({ etapa: t }); } });
+        await enviar({ fin: r });
+      } catch (e) {
+        const conocido = e instanceof ErrorIA || e instanceof ErrorNotion || e instanceof ErrorAsistente || e instanceof ErrorEstudio;
+        if (!conocido) console.error(e);
+        await enviar({ error: conocido ? e.message : 'Error interno', status: e.status || 500 });
+      } finally {
+        await w.close().catch(() => {});
+      }
+    })();
+    ctx?.waitUntil?.(tarea);
+    return new Response(readable, { headers: { ...CORS, 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' } });
+  },
+
+  // Práctica: marcar cuánto domina una pregunta (y recordarlo en la tarjeta del mensaje)
+  'POST /estudio/dominio': async (req, env) => {
+    const b = await leerCuerpo(req);
+    const r = await marcarDominio(env, b);
+    if (b.mensaje && b.indice != null) await guardarMarcaTarjeta(env, b.mensaje, b.indice, b.dominio).catch(() => {});
+    return json(r);
+  },
 
   'POST /asistente/deshacer': async (req, env) => {
     const { id, datos } = await leerCuerpo(req);
@@ -138,7 +169,7 @@ const RUTAS = {
 };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS });
     }
@@ -156,7 +187,7 @@ export default {
 
       const manejador = RUTAS[`${request.method} ${pathname}`];
       if (!manejador) return json({ error: 'Ruta no encontrada' }, 404);
-      return await manejador(request, env, sesion);
+      return await manejador(request, env, sesion, ctx);
     } catch (error) {
       if (error instanceof ErrorAcceso) {
         return json({ error: error.message }, error.status);
@@ -164,7 +195,7 @@ export default {
       if (error instanceof ErrorIA) {
         return json({ error: error.message, detalle: error.detalle ?? null }, error.status);
       }
-      if (error instanceof ErrorNotion || error instanceof ErrorAsistente) {
+      if (error instanceof ErrorNotion || error instanceof ErrorAsistente || error instanceof ErrorEstudio) {
         return json({ error: error.message }, error.status);
       }
       console.error(error);

@@ -8,6 +8,7 @@ import {
 } from './notion.js';
 import { CLAVE_HORARIO, horarioParaPrompt, horarioSemana } from './horario.js';
 import { claseReciente, guardarApunte } from './clases.js';
+import { ErrorEstudio, elegirPractica, generarPreguntas, resumenSemanal } from './estudio.js';
 import {
   ErrorBase, archivarFila, bases as leerBases, basesParaPrompt, buscarPorTitulo, consultar, crearFila, editarFila,
   leerPagina, propiedadesEscritura,
@@ -155,6 +156,18 @@ export async function responderPropuesta(env, { mensaje, aceptar, texto }) {
   return { mensaje: m, memoria: guardado };
 }
 
+// Guarda en el mensaje qué marcó Kevin en una tarjeta de práctica (para que se vea al volver al chat).
+export async function guardarMarcaTarjeta(env, mensaje, indice, dominio) {
+  const base = await db(env);
+  const row = await base.prepare('SELECT * FROM mensajes WHERE id = ?').bind(Number(mensaje)).first();
+  if (!row) return;
+  const m = fila(row);
+  const r = m.datos?.resultados?.find((x) => Array.isArray(x.tarjetas));
+  if (!r || !r.tarjetas[Number(indice)]) return;
+  r.tarjetas[Number(indice)].marcado = dominio;
+  await base.prepare('UPDATE mensajes SET datos = ? WHERE id = ?').bind(JSON.stringify(m.datos), m.id).run();
+}
+
 // Valoraciones 👍/👎 (con motivo opcional) para que el asistente ajuste su forma de responder.
 export async function valorar(env, { mensaje, valor, motivo }) {
   const v = Number(valor);
@@ -229,6 +242,9 @@ Acciones posibles (máximo ${MAX_ACCIONES} por mensaje):
 {"accion": "crear_tarea", "titulo": "Prueba 2 de Big Data", "tipo": "${TIPOS_TAREA.join('|')}", "fecha": "AAAA-MM-DD" o null, "hora": "HH:MM" o null, "materia": "m1" o null, "grupal": false}
 {"accion": "completar_tarea", "tarea": "t1"}
 {"accion": "guardar_persona", "nombre": "Nombre completo" o null, "apodo": "Pulu" o null, "profesor_de": "m1" o null, "rol": "${ROLES.join('|')}" o null, "correo": null, "telefono": null, "grupo": null, "cumpleanos": "AAAA-MM-DD" o "MM-DD" o null, "notas": null, "materias": ["m1"]}
+{"accion": "preguntas_estudio", "materia": "m1", "semana": 7 o null, "cantidad": 5}
+{"accion": "practicar", "materia": "m1", "cantidad": 5}
+{"accion": "resumen_semanal", "materia": "m1", "semana": 7 o null}
 {"accion": "recordar", "texto": "dato en una frase, en tercera persona"}
 {"accion": "olvidar", "memoria": "k1"}
 {"accion": "proponer_recuerdo", "texto": "preferencia en una frase"}
@@ -256,6 +272,7 @@ Reglas:
 - Tipo: "prueba", "test" o "lección" es Prueba; "examen" es Examen; "deber", "taller" o "informe" es Tarea; "proyecto" es Proyecto; "leer" es Lectura; matrículas, trámites o eventos de la universidad son Institucional.
 - No dupliques: si ya existe una tarea pendiente igual, no la crees y dilo.
 - "ya entregué…", "ya di…" o "terminé…" sobre una tarea pendiente es completar_tarea.
+- Estudio: "hazme preguntas de Big Data", "quiero repasar la semana 6" → preguntas_estudio (genera preguntas nuevas desde sus apuntes de Clases y las guarda en el Banco de preguntas). "quiero practicar", "tómame las preguntas de Compiladores" → practicar (usa las que ya existen, empezando por las que menos domina). "resume la semana de Big Data" → resumen_semanal. "semana" null = la semana actual del semestre. Usa solo una de estas tres por mensaje y no escribas tú las preguntas ni el resumen: los hace el Worker. Si no sabe la materia, pregúntala.
 - Memoria: si Kevin pide explícitamente que recuerdes algo ("recuerda que…", "de ahora en adelante…", "no olvides que…"), usa recordar con una frase clara ("Prefiere respuestas cortas", "Trabaja los sábados por la mañana"). Si pide olvidar algo de la lista, usa olvidar. Nunca guardes con recordar algo que no pidió.
 - Si notas un patrón claro y repetido sobre cómo le gustan las respuestas o cómo organiza su estudio (por ejemplo, siempre pide viñetas, o la valoración muestra que tus respuestas le parecen largas), puedes sugerirlo con proponer_recuerdo; él decide si se guarda. Máximo una por mensaje, solo si no está ya en la lista, y nunca sobre salud, dinero, familia u otros temas delicados.
 - Apuntes de clase ("en la clase de hoy de Big Data vimos…", "en la clase nos dieron…", "el licen explicó que…") son apunte_clase. "materia" va solo si Kevin la nombra o es obvia; si dice "la clase" sin materia, usa null y el Worker la deduce del horario. "fecha" null significa hoy. "contenido": una viñeta por idea, con las mismas palabras de Kevin, solo corrigiendo ortografía y puntuación; no agregues explicaciones, definiciones ni datos que él no dijo, y no quites ninguno. "tema": 3 a 8 palabras sobre lo principal.
@@ -360,6 +377,14 @@ export function validarAcciones(acciones, claves) {
   for (const a of acciones.slice(0, MAX_ACCIONES)) {
     const tipo = a?.accion;
     try {
+      if (tipo === 'preguntas_estudio' || tipo === 'practicar' || tipo === 'resumen_semanal') {
+        if (validas.some((x) => ['preguntas_estudio', 'practicar', 'resumen_semanal'].includes(x.accion))) throw new Error('solo una acción de estudio por mensaje');
+        const m = materia(a.materia);
+        if (!m) throw new Error('¿de qué materia? no la reconocí');
+        const semana = Number.isInteger(a.semana) && a.semana >= 1 && a.semana <= 20 ? a.semana : null;
+        validas.push({ accion: tipo, materiaId: m.id, materiaNombre: m.nombre, semana, cantidad: a.cantidad });
+        continue;
+      }
       if (tipo === 'recordar' || tipo === 'proponer_recuerdo') {
         const t = cadena(a.texto, 300);
         if (!t) throw new Error('el recuerdo está vacío');
@@ -487,6 +512,20 @@ async function ejecutar(env, a, lista, ctx = {}) {
       return { accion: a.accion, ok: true, titulo: a.titulo, url: a.url,
         deshacer: { tipo: 'propiedades', id: a.id, propiedades: { Completada: { checkbox: false } } } };
     }
+    case 'preguntas_estudio': {
+      ctx.progreso?.(`Leyendo tus apuntes de ${a.materiaNombre}…`);
+      const r = await generarPreguntas(env, { ...a, modelo: ctx.modelo });
+      return { accion: a.accion, ok: true, materia: a.materiaNombre, semana: r.semana, tarjetas: r.tarjetas, deshacer: r.deshacer };
+    }
+    case 'practicar': {
+      const r = await elegirPractica(env, a);
+      return { accion: a.accion, ok: true, materia: a.materiaNombre, total: r.total, tarjetas: r.tarjetas };
+    }
+    case 'resumen_semanal': {
+      ctx.progreso?.(`Resumiendo la semana de ${a.materiaNombre}…`);
+      const r = await resumenSemanal(env, { ...a, modelo: ctx.modelo });
+      return { accion: a.accion, ok: true, materia: a.materiaNombre, semana: r.semana, titulo: r.titulo, url: r.url, yaExistia: !!r.yaExistia, puntos: r.puntos, deshacer: r.deshacer || null };
+    }
     case 'recordar': {
       const m = await agregarMemoria(env, a.texto, 'usuario');
       return { accion: a.accion, ok: true, texto: m.texto, deshacer: m.repetido ? null : { tipo: 'memoria', id: m.id } };
@@ -543,6 +582,9 @@ function resumenParaModelo(m) {
     if (x.accion === 'completar_tarea') return `marqué como hecha "${x.titulo}"`;
     if (x.accion === 'guardar_persona') return `guardé a ${x.nombre}`;
     if (x.accion === 'nota_inbox') return 'guardé una nota en el Inbox';
+    if (x.accion === 'preguntas_estudio') return `guardé ${x.tarjetas.length} preguntas nuevas de ${x.materia} (semana ${x.semana}) en el Banco de preguntas`;
+    if (x.accion === 'practicar') return `le mostré ${x.tarjetas.length} preguntas de ${x.materia} para practicar`;
+    if (x.accion === 'resumen_semanal') return x.yaExistia ? `el resumen de ${x.materia} semana ${x.semana} ya existía` : `creé el resumen "${x.titulo}"`;
     if (x.accion === 'recordar') return `guardé en la memoria: "${x.texto}"`;
     if (x.accion === 'olvidar') return `borré de la memoria: "${x.texto}"`;
     if (x.accion === 'proponer_recuerdo') return `propuse recordar: "${x.texto}" (${x.estado || 'pendiente'})`;
@@ -568,12 +610,14 @@ function previosTemporales(lista) {
   })).filter((m) => m.texto);
 }
 
-export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, temporal = false, historial: historialCliente }) {
+export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, temporal = false, historial: historialCliente, progreso: progresoFn }) {
+  const progreso = typeof progresoFn === 'function' ? progresoFn : () => {};
   const entrada = typeof texto === 'string' ? texto.trim() : '';
   if (!entrada) throw new ErrorAsistente(400, 'Escribe un mensaje');
   if (entrada.length > MAX_TEXTO) throw new ErrorAsistente(400, `El mensaje es demasiado largo (máximo ${MAX_TEXTO} caracteres)`);
   const base = await db(env);
 
+  progreso('Leyendo tu Notion…');
   const fechaHoy = hoy();
   const lista = await leerMaterias(env);
   const [pendientes, semana, todas] = await Promise.all([
@@ -594,6 +638,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     dsHorario: env.NOTION_DS_HORARIO, dsTareas: env.NOTION_DS_TAREAS, dsClases: env.NOTION_DS_CLASES,
     fecha: fechaHoy,
     hora: horaActual(),
+    modelo, progreso,
   };
 
   // Chat: el temporal no se guarda; uno normal se crea con el primer mensaje si no existe.
@@ -637,6 +682,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     return { r, plan };
   }
 
+  progreso('Pensando…');
   let { r, plan } = await pedir(mensajes);
   let aviso = null;
   const resultados = [];
@@ -663,6 +709,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     const { validas, descartadas } = validarAcciones(lecturas, claves);
     for (const a of validas) {
       try {
+        progreso(a.accion === 'consultar_base' ? `Consultando ${a.base.nombre}…` : `Leyendo "${a.fila.titulo}"…`);
         if (a.accion === 'consultar_base') {
           const q = await consultar(env, a.base, a, { materias: lista, resolverRelacion: resolvedor(claves) });
           const filas = q.filas.map((f) => {
@@ -690,6 +737,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
       { role: 'user', content: `Resultados de Notion:\n${informe.join('\n\n').slice(0, 14000)}\n\n${ronda === 0
         ? 'Responde SOLO el JSON final para Kevin. Puedes incluir escrituras con las claves "r…". Si de verdad necesitas leer una página encontrada, puedes pedir una última lectura (leer_pagina).'
         : 'Responde SOLO el JSON final para Kevin. Puedes incluir escrituras con las claves "r…"; ya no hay más lecturas.'}` }];
+    progreso('Pensando…');
     ({ r, plan } = await pedir([...mensajes, ...lecturasPrevias]));
     if (plan.ok && ronda === 1) plan.acciones = plan.acciones.filter((x) => !LECTURAS.has(x?.accion));
   }
@@ -698,7 +746,9 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     aviso = 'El modelo no devolvió acciones en el formato esperado, así que no se guardó nada en Notion.';
     plan = { respuesta: String(r.texto).replace(/<think>[\s\S]*?<\/think>/gi, '').trim().slice(0, 2000) || 'No entendí el mensaje.', acciones: [] };
   }
-  await ejecutarTodas(plan.acciones.filter((x) => !LECTURAS.has(x?.accion)));
+  const escrituras = plan.acciones.filter((x) => !LECTURAS.has(x?.accion));
+  if (escrituras.some((x) => !['mostrar_tareas', 'practicar', 'proponer_recuerdo'].includes(x?.accion))) progreso('Guardando en Notion…');
+  await ejecutarTodas(escrituras);
   r = ultimo || r;
   if (!aviso && resultados.some((x) => !x.ok)) aviso = 'Algo no se pudo hacer; revisa el detalle arriba.';
   // Si cambió el horario o las materias, se borra su caché para que el panel y el siguiente mensaje lo vean.
@@ -743,7 +793,7 @@ async function deshacerUno(env, p) {
   return deshacerPaso(env, p);
 }
 
-const PASOS_VALIDOS = new Set(['papelera', 'propiedades', 'bloques', 'restaurar', 'memoria', 'memoria_volver']);
+const PASOS_VALIDOS = new Set(['papeleras', 'papelera', 'propiedades', 'bloques', 'restaurar', 'memoria', 'memoria_volver']);
 
 async function revertir(env, datos) {
   if (datos?.deshecho) throw new ErrorAsistente(409, 'Ese mensaje ya se deshizo');
