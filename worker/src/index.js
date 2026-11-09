@@ -1,6 +1,8 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { ErrorIA, chat, estadoProveedores, guardarConfig, leerConfig, listarModelos } from './ia.js';
 
 const ORIGEN = 'https://ellenkev.me';
+const TAMANO_MAXIMO_CUERPO = 200_000;
 
 // Claves públicas con las que Google firma los ID tokens de Firebase.
 // Se crea una sola vez por instancia: jose las guarda en caché y las renueva solo.
@@ -10,7 +12,7 @@ const CLAVES_FIREBASE = createRemoteJWKSet(
 
 const CORS = {
   'Access-Control-Allow-Origin': ORIGEN,
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
   'Access-Control-Allow-Headers': 'Authorization, Content-Type',
   'Access-Control-Max-Age': '86400',
 };
@@ -56,6 +58,34 @@ export async function verificarDueno(request, env, claves = CLAVES_FIREBASE) {
   return payload;
 }
 
+async function leerCuerpo(request) {
+  const texto = await request.text();
+  if (texto.length > TAMANO_MAXIMO_CUERPO) throw new ErrorIA(413, 'Petición demasiado grande');
+  try {
+    return JSON.parse(texto);
+  } catch {
+    throw new ErrorIA(400, 'El cuerpo debe ser JSON');
+  }
+}
+
+// Rutas privadas: "MÉTODO /ruta" → función.
+const RUTAS = {
+  'GET /yo': (req, env, sesion) => json({ ok: true, uid: sesion.sub }),
+
+  'GET /ia/proveedores': (req, env) => json({ proveedores: estadoProveedores(env) }),
+
+  'GET /ia/modelos': async (req, env) => {
+    const proveedor = new URL(req.url).searchParams.get('proveedor');
+    return json({ proveedor, modelos: await listarModelos(env, proveedor) });
+  },
+
+  'GET /config/ia': async (req, env) => json({ config: await leerConfig(env) }),
+
+  'PUT /config/ia': async (req, env) => json({ ok: true, config: await guardarConfig(env, await leerCuerpo(req)) }),
+
+  'POST /ia/chat': async (req, env) => json(await chat(env, await leerCuerpo(req))),
+};
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') {
@@ -73,14 +103,15 @@ export default {
       // Todas las demás rutas exigen la sesión del dueño.
       const sesion = await verificarDueno(request, env);
 
-      if (pathname === '/yo') {
-        return json({ ok: true, uid: sesion.sub });
-      }
-
-      return json({ error: 'Ruta no encontrada' }, 404);
+      const manejador = RUTAS[`${request.method} ${pathname}`];
+      if (!manejador) return json({ error: 'Ruta no encontrada' }, 404);
+      return await manejador(request, env, sesion);
     } catch (error) {
       if (error instanceof ErrorAcceso) {
         return json({ error: error.message }, error.status);
+      }
+      if (error instanceof ErrorIA) {
+        return json({ error: error.message, detalle: error.detalle ?? null }, error.status);
       }
       console.error(error);
       return json({ error: 'Error interno' }, 500);
