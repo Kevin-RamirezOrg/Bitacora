@@ -429,6 +429,55 @@ button.msg.yo[aria-expanded="true"]{border-color:var(--accent-ink)}
 .msg-acts{gap:2px}
 .rate:disabled{opacity:.5}
 .sheet-p{margin:0 0 10px;font-size:15px;color:var(--ink-2)}
+.range{width:100%;accent-color:var(--accent);min-height:32px}
+.field output{font-weight:600;color:var(--ink-2)}
+.reading .vw{color:var(--muted)}
+.reading .vw.said{color:inherit}
+.reading .vw.now{color:var(--ink);background:var(--accent-soft);border-radius:4px;box-shadow:0 0 0 2px var(--accent-soft)}
+.rate[aria-pressed="true"][aria-label="Detener lectura"]{color:var(--accent-ink)}
+.conv{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+.conv-top{display:flex;align-items:center;gap:12px;padding:12px 16px 4px}
+.conv-tt{flex:1;min-width:0;display:flex;flex-direction:column}
+.conv-tt b{font-family:Lora,Georgia,serif;font-size:22px;font-weight:700}
+.conv-tt span{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv-stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;padding:8px 20px 0;width:100%;max-width:640px;margin:0 auto}
+.conv-orb{position:relative;flex:none;width:132px;height:132px;margin:18px 0 10px}
+.conv-orb i{position:absolute;inset:0;border-radius:50%;background:var(--accent)}
+.conv-orb i:nth-child(1){opacity:.18;transform:scale(1.32)}
+.conv-orb i:nth-child(2){opacity:.32;transform:scale(1.14)}
+.conv-orb i:nth-child(3){opacity:1;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.conv-orb.escuchando i:nth-child(1){animation:orbBreathe 2.4s ease-in-out infinite}
+.conv-orb.escuchando i:nth-child(2){animation:orbBreathe 2.4s ease-in-out .3s infinite}
+.conv-orb.pensando i:nth-child(1),.conv-orb.pensando i:nth-child(2){background:transparent;border:3px dashed var(--accent);opacity:.6;animation:orbSpin 3s linear infinite}
+.conv-orb.pensando i:nth-child(2){animation-direction:reverse;animation-duration:2.2s}
+.conv-orb.hablando i:nth-child(1){animation:orbTalk .9s ease-in-out infinite}
+.conv-orb.hablando i:nth-child(2){animation:orbTalk .9s ease-in-out .15s infinite}
+.conv-orb.hablando i:nth-child(3){animation:orbCore .45s ease-in-out infinite alternate}
+.conv-orb.silenciado i{background:var(--line-strong)}
+.conv-orb.silenciado i:nth-child(3){background:var(--surface-3);border:2px solid var(--line-strong)}
+@keyframes orbBreathe{0%,100%{transform:scale(1.14)}50%{transform:scale(1.32)}}
+@keyframes orbSpin{from{transform:scale(1.2) rotate(0)}to{transform:scale(1.2) rotate(360deg)}}
+@keyframes orbTalk{0%,100%{transform:scale(1.1);opacity:.35}50%{transform:scale(1.42);opacity:.12}}
+@keyframes orbCore{from{transform:scale(.96)}to{transform:scale(1.04)}}
+@media (prefers-reduced-motion:reduce){.conv-orb i{animation:none!important}}
+.conv-estado{margin:6px 0 10px;font-size:15px;font-weight:600;color:var(--ink-2);text-align:center;min-height:22px}
+.conv-talk{flex:1;min-height:0;width:100%;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 2px 16px}
+.conv-yo{margin:0;align-self:flex-end;max-width:88%;padding:10px 14px;border-radius:18px 18px 6px 18px;background:var(--accent-soft);border:1px solid var(--line-strong);font-size:16px;line-height:1.45}
+.conv-int{color:var(--muted)}
+.conv-resp{margin:0;font-size:22px;line-height:1.5;font-weight:500;white-space:pre-wrap}
+.conv-nota{margin:0;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2)}
+.conv-nota svg{width:18px;height:18px;color:var(--ok);flex:none}
+.conv-err{margin:0;font-size:14px;color:var(--danger)}
+.conv-bar{flex:none;display:flex;justify-content:space-around;align-items:flex-start;gap:12px;padding:14px 16px 20px;border-top:1px solid var(--line)}
+.conv-c{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:72px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.conv-btn{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1.5px solid var(--line-strong);color:var(--ink)}
+.conv-btn svg{width:26px;height:26px}
+.conv-btn.main{width:72px;height:72px;background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.conv-btn.main:disabled{opacity:1;background:var(--surface-2);border-color:var(--line-strong);color:var(--ink-2)}
+.conv-btn.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.conv-btn.end{background:var(--danger);border-color:var(--danger);color:#1A0E0C}
+:root[data-theme="light"] .conv-btn.end{color:#fff}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .conv-btn.end{color:#fff}}
 .prog{height:10px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line-strong);overflow:hidden;margin:4px 0 12px}
 .prog i{display:block;height:100%;background:var(--accent);transition:width .3s}
 .edit-bar{margin:0 0 8px}
@@ -648,6 +697,10 @@ const ICON = {
   plus: sv('<path d="M12 5v14M5 12h14"/>', 2.6),
   asistente: '<svg class="icono-asistente" viewBox="-17 -17 34 34" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(-1 1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(1 -1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(-1 -1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path fill="currentColor" stroke="none" d="M0 -15 L2.6 -2.6 L13 0 L2.6 2.6 L0 15 L-2.6 2.6 L-13 0 L-2.6 -2.6 Z"/></svg>',
   retry: sv('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
+  speaker: sv('<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/>'),
+  stop: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>',
+  wave: sv('<path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/>'),
+  micOff: sv('<path d="M9 9v2a3 3 0 0 0 5.1 2.1M15 10V5a3 3 0 0 0-5.7-1.3"/><path d="M19 11a7 7 0 0 1-1.2 3.9M5 11a7 7 0 0 0 11 5.7"/><path d="M12 18v3M3 3l18 18"/>'),
   chat: sv('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h8"/>'),
   gear: sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>', 1.8),
   search: sv('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'),
@@ -853,7 +906,7 @@ $('#lockForm').addEventListener('submit', async e => {
   finally { btn.disabled = false; btn.textContent = 'Entrar'; }
 });
 $('#lockCancel').onclick = hideLock;
-function lockNow() { dictEnd(); flushSave(); try { localStorage.removeItem('bitacora.temp'); } catch {} auth.signOut().then(()=>toast('Bitácora bloqueada')); }
+function lockNow() { dictEnd(); convClose(); vozStop(); flushSave(); try { localStorage.removeItem('bitacora.temp'); } catch {} auth.signOut().then(()=>toast('Bitácora bloqueada')); }
 const IDLE_MS = 30 * 60 * 1000; let idleT = null;
 function armIdle() { clearTimeout(idleT); let temp = false; try { temp = localStorage.getItem('bitacora.temp') === '1'; } catch {}
   if (S.isOwner && temp) idleT = setTimeout(() => { flushSave(); auth.signOut(); toast('Sesión cerrada por inactividad'); }, IDLE_MS); }
@@ -899,6 +952,7 @@ let popWaiters = [];
 window.addEventListener('popstate', e => {
   if (ignorePop) { ignorePop = false; popWaiters.splice(0).forEach(r => r()); return; }
   if (sheetEl) { closeSheet(true); return; }
+  if (CONV.on) { convClose(true); return; }
   if (S.view === 'editor') flushSave();
   applyState(e.state || { view:'home', depth:0 });
 });
@@ -1288,7 +1342,7 @@ function chatModelo() { // favorite picked in the chat, or null = saved principa
   return f;
 }
 async function chatSend(text) {
-  text = String(text || '').trim(); if (!text || CHAT.sending) return;
+  text = String(text || '').trim(); if (!text || CHAT.sending) return null; let reply = null;
   CHAT.sending = { texto:text }; CHAT.failed = null; CHAT.draft = ''; chatPaint(true);
   const temporal = CHAT.temporal;
   try {
@@ -1296,7 +1350,8 @@ async function chatSend(text) {
     const body = { texto:text, ...(modelo ? { modelo } : {}) };
     if (temporal) Object.assign(body, { temporal:true, historial: CHAT.tmsgs.slice(-8).map(m => ({ rol:m.rol, texto:m.texto, datos:m.datos })) });
     else if (CHAT.chatId) body.chat = CHAT.chatId;
-    const r = await apiStream('/asistente/mensaje', body, t => { if (CHAT.sending) { CHAT.sending.etapa = t; const el = $('#chatTyping .etapa'); if (el) el.textContent = t; } });
+    const r = await apiStream('/asistente/mensaje', body, t => { if (CHAT.sending) { CHAT.sending.etapa = t; const el = $('#chatTyping .etapa'); if (el) el.textContent = t; CHAT.onEtapa?.(t); } });
+    reply = r.asistente;
     if (temporal) { if (CHAT.temporal) CHAT.tmsgs.push(r.usuario, r.asistente); }
     else {
       const c = { ...(CHAT.chats.find(x => x.id === r.chat.id) || { id:r.chat.id, titulo:r.chat.titulo, mensajes:0 }), actualizado: r.asistente.creado };
@@ -1306,6 +1361,7 @@ async function chatSend(text) {
     }
   } catch (e) { CHAT.failed = { texto:text, error:e.message }; }
   finally { CHAT.sending = false; chatPaint(true); }
+  return reply;
 }
 async function chatUndo(m, btn) {
   btn.disabled = true;
@@ -1527,6 +1583,266 @@ function dictUi() {
 }
 const micAttrs = target => ({ 'data-dict': JSON.stringify(target), 'aria-pressed': String(dictActive(target)) });
 
+/* ---------- Voice output: read replies aloud (system voice or Gemini) ---------- */
+const VOZ_DEF = { motor:'sistema', sysVoice:'', rate:1, pitch:1, gem:'Kore' };
+const GEM_VOCES = [['Kore','Firme'],['Puck','Animada'],['Charon','Informativa'],['Aoede','Ligera'],['Leda','Juvenil'],['Orus','Firme'],['Zephyr','Brillante'],
+  ['Fenrir','Entusiasta'],['Callirrhoe','Relajada'],['Autonoe','Brillante'],['Enceladus','Suave, con aire'],['Iapetus','Clara'],['Umbriel','Relajada'],
+  ['Algieba','Fluida'],['Despina','Fluida'],['Erinome','Clara'],['Algenib','Grave'],['Rasalgethi','Informativa'],['Laomedeia','Alegre'],['Achernar','Suave'],
+  ['Alnilam','Firme'],['Schedar','Pareja'],['Gacrux','Madura'],['Pulcherrima','Directa'],['Achird','Amigable'],['Zubenelgenubi','Casual'],
+  ['Vindemiatrix','Amable'],['Sadachbia','Viva'],['Sadaltager','Experta'],['Sulafat','Cálida']];
+function vozCfg() { try { return { ...VOZ_DEF, ...JSON.parse(pref('bitacora.voz', '{}')) }; } catch { return { ...VOZ_DEF }; } }
+function setVozCfg(part) { setPref('bitacora.voz', JSON.stringify({ ...vozCfg(), ...part })); }
+const TTS = window.speechSynthesis || null;
+const sysVoices = () => (TTS?.getVoices() || []).filter(v => /^es\b|^es-/i.test(v.lang)).sort((a, b) => (b.localService - a.localService) || a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
+var VOZ = { cur:null, msg:null, word:-1, cache:new Map(), warned:false, onVoices:null };
+TTS?.addEventListener?.('voiceschanged', () => VOZ.onVoices?.());
+// Words with their position in the text, for highlighting.
+function vozWords(text) { const out = []; const re = /\S+/g; let m; while ((m = re.exec(text))) out.push({ i:m.index, end:m.index + m[0].length }); return out; }
+const wordAt = (words, pos) => { let k = -1; for (let j = 0; j < words.length && words[j].i <= pos; j++) k = j; return k; };
+const speakable = t => t.replace(/[*_#`>|~]/g, ' ');
+function vozStop() { const c = VOZ.cur; if (c) c.stop(); }
+
+// Reads text aloud; on.word(index) as it goes and on.end(reason) at the end ('end', 'stop' or 'error').
+function vozSpeak(text, on = {}) {
+  vozStop();
+  const words = vozWords(text); const cfg = vozCfg();
+  const job = { done:false, stopped:false, cancel:null };
+  const finish = reason => { if (job.done) return; job.done = true; if (VOZ.cur === job) VOZ.cur = null; on.end?.(reason); };
+  job.stop = () => { job.stopped = true; try { job.cancel?.(); } catch {} finish('stop'); };
+  job.word = i => { if (!job.done) on.word?.(i); };
+  VOZ.cur = job;
+  (async () => {
+    if (cfg.motor === 'gemini' && S.isOwner) {
+      try { await vozGemini(text, words, cfg, job, finish); return; }
+      catch (e) { if (job.stopped) return; if (!VOZ.warned) { VOZ.warned = true; toast(e.message + '. Uso la voz del sistema.'); } }
+    }
+    vozSystem(text, words, cfg, job, finish);
+  })();
+  return job;
+}
+// System voice: sentences one after another (Chrome cuts very long utterances); word boundaries give the highlight.
+function vozSystem(text, words, cfg, job, finish) {
+  if (!TTS) { toast('Este navegador no puede leer en voz alta'); finish('error'); return; }
+  TTS.cancel(); job.cancel = () => TTS.cancel();
+  const voice = sysVoices().find(v => v.voiceURI === cfg.sysVoice) || sysVoices()[0] || null;
+  const chunks = []; const re = /[^.!?;:\n]+[.!?;:\n]*\s*/g; let m;
+  while ((m = re.exec(text))) if (m[0].trim()) chunks.push({ t:m[0], at:m.index });
+  if (!chunks.length) { finish('end'); return; }
+  let timer = null;
+  chunks.forEach((c, k) => {
+    const u = new SpeechSynthesisUtterance(speakable(c.t));
+    if (voice) u.voice = voice; u.lang = voice?.lang || 'es-US'; u.rate = cfg.rate; u.pitch = cfg.pitch;
+    let gotBoundary = false;
+    u.onstart = () => { job.word(wordAt(words, c.at)); clearInterval(timer); const t0 = Date.now();
+      // Without word events, estimate the position by time (about 15 characters per second at normal speed).
+      timer = setInterval(() => { if (gotBoundary || job.done) { clearInterval(timer); return; }
+        job.word(wordAt(words, Math.min(c.at + c.t.length - 1, c.at + (Date.now() - t0) * 0.015 * cfg.rate))); }, 120); };
+    u.onboundary = e => { if (e.name && e.name !== 'word') return; gotBoundary = true; job.word(wordAt(words, c.at + e.charIndex)); };
+    u.onend = () => { clearInterval(timer); if (k === chunks.length - 1 && !job.stopped) finish('end'); };
+    u.onerror = e => { clearInterval(timer); if (!job.stopped && e.error !== 'interrupted' && e.error !== 'canceled') finish('error'); };
+    TTS.speak(u);
+  });
+}
+// Gemini voice: the Worker returns 16-bit PCM in base64; it is wrapped as WAV and played. The highlight follows the audio time.
+function pcmToWav(bytes, rate) {
+  const h = new ArrayBuffer(44); const v = new DataView(h); const w = (o, str) => [...str].forEach((ch, i) => v.setUint8(o + i, ch.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + bytes.length, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, bytes.length, true);
+  return new Blob([h, bytes], { type:'audio/wav' });
+}
+async function vozGemini(text, words, cfg, job, finish) {
+  const key = cfg.gem + '|' + text;
+  let url = VOZ.cache.get(key);
+  if (!url) {
+    const user = auth.currentUser; if (!user || user.uid !== OWNER_UID) throw new Error('Ingresa con tu PIN para usar la voz de Gemini');
+    const token = await user.getIdToken();
+    let r; try { r = await fetch(WORKER_URL + '/voz/tts', { method:'POST', headers:{ Authorization:'Bearer ' + token, 'Content-Type':'application/json' }, body: JSON.stringify({ texto: speakable(text), voz: cfg.gem }) }); }
+    catch { throw new Error('No se pudo conectar con el Worker'); }
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'La voz de Gemini no respondió');
+    const part = (data.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data);
+    if (!part) throw new Error('La voz de Gemini no devolvió audio');
+    const bin = atob(part.inlineData.data); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const rate = Number((part.inlineData.mimeType || '').match(/rate=(\d+)/)?.[1]) || 24000;
+    url = URL.createObjectURL(pcmToWav(bytes, rate));
+    if (VOZ.cache.size > 20) { const [k0, u0] = VOZ.cache.entries().next().value; URL.revokeObjectURL(u0); VOZ.cache.delete(k0); }
+    VOZ.cache.set(key, url);
+  }
+  if (job.stopped) return;
+  const a = new Audio(url); a.playbackRate = cfg.rate; a.preservesPitch = true;
+  let raf = 0; const tick = () => { if (job.done) return; if (a.duration) job.word(wordAt(words, a.currentTime / a.duration * text.length)); raf = requestAnimationFrame(tick); };
+  job.cancel = () => { a.pause(); cancelAnimationFrame(raf); };
+  a.onended = () => { cancelAnimationFrame(raf); job.word(words.length - 1); finish('end'); };
+  a.onerror = () => { cancelAnimationFrame(raf); if (!job.stopped) finish('error'); };
+  await a.play(); tick();
+}
+
+// Reading a chat reply: the bubble shows each word as it is said.
+function vozWordsEl(text, el) {
+  el.innerHTML = ''; let last = 0;
+  vozWords(text).forEach((w, k) => { if (w.i > last) el.append(text.slice(last, w.i)); el.append(h('span',{class:'vw','data-k':String(k),text:text.slice(w.i, w.end)})); last = w.end; });
+  if (last < text.length) el.append(text.slice(last));
+}
+function vozMark(el, i) {
+  if (!el) return; el.classList.add('reading');
+  el.querySelectorAll('.vw').forEach(s => { const k = Number(s.dataset.k); s.classList.toggle('said', k < i); s.classList.toggle('now', k === i); });
+}
+function vozRead(m) {
+  if (VOZ.msg === m) { vozStop(); return; }
+  VOZ.msg = m; VOZ.word = -1; chatPaint();
+  vozSpeak(m.texto, { word: i => { VOZ.word = i; vozMark(document.querySelector('.msg.ia.reading-now > .txt'), i); },
+    end: () => { if (VOZ.msg === m) { VOZ.msg = null; VOZ.word = -1; if (S.view === 'assistant') chatPaint(); } } });
+}
+
+// Settings sheet: engine, voice, speed and pitch, with a test button.
+function vozSheet() {
+  const cfg = vozCfg(); const body = h('div',{});
+  const paint = () => {
+    const c = vozCfg(); body.innerHTML = '';
+    const seg = h('div',{class:'seg',role:'group','aria-label':'Motor de voz'}, ...[['sistema','Sistema'],['gemini','Gemini (natural)']].map(([v, l]) =>
+      h('button',{type:'button','aria-pressed':String(c.motor === v),onclick:()=>{ setVozCfg({ motor:v }); paint(); }}, l)));
+    body.append(h('div',{class:'field'}, h('label',{text:'Motor'}), seg,
+      h('small',{class:'hint',text: c.motor === 'gemini' ? 'Más natural. Usa la cuota gratuita de Gemini y el texto pasa por Google; si falla, usa la voz del sistema.' : 'Gratis, sin límites y sin enviar el texto: la voz la genera tu dispositivo.'})));
+    if (c.motor === 'sistema') {
+      const vs = sysVoices(); const sel = h('select',{class:'select',id:'vozSys'});
+      if (!vs.length) sel.append(h('option',{value:''}, 'Voz en español del dispositivo'));
+      vs.forEach(v => sel.append(h('option',{value:v.voiceURI}, `${v.name} · ${v.lang}${v.localService ? '' : ' · en línea'}`)));
+      sel.value = vs.some(v => v.voiceURI === c.sysVoice) ? c.sysVoice : (vs[0]?.voiceURI || '');
+      sel.onchange = () => setVozCfg({ sysVoice: sel.value });
+      body.append(h('div',{class:'field'}, h('label',{for:'vozSys',text:'Voz'}), sel,
+        h('small',{class:'hint',text:'Para más voces o acentos: Ajustes de Android → Accesibilidad → Texto a voz → Servicios de voz de Google. Chrome solo muestra aquí las que el sistema comparte.'})));
+    } else {
+      const sel = h('select',{class:'select',id:'vozGem'}); GEM_VOCES.forEach(([n, d]) => sel.append(h('option',{value:n}, `${n} · ${d}`)));
+      sel.value = c.gem; sel.onchange = () => setVozCfg({ gem: sel.value });
+      body.append(h('div',{class:'field'}, h('label',{for:'vozGem',text:'Voz'}), sel));
+    }
+    const slider = (id, label, key, min, max) => { const out = h('output',{for:id,text: c[key].toFixed(1) + '×'});
+      const r = h('input',{type:'range',id,min:String(min),max:String(max),step:'0.1',value:String(c[key]),class:'range'});
+      r.oninput = () => { out.textContent = Number(r.value).toFixed(1) + '×'; }; r.onchange = () => setVozCfg({ [key]: Number(r.value) });
+      return h('div',{class:'field'}, h('label',{for:id}, label, ' ', out), r); };
+    body.append(slider('vozRate','Velocidad','rate',0.6,1.6));
+    if (c.motor === 'sistema') body.append(slider('vozPitch','Tono','pitch',0.6,1.4));
+    const test = h('button',{class:'btn secondary',type:'button'}, ic('speaker'), 'Probar');
+    test.onclick = () => { if (VOZ.cur) { vozStop(); return; } test.lastChild.textContent = 'Detener';
+      vozSpeak('Hola Kevin, así sueno al leer tus respuestas. ¿Qué tienes pendiente para hoy?', { end: () => { if (test.isConnected) test.lastChild.textContent = 'Probar'; } }); };
+    test.lastChild.textContent = 'Probar';
+    body.append(test);
+  };
+  VOZ.onVoices = () => { if (body.isConnected && vozCfg().motor === 'sistema') paint(); };
+  paint();
+  openSheet({ title:'Voz', body:[body] });
+}
+
+/* ---------- Voice conversation: listen → answer aloud → listen ---------- */
+var CONV = { on:false, fase:'escuchando', mute:false, yo:'', interim:'', preg:'', resp:'', nota:'', error:'', etapa:'', rec:null, silT:null, el:null, lock:null };
+const CONV_SILENCIO = 1500;
+function convOpen() {
+  if (!SpeechRec) { toast('Este navegador no permite dictar por voz'); return; }
+  if (CONV.on) return;
+  dictEnd(); vozStop(); VOZ.msg = null;
+  Object.assign(CONV, { on:true, fase:'escuchando', mute:false, yo:'', interim:'', preg:'', resp:'', nota:'', error:'', etapa:'', word:-1, ui:null });
+  history.pushState({ ...(history.state || {}), conv:true }, '');
+  CONV.el = h('div',{class:'conv',role:'dialog','aria-modal':'true','aria-label':'Conversación por voz'}); document.body.append(CONV.el);
+  navigator.wakeLock?.request('screen').then(l => { CONV.lock = l; }).catch(() => {});
+  convPaint(); convListen();
+}
+function convClose(fromPop = false) {
+  if (!CONV.on) return;
+  CONV.on = false; convStopListening(); vozStop();
+  try { CONV.lock?.release(); } catch {} CONV.lock = null;
+  CONV.el?.remove(); CONV.el = null; CONV.ui = null; CHAT.onEtapa = null;
+  if (!fromPop) { ignorePop = true; history.back(); }
+  if (S.view === 'assistant') chatPaint(true);
+}
+function convStopListening() { clearTimeout(CONV.silT); const r = CONV.rec; CONV.rec = null; try { r?.abort(); } catch {} }
+function convListen() {
+  if (!CONV.on || CONV.mute || CONV.fase !== 'escuchando' || CONV.rec || document.hidden) return;
+  const rec = new SpeechRec(); rec.lang = 'es-EC'; rec.interimResults = true; rec.continuous = !DICT_ANDROID;
+  let emitted = '';
+  rec.onresult = ev => {
+    if (CONV.rec !== rec) return;
+    let finals = '', interim = '';
+    for (let i = 0; i < ev.results.length; i++) { const t = ev.results[i][0].transcript.trim(); if (!t) continue;
+      if (ev.results[i].isFinal) finals = dictJoin(finals, t); else interim = dictJoin(interim, t); }
+    const nuevo = finals.startsWith(emitted) ? finals.slice(emitted.length).trim() : finals;
+    if (nuevo) CONV.yo = dictJoin(CONV.yo, nuevo);
+    emitted = finals; CONV.interim = interim; CONV.error = ''; convPaint(); convArm();
+  };
+  rec.onerror = ev => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { CONV.mute = true; CONV.fase = 'silenciado'; CONV.error = 'Permite el micrófono para conversar'; convPaint(); } };
+  rec.onend = () => { if (CONV.rec !== rec) return; CONV.rec = null; if (CONV.on && CONV.fase === 'escuchando' && !CONV.mute) setTimeout(convListen, 120); };
+  try { rec.start(); CONV.rec = rec; } catch { setTimeout(convListen, 600); }
+}
+// After 1.5 s of silence with something said, it is sent.
+function convArm() {
+  clearTimeout(CONV.silT);
+  CONV.silT = setTimeout(() => { if (!CONV.on || CONV.fase !== 'escuchando') return; if (CONV.interim) { convArm(); return; } if (CONV.yo.trim()) convSend(); }, CONV_SILENCIO);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && CONV.on) convListen(); });
+async function convSend() {
+  const text = dictJoin(CONV.yo, CONV.interim).trim(); if (!text || CHAT.sending) return;
+  convStopListening();
+  Object.assign(CONV, { yo:'', interim:'', preg:text, resp:'', nota:'', error:'', etapa:'', fase:'pensando', word:-1 }); convPaint();
+  CHAT.onEtapa = t => { CONV.etapa = t; convPaint(); };
+  const a = await chatSend(text);
+  CHAT.onEtapa = null;
+  if (!CONV.on) return;
+  if (!a) { CONV.error = 'No se pudo procesar: ' + (CHAT.failed?.error || 'error'); CHAT.failed = null; chatPaint(true); CONV.fase = CONV.mute ? 'silenciado' : 'escuchando'; convPaint(); convListen(); return; }
+  const res = (a.datos?.resultados || []).filter(r => r.ok);
+  const guardados = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','mostrar_contenido','practicar','proponer_recuerdo'].includes(r.accion)).length;
+  const vistas = res.some(r => ['mostrar_tareas','mostrar_contenido','practicar','preguntas_estudio'].includes(r.accion) || (r.accion === 'consultar_base' && r.mostrar));
+  CONV.nota = [guardados ? `${guardados} ${guardados === 1 ? 'cambio guardado' : 'cambios guardados'} en Notion` : '', vistas ? 'el detalle quedó en el chat' : ''].filter(Boolean).join(' · ');
+  CONV.resp = a.texto; CONV.fase = 'hablando'; CONV.word = -1; convPaint();
+  vozSpeak(a.texto, { word: i => { CONV.word = i; vozMark($('.conv-resp'), i); }, end: () => { if (!CONV.on) return; CONV.word = 9e9; vozMark($('.conv-resp'), 9e9);
+    CONV.fase = CONV.mute ? 'silenciado' : 'escuchando'; convPaint(); convListen(); } });
+}
+function convInterrupt() { if (CONV.fase === 'hablando') vozStop(); }
+function convToggleMute() {
+  CONV.mute = !CONV.mute;
+  if (CONV.mute) { convStopListening(); if (CONV.fase === 'escuchando') CONV.fase = 'silenciado'; }
+  else if (CONV.fase === 'silenciado') { CONV.fase = 'escuchando'; CONV.error = ''; convListen(); }
+  convPaint();
+}
+function convPaint() {
+  const el = CONV.el; if (!el) return;
+  const f = CONV.fase;
+  if (!CONV.ui) {
+    const orb = h('div',{class:'conv-orb','aria-hidden':'true'}, h('i'), h('i'), h('i'));
+    const estado = h('p',{class:'conv-estado',role:'status','aria-live':'polite'});
+    const talk = h('div',{class:'conv-talk'});
+    const sub = h('span',{});
+    const top = h('div',{class:'conv-top'}, h('div',{class:'conv-tt'}, h('b',{text:'Conversación'}), sub),
+      h('button',{class:'icon-btn',type:'button','aria-label':'Configurar la voz',html:ICON.gear,onclick:()=>{ if (CONV.fase === 'hablando') vozStop(); vozSheet(); }}));
+    const stage = h('div',{class:'conv-stage',onclick:()=>{ if (CONV.fase === 'hablando') convInterrupt(); }}, orb, estado, talk);
+    const bar = h('div',{class:'conv-bar'});
+    el.append(top, stage, bar);
+    CONV.ui = { orb, estado, talk, sub, bar };
+  }
+  const u = CONV.ui;
+  u.sub.textContent = CHAT.temporal ? 'Chat temporal' : chatActual()?.titulo || 'Nuevo chat';
+  u.orb.className = 'conv-orb ' + f;
+  u.estado.textContent = { escuchando: CONV.yo || CONV.interim ? 'Te escucho… al callarte lo envío' : 'Te escucho', pensando: CONV.etapa || 'Pensando…',
+    hablando: 'Hablando · toca la pantalla para interrumpir', silenciado: 'Micrófono silenciado' }[f];
+  const t = u.talk; t.innerHTML = '';
+  if (CONV.preg) t.append(h('p',{class:'conv-yo',text:CONV.preg}));
+  if (f === 'escuchando' && (CONV.yo || CONV.interim)) t.append(h('p',{class:'conv-yo live'}, CONV.yo, CONV.interim ? h('span',{class:'conv-int',text:(CONV.yo ? ' ' : '') + CONV.interim}) : null));
+  if (CONV.resp) { const r = h('p',{class:'conv-resp'}); vozWordsEl(CONV.resp, r); t.append(r); if (CONV.word >= 0) vozMark(r, CONV.word); }
+  if (CONV.nota) t.append(h('p',{class:'conv-nota'}, ic('done'), h('span',{text:CONV.nota})));
+  if (CONV.error) t.append(h('p',{class:'conv-err',role:'alert',text:CONV.error}));
+  t.scrollTop = t.scrollHeight;
+  const key = f + '|' + CONV.mute + '|' + !!(CONV.yo || CONV.interim).trim();
+  if (u.barKey === key) return; u.barKey = key;
+  const mid = f === 'hablando' ? h('button',{class:'conv-btn main',type:'button','aria-label':'Interrumpir',html:ICON.stop,onclick:convInterrupt})
+    : f === 'pensando' ? h('button',{class:'conv-btn main',type:'button','aria-label':'Pensando',disabled:true,html:ICON.wave})
+    : f === 'silenciado' ? h('button',{class:'conv-btn main',type:'button','aria-label':'Activar micrófono',html:ICON.mic,onclick:convToggleMute})
+    : h('button',{class:'conv-btn main',type:'button','aria-label':'Enviar ahora',html:ICON.send,disabled:!(CONV.yo || CONV.interim).trim(),onclick:convSend});
+  u.bar.innerHTML = '';
+  u.bar.append(
+    h('div',{class:'conv-c'}, h('button',{class:'conv-btn' + (CONV.mute ? ' on' : ''),type:'button','aria-pressed':String(CONV.mute),'aria-label': CONV.mute ? 'Activar micrófono' : 'Silenciar micrófono',html: CONV.mute ? ICON.micOff : ICON.mic,onclick:convToggleMute}),
+      h('span',{text: CONV.mute ? 'Activar' : 'Silenciar'})),
+    h('div',{class:'conv-c'}, mid, h('span',{text: f === 'hablando' ? 'Interrumpir' : f === 'pensando' ? 'Pensando' : f === 'silenciado' ? 'Hablar' : 'Enviar'})),
+    h('div',{class:'conv-c'}, h('button',{class:'conv-btn end',type:'button','aria-label':'Terminar conversación',html:ICON.close,onclick:()=>convClose()}), h('span',{text:'Terminar'})));
+}
+
 // Sheet to pick the model for the chat: saved principal or one of the favorites.
 function chatModelSheet() {
   const cfg = CHAT.config || {}; const cur = chatModelo(); const key = cur ? `${cur.proveedor}/${cur.modelo}` : '';
@@ -1736,7 +2052,9 @@ function chatMessage(m) {
       h('button',{class:'rate',type:'button','aria-label':'Borrar mensaje',html:ICON.trash,onclick:()=>chatDelete(m)})));
   }
   const d = m.datos || {}; const res = d.resultados || [];
-  const el = h('div',{class:'msg ia'}, h('div',{class:'txt',text:m.texto}));
+  const leyendo = VOZ.msg === m;
+  const txt = h('div',{class:'txt'}); if (leyendo) { vozWordsEl(m.texto, txt); vozMark(txt, VOZ.word); } else txt.textContent = m.texto;
+  const el = h('div',{class:'msg ia' + (leyendo ? ' reading-now' : '')}, txt);
   const actions = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','proponer_recuerdo','preguntas_estudio','practicar','mostrar_contenido'].includes(r.accion) || !r.ok).map(resultRow).filter(Boolean);
   if (actions.length) el.append(h('div',{class:'res' + (d.deshecho ? ' undone' : '')}, ...actions));
   res.filter(r => r.accion === 'mostrar_tareas' && r.ok).forEach(r => el.append(taskList(r)));
@@ -1761,6 +2079,7 @@ function chatMessage(m) {
   const canRate = typeof m.id === 'number';
   if (meta) el.append(h('p',{class:'msg-meta',text:meta}));
   const bar = h('div',{class:'msg-acts'},
+    h('button',{class:'rate',type:'button','aria-label': leyendo ? 'Detener lectura' : 'Leer en voz alta','aria-pressed':String(leyendo),html: leyendo ? ICON.stop : ICON.speaker,onclick:()=>vozRead(m)}),
     h('button',{class:'rate',type:'button','aria-label':'Copiar respuesta',html:ICON.copy,onclick:()=>copyText(m.texto)}),
     h('button',{class:'rate',type:'button','aria-label':'Regenerar respuesta',html:ICON.retry,disabled:!!CHAT.sending,onclick:()=>chatRedo(m)}));
   if (canRate) bar.append(
@@ -1845,7 +2164,8 @@ function viewAssistant(scr) {
   const mdl = h('button',{class:'mdl-btn',type:'button','aria-haspopup':'dialog','aria-label':'Modelo: ' + mdlLabel + '. Cambiar modelo',onclick:chatModelSheet},
     h('span',{text:mdlLabel}), ic('chevD'));
   const mic = SpeechRec ? h('button',{class:'mic' + (dictActive({kind:'chat'}) ? ' on' : ''),id:'micBtn',type:'button','aria-label':'Dictar por voz',...micAttrs({kind:'chat'}),html:ICON.mic,onclick:()=>dictToggleTarget({kind:'chat'})}) : null;
-  cw.append(h('div',{class:'comp-box' + (CHAT.temporal ? ' temp' : '')}, ta, h('div',{class:'comp-foot'}, mdl, h('span',{class:'comp-right'}, mic, send))));
+  const vozBtn = SpeechRec ? h('button',{class:'mic',type:'button','aria-label':'Conversación por voz',html:ICON.wave,onclick:convOpen}) : null;
+  cw.append(h('div',{class:'comp-box' + (CHAT.temporal ? ' temp' : '')}, ta, h('div',{class:'comp-foot'}, mdl, h('span',{class:'comp-right'}, vozBtn, mic, send))));
   requestAnimationFrame(fit);
 }
 
@@ -1889,7 +2209,9 @@ function viewSettings(scr) {
   w.append(h('div',{class:'set-group'}, h('button',{class:'set-row',onclick:openAI}, ic('sparkle'),
     h('span',{class:'row-t'}, h('b',{text:'Modelos de IA'}), h('span',{text:aiSum})), h('span',{class:'chev',html:ICON.chevR})),
     h('button',{class:'set-row',onclick:()=> S.isOwner ? memoriaSheet() : showLock(true)}, ic('brain'),
-      h('span',{class:'row-t'}, h('b',{text:'Memoria del asistente'}), h('span',{text: S.isOwner ? 'Lo que el asistente recuerda de ti' : 'Requiere tu PIN'})), h('span',{class:'chev',html:ICON.chevR}))));
+      h('span',{class:'row-t'}, h('b',{text:'Memoria del asistente'}), h('span',{text: S.isOwner ? 'Lo que el asistente recuerda de ti' : 'Requiere tu PIN'})), h('span',{class:'chev',html:ICON.chevR})),
+    h('button',{class:'set-row',onclick:vozSheet}, ic('speaker'),
+      h('span',{class:'row-t'}, h('b',{text:'Voz'}), h('span',{text: vozCfg().motor === 'gemini' ? 'Gemini (natural) · ' + vozCfg().gem : 'Voz del sistema'})), h('span',{class:'chev',html:ICON.chevR}))));
 
   w.append(h('div',{class:'set-label',text:'Respaldo'}));
   const g3 = h('div',{class:'set-group'});

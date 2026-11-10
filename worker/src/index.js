@@ -9,6 +9,7 @@ import {
 import { datosHoy, marcarRepaso } from './hoy.js';
 import { ErrorEstudio, marcarDominio } from './estudio.js';
 import { subirAudio, transcribirArchivo } from './audio.js';
+import { hablar } from './voz.js';
 
 const ORIGEN = 'https://ellenkev.me';
 const TAMANO_MAXIMO_CUERPO = 200_000;
@@ -150,6 +151,9 @@ const RUTAS = {
     const archivo = await subirAudio(env, req);
     return enLineas(ctx, (progreso) => transcribirArchivo(env, archivo, progreso));
   },
+
+  // Voz natural (Gemini TTS): devuelve la respuesta de Google con el audio en base64.
+  'POST /voz/tts': async (req, env) => hablar(env, await leerCuerpo(req), CORS),
 
   // Práctica: marcar cuánto domina una pregunta (y recordarlo en la tarjeta del mensaje)
   'POST /estudio/dominio': async (req, env) => {
