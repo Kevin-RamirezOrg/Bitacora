@@ -63,7 +63,7 @@ Este archivo es el contexto completo del proyecto; cualquier asistente (Claude, 
 
 ### Firebase (proyecto `bitacora-c20b4`, plan Spark gratuito, sin tarjeta)
 - Firestore `us-east1`: colección `items` (carpetas, notas, portapapeles) y documento `config/access` (modo de acceso).
-- Authentication correo/contraseña. Un solo dueño: UID `mOlFltUhUNQrTTxtIWuCFJzMCFI3`, correo identificador `matias@gmail.com`. La contraseña es el **PIN**; la app solo pide el PIN.
+- Authentication correo/contraseña. Un solo dueño: UID `mOlFltUhUNQrTTxtIWuCFJzMCFI3`, correo identificador `matiaschushig23@gmail.com` (cambiado como administrador vía `accounts:update`; el UID no cambió). La contraseña es el **PIN**; la app solo pide el PIN.
 - La config web de Firebase está en `index.html` y es pública por diseño; la seguridad la dan las reglas.
 
 Reglas publicadas:
