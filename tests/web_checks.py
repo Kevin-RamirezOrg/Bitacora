@@ -53,6 +53,52 @@ def convertir_pide_confirmacion(pg_):
         assert 'no se puede recuperar' in pg.inner_text('.sheet'), pg.inner_text('.sheet')
         assert not pg.errs, pg.errs
 
+@check
+def copia_sin_conexion(pg_):
+    with abrir() as pg:  # sesión recordada por primera vez: aún sin copia, pero queda marcada para la próxima
+        assert not pg.evaluate("window.__persist"), 'no debe activarse sin la marca'
+        assert pg.evaluate("localStorage.getItem('bitacora.offline')") == '1'
+    with abrir(prefs={'ls':{'bitacora.temp':'1'}}) as pg:  # sesión temporal (PC ajena): nada en disco
+        assert not pg.evaluate("window.__persist")
+        assert pg.evaluate("localStorage.getItem('bitacora.offline')") is None
+    with abrir(prefs={'ls':{'bitacora.offline':'1'}}) as pg:
+        assert pg.evaluate("window.__persist") is True
+        pg.click('.tab[data-view="settings"]'); pg.wait_for_timeout(300)
+        assert 'Copia sin conexión activa' in pg.inner_text('#screen')
+        pg.evaluate("window.__fromCache = true; window.__emitir()"); pg.wait_for_timeout(200)
+        assert 'ves la copia guardada' in pg.inner_text('#screen')
+        pg.click('text=Bloquear ahora'); pg.wait_for_timeout(400)
+        assert 'se perdería' in pg.inner_text('.sheet')
+        pg.add_init_script("localStorage.removeItem('bitacora.offline')")  # el arnés la vuelve a poner en cada carga
+        pg.click('text=Bloquear igual'); pg.wait_for_timeout(1200)
+        assert pg.evaluate("sessionStorage.getItem('copiaBorrada')") == '1', 'debe borrar la copia local'
+        assert not pg.errs, pg.errs
+
+@check
+def busqueda_y_codigo(pg_):
+    with abrir() as pg:
+        assert pg.evaluate("typeof window.hljs") == 'undefined', 'highlight.js no debe cargarse al inicio'
+        pg.click('text=Buscar en tus notas'); pg.wait_for_timeout(300)
+        pg.fill('#searchIn', 'hdfs'); pg.wait_for_timeout(400)
+        assert 'Apuntes semana 7' in pg.inner_text('#screen'), pg.inner_text('#screen')
+        pg.fill('#searchIn', 'mapper'); pg.wait_for_timeout(400)
+        pg.click('text=wordcount.py'); pg.wait_for_timeout(900)
+        assert pg.evaluate("typeof window.hljs") == 'object', 'highlight.js se carga al abrir código'
+        assert 'hljs-keyword' in pg.inner_html('.code-wrap pre'), pg.inner_html('.code-wrap pre')[:300]
+        assert not pg.errs, pg.errs
+
+@check
+def service_worker_guarda_librerias(pg_):
+    from web import BASE
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        b = p.chromium.launch(); pg = b.new_context().new_page()
+        pg.goto(BASE); pg.evaluate("navigator.serviceWorker.ready.then(() => 1)"); pg.wait_for_timeout(1500)
+        claves = pg.evaluate("caches.open('bitacora-v2').then(c => c.keys()).then(ks => ks.map(k => new URL(k.url).pathname + new URL(k.url).search))")
+        b.close()
+    for esperado in ['/', '/lib/firebase-firestore-compat.js?v=10.12.2', '/lib/marked.min.js?v=12.0.2', '/lib/highlight.min.js?v=11.9.0', '/manifest.webmanifest']:
+        assert esperado in claves, (esperado, claves)
+
 if __name__ == '__main__':
     fallos = 0
     for n in (sys.argv[1:] or CHECKS):

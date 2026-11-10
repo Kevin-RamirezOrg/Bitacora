@@ -31,12 +31,16 @@ items={
 FB = """
 window.__items = %s;
 window.firebase = (function(){
-  const user = { uid:'mOlFltUhUNQrTTxtIWuCFJzMCFI3', getIdToken: async()=> 'tok' };
-  const authObj = { currentUser:user, onAuthStateChanged(cb){ setTimeout(()=>cb(user),5); }, setPersistence: async()=>{}, signInWithEmailAndPassword: async()=>{}, signOut: async()=>{} };
+  const user = { uid:'mOlFltUhUNQrTTxtIWuCFJzMCFI3', getIdToken: async()=> 'tok', reauthenticateWithCredential: async()=>{} };
+  const oyentes = [];
+  const authObj = { currentUser:user, onAuthStateChanged(cb){ oyentes.push(cb); setTimeout(()=>cb(authObj.currentUser),5); }, setPersistence: async()=>{}, signInWithEmailAndPassword: async()=>{ authObj.currentUser = user; oyentes.forEach(cb=>cb(user)); },
+    signOut: async()=>{ authObj.currentUser = null; oyentes.forEach(cb=>cb(null)); } };
   const auth = () => authObj; auth.Auth = { Persistence:{ LOCAL:'l', SESSION:'s' } }; auth.EmailAuthProvider = { credential(){ return {}; } };
-  const col = { onSnapshot(cb){ setTimeout(()=>cb({ docs:Object.entries(window.__items).map(([id,d])=>({ id, data:()=>d })) }),15); return ()=>{}; },
-    doc(id){ return { set: async()=>{}, update: async()=>{}, delete: async()=>{} }; } };
-  const fs = { settings(){}, collection(){ return col; }, doc(){ return { onSnapshot(cb){ setTimeout(()=>cb({ exists:true, data:()=>({mode:'private'}) }),5); return ()=>{}; }, set: async()=>{} }; }, batch(){ return { set(){}, commit: async()=>{} }; } };
+  const snap = () => ({ metadata:{ fromCache: !!window.__fromCache }, docChanges:()=>[1], docs:Object.entries(window.__items).map(([id,d])=>({ id, data:()=>d })) });
+  const col = { onSnapshot(...a){ const cb = a.find(x=>typeof x==='function'); window.__emitir = () => cb(snap()); setTimeout(()=>cb(snap()),15); return ()=>{}; },
+    doc(id){ return { set: async(d)=>{ window.__items[id]=d; }, update: async(p)=>{ Object.assign(window.__items[id]||{}, p); }, delete: async()=>{ delete window.__items[id]; } }; } };
+  const fs = { settings(){}, enablePersistence: async()=>{ window.__persist = true; }, terminate: async()=>{ window.__terminado = true; }, clearPersistence: async()=>{ sessionStorage.setItem('copiaBorrada','1'); },
+    collection(){ return col; }, doc(){ return { onSnapshot(cb){ setTimeout(()=>cb({ exists:true, data:()=>({mode:'private'}) }),5); return ()=>{}; }, set: async()=>{} }; }, batch(){ return { set(){}, commit: async()=>{} }; } };
   return { initializeApp(){}, firestore: () => fs, auth };
 })();
 """ % json.dumps(items)
@@ -87,9 +91,9 @@ def abrir(w=390, h=844, prefs=None, rutas=None, empty_chat=False, lento=None):
         pg.on('pageerror', lambda e: pg.errs.append(str(e)))
         pg.add_init_script(INIT_SR + "try{ %s }catch(e){}" % ''.join("localStorage.setItem(%s,%s);" % (json.dumps(k),json.dumps(v)) for k,v in prefs.get('ls',{}).items()))
         pg.route('**/*', lambda r: r.continue_() if r.request.url.startswith(BASE) else r.abort())
-        pg.route('**/lib/firebase-app-compat.js', lambda r: r.fulfill(body=FB, content_type='text/javascript'))
-        pg.route('**/lib/firebase-auth-compat.js', lambda r: r.fulfill(body='', content_type='text/javascript'))
-        pg.route('**/lib/firebase-firestore-compat.js', lambda r: r.fulfill(body='', content_type='text/javascript'))
+        pg.route('**/lib/firebase-app-compat.js*', lambda r: r.fulfill(body=FB, content_type='text/javascript'))
+        pg.route('**/lib/firebase-auth-compat.js*', lambda r: r.fulfill(body='', content_type='text/javascript'))
+        pg.route('**/lib/firebase-firestore-compat.js*', lambda r: r.fulfill(body='', content_type='text/javascript'))
         pg.route('**/sw.js', lambda r: r.abort())
         pg.pedidos=[]
         def worker(r):

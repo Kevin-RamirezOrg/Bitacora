@@ -682,12 +682,13 @@ button.msg.yo[aria-expanded="true"]{border-color:var(--accent-ink)}
 </div>
 
 <!-- Librerías alojadas en el propio sitio (lib/), con versión fija: no dependen de servidores de terceros. -->
-<script src="lib/firebase-app-compat.js"></script>
-<script src="lib/firebase-auth-compat.js"></script>
-<script src="lib/firebase-firestore-compat.js"></script>
-<script src="lib/marked.min.js"></script>
-<script src="lib/purify.min.js"></script>
-<script src="lib/highlight.min.js"></script>
+<!-- La versión va en la URL: al actualizar una librería cambia el número y nadie se queda con la copia vieja. -->
+<script src="lib/firebase-app-compat.js?v=10.12.2"></script>
+<script src="lib/firebase-auth-compat.js?v=10.12.2"></script>
+<script src="lib/firebase-firestore-compat.js?v=10.12.2"></script>
+<script src="lib/marked.min.js?v=12.0.2"></script>
+<script src="lib/purify.min.js?v=3.1.6"></script>
+<!-- highlight.js (122 KB) se carga solo al abrir una nota de código o un bloque de código: ver loadHljs. -->
 <script>
 (() => {
 "use strict";
@@ -705,6 +706,10 @@ const relTime = t => { if (!t) return ''; const d=(Date.now()-t)/1000; if (d<60)
   if (d<86400) return 'hace '+Math.floor(d/3600)+' h'; if (d<172800) return 'ayer';
   return new Date(t).toLocaleDateString('es',{day:'numeric',month:'short'}); };
 const countWords = txt => (txt.match(/\S+/g)||[]).length;
+// highlight.js se descarga la primera vez que hay código que colorear; mientras tanto el código se ve sin color.
+let hljsP = null;
+const loadHljs = () => hljsP || (hljsP = new Promise((ok, no) => { if (window.hljs) return ok();
+  const s = document.createElement('script'); s.src = 'lib/highlight.min.js?v=11.9.0'; s.onload = () => ok(); s.onerror = () => { hljsP = null; no(new Error('hljs')); }; document.head.append(s); }));
 let toastT; function toast(msg){ document.querySelectorAll('.toast').forEach(t=>t.remove()); const t=h('div',{class:'toast',role:'status',text:msg}); document.body.append(t); clearTimeout(toastT); toastT=setTimeout(()=>t.remove(),2600); }
 
 /* ================= Icons ================= */
@@ -808,6 +813,15 @@ const files = () => [...S.items.entries()].filter(([,v]) => v && v.type==='file'
 const pathOf = id => { const out=[]; let cur=get(id)?.parent; let g=0; while (cur && g++<50) { const f=get(cur); if(!f) break; out.unshift([cur,f]); cur=f.parent; } return out; };
 const descendants = id => { const out=[]; const walk=p=>kids(p).forEach(([k,v])=>{out.push(k); if(v.type==='folder') walk(k);}); walk(id); return out; };
 const plainOf = it => { if (!it) return ''; if (it.format==='rich') { const d=document.createElement('div'); d.innerHTML=DOMPurify.sanitize(it.content||''); return d.textContent||''; } return it.content||''; };
+// Texto en minúsculas de cada nota para buscar; se recalcula solo cuando la nota cambia (antes se saneaba todo en cada tecla).
+const searchCache = new Map();
+function searchText(id, it) {
+  const c = searchCache.get(id); const marca = (it.updated || 0) + ':' + (it.content || '').length;
+  if (c && c.marca === marca) return c.texto;
+  const texto = plainOf(it).toLowerCase(); searchCache.set(id, { marca, texto });
+  if (searchCache.size > S.items.size + 50) for (const k of searchCache.keys()) if (!S.items.has(k)) searchCache.delete(k);
+  return texto;
+}
 const whereOf = id => pathOf(id).map(([,f])=>f.name).join(' / ') || 'Sin carpeta';
 
 /* ================= Theme ================= */
@@ -855,16 +869,41 @@ firebase.initializeApp(FIREBASE_CONFIG);
 const fdb = firebase.firestore();
 try { fdb.settings({ ignoreUndefinedProperties: true, merge: true }); } catch {}
 const auth = firebase.auth();
+// Copia sin conexión de las notas (IndexedDB de Firestore). Solo en dispositivos donde Kevin marcó
+// "Recordar en este dispositivo": en una PC ajena no debe quedar nada en el disco. Hay que activarla antes
+// del primer uso de Firestore, por eso se decide con una marca guardada en el inicio de sesión anterior.
+const OFFLINE_KEY = 'bitacora.offline';
+const OFFLINE = { on:false, fromCache:false };
+try {
+  if (localStorage.getItem(OFFLINE_KEY) === '1' && typeof fdb.enablePersistence === 'function') {
+    OFFLINE.on = true;
+    fdb.enablePersistence({ synchronizeTabs: true }).catch(() => { OFFLINE.on = false; });
+  }
+} catch {}
+const offlineMark = on => { try { on ? localStorage.setItem(OFFLINE_KEY, '1') : localStorage.removeItem(OFFLINE_KEY); } catch {} };
+// Borra la copia local (al bloquear o perder la sesión). Firestore exige cerrar la conexión antes, así que la página se recarga.
+async function offlineWipe() {
+  offlineMark(false);
+  if (!OFFLINE.on) return false;
+  try { Store.unsubscribe(); accessUnsub?.(); await fdb.terminate(); await fdb.clearPersistence(); } catch (e) { console.error(e); }
+  location.reload(); return true;
+}
 
 const Store = {
   col: fdb.collection('items'), queues:{}, unsub:null, key:null,
   subscribe(key) {
     this.unsubscribe(); this.key = key; S.ready = false; setConn('warn');
     const timer = setTimeout(() => { if (!S.ready) { setConn('warn'); S.loadSlow = true; render(); } }, 10000);
-    this.unsub = this.col.onSnapshot(snap => {
+    // Con copia local también se avisa cuando solo cambia el estado (de copia guardada a sincronizado).
+    const args = OFFLINE.on ? [{ includeMetadataChanges: true }] : [];
+    this.unsub = this.col.onSnapshot(...args, snap => {
       clearTimeout(timer); S.loadSlow = false;
+      const cache = !!snap.metadata?.fromCache; const soloEstado = OFFLINE.on && S.ready && snap.docChanges().length === 0; // sin cambios en las notas
+      OFFLINE.fromCache = cache;
       const next = new Map(); snap.docs.forEach(d => next.set(d.id, d.data()));
-      S.items = next; S.ready = true; S.loadErr = null; setConn('ok'); onData();
+      S.items = next; S.ready = true; S.loadErr = null; setConn(cache ? 'warn' : 'ok');
+      if (soloEstado) { if (S.view === 'settings') onData(); return; }
+      onData();
     }, err => {
       clearTimeout(timer); this.unsub = null; this.key = null; S.ready = true;
       if (err.code === 'permission-denied') { S.items = new Map(); showLock(); }
@@ -907,6 +946,7 @@ async function login(pin, rememberMe) {
   await auth.setPersistence(rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION);
   await auth.signInWithEmailAndPassword(OWNER_EMAIL, pin);
   try { rememberMe ? localStorage.removeItem('bitacora.temp') : localStorage.setItem('bitacora.temp','1'); } catch {}
+  offlineMark(rememberMe); // la copia sin conexión empieza en la próxima apertura
 }
 let lockDismissible = false;
 function showLock(dismissible=false) {
@@ -925,7 +965,16 @@ $('#lockForm').addEventListener('submit', async e => {
   finally { btn.disabled = false; btn.textContent = 'Entrar'; }
 });
 $('#lockCancel').onclick = hideLock;
-function lockNow() { dictEnd(); convClose(); vozStop(); flushSave(); try { localStorage.removeItem('bitacora.temp'); } catch {} auth.signOut().then(()=>toast('Bitácora bloqueada')); }
+function lockNow(confirmado) {
+  // Sin conexión, lo escrito desde que se cortó la red vive solo en la copia local, que se borra al bloquear.
+  if (OFFLINE.on && OFFLINE.fromCache && confirmado !== true) {
+    openSheet({ title:'Bloquear sin conexión', danger:true, confirm:'Bloquear igual', body:[h('p',{class:'sheet-p',text:'No hay conexión. Al bloquear se borra la copia guardada en este dispositivo, y lo que escribiste desde que se cortó la red todavía no se ha subido: se perdería. Si puedes, espera a tener conexión.'})],
+      onConfirm: () => { setTimeout(() => lockNow(true), 0); } });
+    return;
+  }
+  dictEnd(); convClose(); vozStop(); flushSave(); try { localStorage.removeItem('bitacora.temp'); } catch {}
+  lockingNow = true; auth.signOut().then(async () => { if (!(await offlineWipe())) { lockingNow = false; toast('Bitácora bloqueada'); } }); }
+let lockingNow = false;
 const IDLE_MS = 30 * 60 * 1000; let idleT = null;
 function armIdle() { clearTimeout(idleT); let temp = false; try { temp = localStorage.getItem('bitacora.temp') === '1'; } catch {}
   if (S.isOwner && temp) idleT = setTimeout(() => { flushSave(); auth.signOut(); toast('Sesión cerrada por inactividad'); }, IDLE_MS); }
@@ -1162,7 +1211,7 @@ function viewSearch(scr) {
   const run = () => {
     results.innerHTML = ''; const q = S.q.trim().toLowerCase();
     if (!q) { results.append(h('p',{class:'date',style:{marginTop:'14px'},text:'Escribe para buscar en tus notas y carpetas.'})); return; }
-    const hits = [...S.items.entries()].filter(([,v]) => isNode(v) && (v.name.toLowerCase().includes(q) || (v.type==='file' && plainOf(v).toLowerCase().includes(q))))
+    const hits = [...S.items.entries()].filter(([k,v]) => isNode(v) && (v.name.toLowerCase().includes(q) || (v.type==='file' && searchText(k, v).includes(q))))
       .sort(([,a],[,b])=>(b.updated||0)-(a.updated||0));
     results.append(h('div',{class:'sec-h',style:{marginTop:'14px'}}, h('h2',{style:{fontSize:'17px'},text: hits.length ? `${hits.length} resultado${hits.length>1?'s':''}` : 'Sin resultados'})));
     if (hits.length) { const list = h('div',{class:'list'}); hits.slice(0,60).forEach(([k,v]) => list.append(v.type==='folder' ? folderRow(k,v) : fileRow(k,v,{sub:whereOf(k)}))); results.append(list); }
@@ -2247,17 +2296,21 @@ function viewSettings(scr) {
   const sc = h('div',{class:'scroll'}); const w = h('div',{class:'wrap pad'}); sc.append(w); scr.append(sc);
   w.append(h('div',{class:'page-h'}, h('h1',{text:'Ajustes'})));
   const m = S.access || 'private';
-  const connTxt = { ok:'Sincronizado con la nube', warn:'Conectando…', err:'Sin conexión con la base de datos' }[S.conn];
+  const connTxt = S.conn === 'warn' && OFFLINE.on && S.ready ? 'Sin conexión: ves la copia guardada; tus cambios se suben al volver la red'
+    : { ok:'Sincronizado con la nube', warn:'Conectando…', err:'Sin conexión con la base de datos' }[S.conn];
+  let recordado = false; try { recordado = localStorage.getItem(OFFLINE_KEY) === '1'; } catch {}
   w.append(h('div',{class:'set-label',text:'Sesión y acceso'}));
   const g1 = h('div',{class:'set-group'});
   g1.append(h('div',{class:'set-row'}, h('span',{class:'mdot m-'+m,style:{marginTop:'0'}}), h('span',{class:'row-t'}, h('b',{text:'Modo: '+MODES[m].label}), h('span',{text:MODES[m].hint}))));
   if (S.isOwner) {
     g1.append(h('button',{class:'set-row',onclick:accessSheet}, ic('shield'), h('span',{class:'row-t'}, h('b',{text:'Cambiar modo de acceso'}), h('span',{text:'Privado, solo lectura o abierto'})), h('span',{class:'chev',html:ICON.chevR})));
-    g1.append(h('button',{class:'set-row danger',onclick:lockNow}, ic('logout'), h('span',{class:'row-t'}, h('b',{text:'Bloquear ahora'}), h('span',{text:'Cierra la sesión en este dispositivo'}))));
+    g1.append(h('button',{class:'set-row danger',onclick:()=>lockNow()}, ic('logout'), h('span',{class:'row-t'}, h('b',{text:'Bloquear ahora'}), h('span',{text:'Cierra la sesión en este dispositivo'}))));
   } else {
     g1.append(h('button',{class:'set-row',onclick:()=>showLock(true)}, ic('key'), h('span',{class:'row-t'}, h('b',{text:'Ingresar con PIN'}), h('span',{text:'Para editar y cambiar el modo'})), h('span',{class:'chev',html:ICON.chevR})));
   }
   g1.append(h('div',{class:'set-row'}, h('span',{class:'status-dot '+S.conn,style:{position:'static',border:'0',width:'10px',height:'10px'}}), h('span',{class:'row-t'}, h('b',{text:connTxt}))));
+  if (S.isOwner) g1.append(h('div',{class:'set-row'}, ic('download'), h('span',{class:'row-t'}, h('b',{text: OFFLINE.on ? 'Copia sin conexión activa' : recordado ? 'Copia sin conexión: lista para la próxima vez' : 'Sin copia en este dispositivo'}),
+    h('span',{text: OFFLINE.on ? 'Tus notas abren sin internet en este dispositivo. Se borra al tocar Bloquear ahora.' : recordado ? 'Se activa la próxima vez que abras Bitácora aquí.' : 'Entraste sin "Recordar en este dispositivo": no se guarda nada en este equipo.'}))));
   w.append(g1);
 
   w.append(h('div',{class:'set-label',text:'Apariencia'}));
@@ -2877,7 +2930,8 @@ function prefixLines(ta, prefix) {
 function renderMd(src, target) {
   target.innerHTML = DOMPurify.sanitize(marked.parse(src||'', {gfm:true, breaks:true}));
   target.querySelectorAll('a').forEach(a=>{ a.target='_blank'; a.rel='noopener'; });
-  target.querySelectorAll('pre code').forEach(c=>{ try { hljs.highlightElement(c); } catch {} });
+  const codes = [...target.querySelectorAll('pre code')];
+  if (codes.length) loadHljs().then(() => codes.forEach(c => { if (c.isConnected) { try { hljs.highlightElement(c); } catch {} } })).catch(() => {});
   target.querySelectorAll('input[type=checkbox]').forEach(c=>c.disabled=true);
   if (!String(src).trim()) target.innerHTML = '<p style="color:var(--muted)">La vista previa aparecerá aquí.</p>';
 }
@@ -2914,7 +2968,8 @@ function codeEditor(host, it) {
   const ta = h('textarea',{spellcheck:'false',autocapitalize:'off',autocomplete:'off','aria-label':'Código',wrap:S.wrap?'soft':'off',readonly:!S.canWrite}); ta.value = it.content||'';
   const lang = h('select',{'aria-label':'Lenguaje',disabled:!S.canWrite}); LANGS.forEach(([v,l])=>lang.append(h('option',{value:v},l))); lang.value = it.lang || 'python';
   const paint = () => { let v = ta.value; if (v.endsWith('\n') || !v) v += ' '; const L = lang.value;
-    try { code.innerHTML = (L!=='plaintext' && hljs.getLanguage(L)) ? hljs.highlight(v,{language:L, ignoreIllegals:true}).value : v.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); } catch { code.textContent = v; } };
+    try { code.innerHTML = (window.hljs && L!=='plaintext' && hljs.getLanguage(L)) ? hljs.highlight(v,{language:L, ignoreIllegals:true}).value : v.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); } catch { code.textContent = v; } };
+  if (!window.hljs) loadHljs().then(() => { if (ta.isConnected) paint(); }).catch(() => {});
   const sync = () => { pre.scrollTop = ta.scrollTop; pre.scrollLeft = ta.scrollLeft; };
   lang.addEventListener('change', () => { Store.patch(S.fileId, {lang:lang.value, updated:Date.now()}); paint(); updateMeta(); });
   const wrapBtn = tb('<span style="font-size:13px;font-weight:600">Ajustar líneas</span>','Ajuste de línea',()=>{ S.wrap=!S.wrap; remember(); wrap.classList.toggle('wrapl',S.wrap); ta.setAttribute('wrap', S.wrap?'soft':'off'); wrapBtn.classList.toggle('on',S.wrap); sync(); }, 'txt'+(S.wrap?' on':''));
@@ -3003,8 +3058,14 @@ history.replaceState({ view:vista0, depth:0 }, '', location.pathname);
 S.view = vista0;
 render();
 if ('serviceWorker' in navigator && isSecureContext && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js').catch(() => {});
-auth.onAuthStateChanged(u => { S.isOwner = !!u && u.uid === OWNER_UID; if (!S.isOwner) dictEnd(); S.authKnown = true; if (u && !S.isOwner) auth.signOut(); recompute(); });
-fdb.doc('config/access').onSnapshot(snap => { const m = snap.exists ? snap.data().mode : 'private'; S.access = MODES[m] ? m : 'private'; recompute(); }, () => { S.access = 'private'; recompute(); });
+auth.onAuthStateChanged(u => { S.isOwner = !!u && u.uid === OWNER_UID; if (!S.isOwner) dictEnd(); S.authKnown = true; if (u && !S.isOwner) auth.signOut();
+  // Sesión recordada: deja lista la copia sin conexión. Sin sesión de dueño no debe quedar copia en el equipo.
+  let temp = false; try { temp = localStorage.getItem('bitacora.temp') === '1'; } catch {}
+  if (S.isOwner && !temp) offlineMark(true);
+  else if (!S.isOwner && !lockingNow && OFFLINE.on) { offlineWipe(); return; }
+  else if (!S.isOwner) offlineMark(false);
+  recompute(); });
+var accessUnsub = fdb.doc('config/access').onSnapshot(snap => { const m = snap.exists ? snap.data().mode : 'private'; S.access = MODES[m] ? m : 'private'; recompute(); }, () => { S.access = 'private'; recompute(); });
 })();
 </script>
 </body>
