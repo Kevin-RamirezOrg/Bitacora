@@ -1,7 +1,7 @@
 // Asistente: convierte lo que escribe Kevin en acciones sobre Notion.
 // El modelo responde un JSON con { respuesta, acciones }; el Worker lo valida, lo ejecuta y guarda el historial en D1.
 
-import { ErrorIA, chat } from './ia.js';
+import { ErrorIA, chat, leerConfig } from './ia.js';
 import {
   ROLES, TIPOS_TAREA, consultarTareas, crearTarea, deshacer as deshacerPaso, diaSemana, guardarPersona,
   horaActual, hoy, marcarTarea, materias as leerMaterias, normal, notaInbox, sinGuiones, sumarDias,
@@ -16,6 +16,7 @@ import {
 } from './universidad.js';
 
 const MAX_ACCIONES = 5;
+const TEMPERATURA_PLAN = 0.2; // tope para clasificar y planificar: con más temperatura el JSON sale mal más seguido
 const LECTURAS = new Set(['consultar_base', 'leer_pagina']);
 const MAX_TEXTO = 4000;
 const HISTORIAL_CONTEXTO = 8;
@@ -204,37 +205,10 @@ function calendario(fechaHoy) {
   return lineas.join('\n');
 }
 
-function prompt(fechaHoy, claves) {
-  const clases = claves.clases.length
-    ? claves.clases.map((c) => `${c.clave}: ${c.dia} ${c.inicio}-${c.fin} · ${c.titulo}${c.aula ? ` · aula ${c.aula}` : ''}`).join('\n')
-    : '(sin horario registrado)';
-  const mats = claves.materias.length
-    ? claves.materias.map((m) => `${m.clave}: ${m.nombre}${m.codigo ? ` (${m.codigo})` : ''}${m.profesor ? `; profesor: ${m.profesor}` : ''}`).join('\n')
-    : '(ninguna registrada)';
-  const tareas = claves.tareas.length
-    ? claves.tareas.map((t) => `${t.clave}: ${t.tipo || 'Sin tipo'} · ${t.titulo} · ${t.materia || 'sin materia'} · ${t.fecha || 'sin fecha'}${t.hora ? ' ' + t.hora : ''}`).join('\n')
-    : '(no hay pendientes)';
-  return `${claves.voz ? REGLAS_VOZ + '\n\n' : ''}${claves.practica ? practicaParaPrompt(claves.practica) + '\n\n' : ''}Eres Kell, el asistente de estudio de Kevin, estudiante universitario en Ecuador. Conviertes lo que escribe en acciones sobre su Notion y le respondes en español, tratándolo de tú, en una o dos frases.
-
-Hoy es ${diaSemana(fechaHoy)} ${fechaHoy} y son las ${claves.hora} (zona horaria America/Guayaquil).
-Calendario de referencia:
-${calendario(fechaHoy)}
-
-Materias (usa la clave, por ejemplo "m1"):
-${mats}
-
-Lo que Kevin te pidió recordar (usa la clave, por ejemplo "k1", para olvidar). Respétalo siempre:
-${claves.memoria.length ? claves.memoria.map((m) => `${m.clave}: ${m.texto}`).join('\n') : '(nada todavía)'}
-${claves.valoraciones ? `\nCómo valoró tus respuestas: ${claves.valoraciones}\n` : ''}
-Horario semanal de clases del semestre actual (base Horario; usa la clave, por ejemplo "c1", para editar una clase):
-${clases}
-
-Todas las bases de Universidad (usa la clave, por ejemplo "b1"):
-${claves.basesTexto}
-
-Tareas y evaluaciones pendientes según Notion en este momento (usa la clave, por ejemplo "t1"):
-${tareas}
-Esta lista es la única fuente de verdad. El historial de la conversación puede mencionar tareas que Kevin deshizo o borró: si no están en esta lista, ya no existen.
+// La parte fija (rol, formato, acciones y reglas) va primero y no cambia entre mensajes: así los proveedores que
+// guardan en caché el inicio del prompt (Gemini lo hace solo) la reutilizan. Lo que cambia va al final, de lo
+// más estable (bases, materias, horario) a lo más variable (hora y tareas).
+const PROMPT_FIJO = `Eres Kell, el asistente de estudio de Kevin, estudiante universitario en Ecuador. Conviertes lo que escribe en acciones sobre su Notion y le respondes en español, tratándolo de tú, en una o dos frases. Los datos de su Notion y la fecha de hoy están al final de este mensaje.
 
 Responde SOLO con un objeto JSON válido, sin texto antes ni después y sin bloques de código, con esta forma:
 {"respuesta": "texto breve para Kevin", "acciones": []}
@@ -262,7 +236,7 @@ ${ESPEC_CONTENIDO}
 
 Reglas:
 - Usa las acciones especializadas (crear_tarea, completar_tarea, guardar_persona, nota_inbox, mostrar_tareas) para Tareas, Personas e Inbox. Para cualquier otra base usa consultar_base, leer_pagina, crear_fila, editar_fila o archivar_fila.
-- Horario: "¿qué clase me toca ahora?", "¿dónde es Big Data?" o "¿qué clases tengo mañana?" se responden directo con el horario de arriba, sin acciones. "Ahora" es la clase cuya hora incluye la hora actual; si no hay, di cuál es la siguiente.
+- Horario: "¿qué clase me toca ahora?", "¿dónde es Big Data?" o "¿qué clases tengo mañana?" se responden directo con el horario que aparece más abajo, sin acciones. "Ahora" es la clase cuya hora incluye la hora actual; si no hay, di cuál es la siguiente.
 - Para leer otras bases (Clases, Resúmenes, Recursos, Banco de preguntas, Metas…) usa consultar_base o leer_pagina. Cuando pidas lecturas, el Worker te devolverá los resultados con claves "r1", "r2"… y te pedirá la respuesta final; en ese primer paso no incluyas escrituras. Pon "mostrar": true solo si Kevin pidió ver una lista.
 - leer_pagina sirve para el contenido de una página (apuntes, resúmenes); necesita una fila "r…". Las filas que consultaste en turnos anteriores siguen disponibles: aparecen en la conversación como [Filas de Notion consultadas…] con su clave actual; úsala directo, sin volver a consultar.
 - crear_fila y editar_fila: usa los nombres exactos de las propiedades y, en opciones, solo valores de la lista. Fechas "AAAA-MM-DD" o "AAAA-MM-DDTHH:MM"; para un rango usa {"inicio": ..., "fin": ...}. Relaciones: lista de claves ("m1", "r2", "c3", "t1") o nombres exactos.
@@ -287,6 +261,41 @@ ${REGLA_CONTENIDO}
 - Si solo conversa o pide algo ajeno a Notion, responde sin acciones (salvo mostrar_contenido).
 - "Resume", "dame un resumen", "explícame eso" sobre algo que ya aparece en la conversación (clases, páginas o filas leídas) NO es resumen_semanal: si necesitas el contenido, usa leer_pagina con la clave "r…" de esa fila y resume tú en "respuesta" (en viñetas breves). Usa resumen_semanal solo si pide expresamente el resumen de la semana de una materia.
 - "respuesta" confirma en pocas palabras; no repite los detalles que ya muestran las acciones.`;
+
+function prompt(fechaHoy, claves) {
+  const clases = claves.clases.length
+    ? claves.clases.map((c) => `${c.clave}: ${c.dia} ${c.inicio}-${c.fin} · ${c.titulo}${c.aula ? ` · aula ${c.aula}` : ''}`).join('\n')
+    : '(sin horario registrado)';
+  const mats = claves.materias.length
+    ? claves.materias.map((m) => `${m.clave}: ${m.nombre}${m.codigo ? ` (${m.codigo})` : ''}${m.profesor ? `; profesor: ${m.profesor}` : ''}`).join('\n')
+    : '(ninguna registrada)';
+  const tareas = claves.tareas.length
+    ? claves.tareas.map((t) => `${t.clave}: ${t.tipo || 'Sin tipo'} · ${t.titulo} · ${t.materia || 'sin materia'} · ${t.fecha || 'sin fecha'}${t.hora ? ' ' + t.hora : ''}`).join('\n')
+    : '(no hay pendientes)';
+  return `${PROMPT_FIJO}${claves.voz ? '\n\n' + REGLAS_VOZ : ''}
+
+DATOS DE KEVIN EN ESTE MOMENTO
+
+Todas las bases de Universidad (usa la clave, por ejemplo "b1"):
+${claves.basesTexto}
+
+Materias (usa la clave, por ejemplo "m1"):
+${mats}
+
+Horario semanal de clases del semestre actual (base Horario; usa la clave, por ejemplo "c1", para editar una clase):
+${clases}
+
+Lo que Kevin te pidió recordar (usa la clave, por ejemplo "k1", para olvidar). Respétalo siempre:
+${claves.memoria.length ? claves.memoria.map((m) => `${m.clave}: ${m.texto}`).join('\n') : '(nada todavía)'}
+${claves.valoraciones ? `\nCómo valoró tus respuestas: ${claves.valoraciones}\n` : ''}
+Calendario de referencia:
+${calendario(fechaHoy)}
+
+Hoy es ${diaSemana(fechaHoy)} ${fechaHoy} y son las ${claves.hora} (zona horaria America/Guayaquil).
+
+Tareas y evaluaciones pendientes según Notion en este momento (usa la clave, por ejemplo "t1"):
+${tareas}
+Esta lista es la única fuente de verdad. El historial de la conversación puede mencionar tareas que Kevin deshizo o borró: si no están en esta lista, ya no existen.${claves.practica ? '\n\n' + practicaParaPrompt(claves.practica) : ''}`;
 }
 
 // ---------- Interpretación ----------
@@ -549,7 +558,7 @@ async function ejecutar(env, a, lista, ctx = {}) {
     }
     case 'preguntas_estudio': {
       ctx.progreso?.(`Leyendo tus apuntes de ${a.materiaNombre}…`);
-      const r = await generarPreguntas(env, { ...a, modelo: ctx.modelo });
+      const r = await generarPreguntas(env, { ...a, modelo: ctx.modelo, leida: ctx.leida });
       return { accion: a.accion, ok: true, materia: a.materiaNombre, semana: r.semana, tarjetas: r.tarjetas, fuentes: r.fuentes, deshacer: r.deshacer };
     }
     case 'practicar': {
@@ -558,7 +567,7 @@ async function ejecutar(env, a, lista, ctx = {}) {
     }
     case 'resumen_semanal': {
       ctx.progreso?.(`Resumiendo la semana de ${a.materiaNombre}…`);
-      const r = await resumenSemanal(env, { ...a, modelo: ctx.modelo });
+      const r = await resumenSemanal(env, { ...a, modelo: ctx.modelo, leida: ctx.leida });
       return { accion: a.accion, ok: true, materia: a.materiaNombre, semana: r.semana, titulo: r.titulo, url: r.url, yaExistia: !!r.yaExistia, puntos: r.puntos, fuentes: r.fuentes, deshacer: r.deshacer || null };
     }
     case 'recordar': {
@@ -673,9 +682,7 @@ const practicaParaPrompt = (pr) => `Práctica en curso del Banco de preguntas ($
 // Primer paso: decide si el mensaje necesita Notion. Si es solo conversación, lo responde aquí mismo,
 // sin leer Notion (más rápido y no envía su información al modelo). Ante la duda, va por Notion.
 function promptClasificar(fechaHoy, hora, memoria, voz) {
-  return `Eres Kell, el asistente de estudio de Kevin, estudiante universitario en Ecuador. Hoy es ${diaSemana(fechaHoy)} ${fechaHoy}, son las ${hora}.
-Lo que Kevin te pidió recordar. Respétalo siempre:
-${memoria.length ? memoria.map((m) => '- ' + m.texto).join('\n') : '(nada)'}
+  return `Eres Kell, el asistente de estudio de Kevin, estudiante universitario en Ecuador.
 
 Decide si su último mensaje necesita su Notion (tareas, pruebas, fechas, horario, clases, apuntes, materias, profesores, compañeros, preguntas de estudio, práctica, resúmenes, recordar u olvidar algo, deshacer, o seguir con algo de Notion que aparece en la conversación).
 - Si lo necesita, o tienes la menor duda: {"tipo": "notion"}
@@ -684,12 +691,17 @@ En "respuesta" contesta en español, tratándolo de tú, de forma breve y direct
 "contenido" es opcional: si pide un quiz, opción múltiple, verdadero o falso, completar, tarjetas, una tabla o pasos (o si una tabla o pasos responden mejor), pon ahí UNO de estos objetos (sin el campo "accion"); con ejercicio, "respuesta" solo lo presenta y no revela las respuestas. Hasta 10 elementos (5 si no dice cuántos):
 ${ESPEC_CONTENIDO.replace(/"accion": "mostrar_contenido", /g, '')}
 ${voz ? `\n${REGLAS_VOZ}\nEn modo voz "contenido" siempre es null.` : ''}
-Responde SOLO con el objeto JSON, sin texto antes ni después.`;
+Responde SOLO con el objeto JSON, sin texto antes ni después.
+
+Lo que Kevin te pidió recordar. Respétalo siempre:
+${memoria.length ? memoria.map((m) => '- ' + m.texto).join('\n') : '(nada)'}
+
+Hoy es ${diaSemana(fechaHoy)} ${fechaHoy}, son las ${hora}.`;
 }
 
-async function clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, voz }) {
+async function clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, voz, leida }) {
   try {
-    const r = await chat(env, { modelo, mensajes: [
+    const r = await chat(env, { modelo, leida, rapido: true, json: true, temperatura: TEMPERATURA_PLAN, mensajes: [
       { role: 'system', content: promptClasificar(fechaHoy, horaActual(), memoria, voz) },
       ...previos.slice(-6).map((m) => ({ role: m.rol === 'usuario' ? 'user' : 'assistant', content: m.rol === 'usuario' ? m.texto : resumenParaModelo(m) })),
       { role: 'user', content: entrada },
@@ -761,26 +773,38 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     if (!c) throw new ErrorAsistente(404, 'Ese chat ya no existe');
     chatInfo = c;
   }
-  const previos = temporal ? previosTemporales(historialCliente) : chatInfo ? await historial(env, { chat: chatInfo.id, limite: HISTORIAL_CONTEXTO }) : [];
-  const memoria = await listarMemoria(env);
+  // La configuración de IA se lee de KV una sola vez por mensaje y se pasa a todas las llamadas al modelo.
+  const [previos, memoria, leida] = await Promise.all([
+    temporal ? previosTemporales(historialCliente) : chatInfo ? historial(env, { chat: chatInfo.id, limite: HISTORIAL_CONTEXTO }) : [],
+    listarMemoria(env),
+    leerConfig(env),
+  ]);
 
   // Conversación simple: se responde sin leer Notion.
   // En voz, una práctica del Banco en curso siempre va por Notion (hay que marcar el Dominio).
   const practica = voz ? practicaEnCurso(previos) : null;
   progreso('Pensando…');
-  const c = practica ? { tipo: 'notion', fallos: [] } : await clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, voz });
+  // Notion se empieza a leer a la vez que el clasificador decide. Si resulta charla, esa lectura se descarta
+  // sin enviarse al modelo; si falla, el error solo importa cuando de verdad hace falta Notion.
+  const lectura = (async () => {
+    const lista = await leerMaterias(env);
+    const [pendientes, semana, todas, valoraciones] = await Promise.all([
+      consultarTareas(env, { desde: sumarDias(fechaHoy, -30), hasta: sumarDias(fechaHoy, 120), sinFecha: true, limite: 60 }, lista),
+      horarioSemana(env, lista).catch(() => null),
+      leerBases(env).catch(() => []),
+      resumenValoraciones(base).catch(() => null),
+    ]);
+    return { lista, pendientes, semana, todas, valoraciones };
+  })();
+  lectura.catch(() => {});
+  const c = practica ? { tipo: 'notion', fallos: [] } : await clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, voz, leida });
   if (c.tipo === 'charla') {
     const datos = { resultados: c.contenido ? [c.contenido] : [], modelo: c.r.modelo, proveedor: c.r.proveedor, respaldo: c.r.fallos?.length ? true : undefined, charla: true };
     return guardarTurno(env, base, { temporal, chatInfo, entrada, respuesta: c.respuesta, datos });
   }
 
   progreso('Leyendo tu Notion…');
-  const lista = await leerMaterias(env);
-  const [pendientes, semana, todas] = await Promise.all([
-    consultarTareas(env, { desde: sumarDias(fechaHoy, -30), hasta: sumarDias(fechaHoy, 120), sinFecha: true, limite: 60 }, lista),
-    horarioSemana(env, lista).catch(() => null),
-    leerBases(env).catch(() => []),
-  ]);
+  const { lista, pendientes, semana, todas, valoraciones } = await lectura;
   const basesConClave = todas.map((b, i) => ({ ...b, clave: `b${i + 1}` }));
   const claves = {
     materias: lista.map((m, i) => ({ ...m, clave: `m${i + 1}` })),
@@ -790,12 +814,12 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     basesTexto: basesConClave.length ? basesParaPrompt(basesConClave) : '(no se pudieron leer)',
     filas: filasPrevias(previos), nombres: new Map(),
     memoria: memoria.map((m, i) => ({ ...m, clave: `k${i + 1}` })),
-    valoraciones: await resumenValoraciones(base).catch(() => null),
+    valoraciones,
     voz, practica,
     dsHorario: env.NOTION_DS_HORARIO, dsTareas: env.NOTION_DS_TAREAS, dsClases: env.NOTION_DS_CLASES,
     fecha: fechaHoy,
     hora: horaActual(),
-    modelo, progreso,
+    modelo, progreso, leida,
   };
 
   const mensajes = [
@@ -811,7 +835,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
   let ultimo = null;
   // Una llamada al modelo; si el JSON viene mal, se pide una vez más.
   async function pedir(msgs) {
-    let r = await chat(env, { mensajes: msgs, modelo });
+    let r = await chat(env, { mensajes: msgs, modelo, leida, json: true, temperatura: TEMPERATURA_PLAN });
     fallos.push(...(r.fallos || []));
     let plan = extraerPlan(r.texto);
     if (!plan.ok) {
@@ -819,7 +843,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
       const otra = await chat(env, {
         mensajes: [...msgs, { role: 'assistant', content: r.texto.slice(0, 4000) },
           { role: 'user', content: `Tu respuesta anterior no sirve (${plan.error}). Responde de nuevo SOLO con el objeto JSON {"respuesta": ..., "acciones": [...]}.` }],
-        modelo,
+        modelo, leida, json: true, temperatura: TEMPERATURA_PLAN,
       });
       fallos.push(...(otra.fallos || []));
       r = otra;

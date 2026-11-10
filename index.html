@@ -2352,7 +2352,7 @@ async function apiStream(path, body, onEtapa, ctl) {
 }
 
 // Form state keeps numbers as typed text; fromDraft validates like the Worker does.
-const aiToDraft = c => ({ principal:{...c.principal}, respaldo: c.respaldo ? {...c.respaldo} : null, favoritos:(c.favoritos||[]).map(f=>({...f})),
+const aiToDraft = c => ({ principal:{...c.principal}, respaldo: c.respaldo ? {...c.respaldo} : null, rapido: c.rapido ? {...c.rapido} : null, favoritos:(c.favoritos||[]).map(f=>({...f})),
   temperature: c.parametros?.temperature ?? '', top_p: c.parametros?.top_p ?? '', max_tokens: c.parametros?.max_tokens ?? '',
   extra: c.extra && Object.keys(c.extra).length ? JSON.stringify(c.extra, null, 2) : '' });
 function aiFromDraft(d) {
@@ -2373,7 +2373,7 @@ function aiFromDraft(d) {
     } catch { err.extra = 'Debe ser un objeto JSON, por ejemplo {"top_k": 40}.'; }
   }
   if (!d.principal?.modelo) err.principal = 'Elige un modelo principal.';
-  return { config:{ principal:d.principal, respaldo:d.respaldo, parametros, extra, favoritos:d.favoritos }, err };
+  return { config:{ principal:d.principal, respaldo:d.respaldo, rapido:d.rapido || null, parametros, extra, favoritos:d.favoritos }, err };
 }
 const aiDirty = () => !!AI.draft && JSON.stringify(aiFromDraft(AI.draft).config) !== AI.saved;
 function aiSetSaved(config) { AI.draft = aiToDraft(config); AI.saved = JSON.stringify(aiFromDraft(AI.draft).config); }
@@ -2454,7 +2454,10 @@ function viewAI(scr) {
     h('button',{class:'set-row',onclick:()=>aiModelSheet('principal')}, ic('sparkle'),
       h('span',{class:'row-t'}, h('b',{text:'Principal'}), h('span',{class: d.principal.modelo ? 'ai-model' : '',text: modelTxt(d.principal) || 'Sin elegir. Toca para buscar un modelo.'})), h('span',{class:'chev',html:ICON.chevR})),
     h('button',{class:'set-row',onclick:()=>aiModelSheet('respaldo')}, ic('undo'),
-      h('span',{class:'row-t'}, h('b',{text:'Respaldo'}), h('span',{class: d.respaldo ? 'ai-model' : '',text: modelTxt(d.respaldo) || 'Ninguno. Se usa solo si el principal falla.'})), h('span',{class:'chev',html:ICON.chevR}))));
+      h('span',{class:'row-t'}, h('b',{text:'Respaldo'}), h('span',{class: d.respaldo ? 'ai-model' : '',text: modelTxt(d.respaldo) || 'Ninguno. Se usa solo si el principal falla.'})), h('span',{class:'chev',html:ICON.chevR})),
+    h('button',{class:'set-row',onclick:()=>aiModelSheet('rapido')}, ic('send'),
+      h('span',{class:'row-t'}, h('b',{text:'Rápido'}), h('span',{class: d.rapido ? 'ai-model' : '',text: modelTxt(d.rapido) || 'Ninguno. Elige uno pequeño y veloz para que Kell decida antes qué hacer.'})), h('span',{class:'chev',html:ICON.chevR}))),
+    h('p',{class:'hint',style:{margin:'8px 4px 0'},text:'El modelo rápido solo decide si tu mensaje necesita Notion y responde las charlas simples; las acciones las planifica el principal. Si no eliges uno, todo lo hace el principal.'}));
 
   // Favorites
   w.append(h('div',{class:'set-label',text:'Favoritos'}));
@@ -2479,7 +2482,7 @@ function viewAI(scr) {
   ta.addEventListener('input', () => { d.extra = ta.value; aiCheck(); });
   w.append(h('div',{class:'ai-box'},
     h('div',{class:'ai-params'},
-      field('temperature','Temperatura','De 0 a 2. Baja da respuestas más precisas; alta, más variadas.','decimal'),
+      field('temperature','Temperatura','De 0 a 2. Baja da respuestas más precisas; alta, más variadas. Para decidir y planificar acciones Kell usa como máximo 0,2.','decimal'),
       field('top_p','Top P','De 0 a 1. Suele bastar con ajustar solo la temperatura.','decimal'),
       field('max_tokens','Máx. tokens','Largo máximo de la respuesta.','numeric')),
     h('div',{class:'field'}, h('label',{for:'ai-extra',text:'Parámetros propios (JSON)'}), ta,
@@ -2579,10 +2582,10 @@ function aiModelSheet(rol) {
     paintList();
   };
   inp.addEventListener('input', () => { q = inp.value; paintList(); });
-  const remove = rol === 'respaldo' && d.respaldo ? h('div',{class:'acts-list',style:{marginTop:'8px'}},
-    h('button',{class:'act danger',type:'button',onclick:()=>{ d.respaldo = null; closeSheet().then(aiPaint); }}, ic('close'), 'Quitar modelo de respaldo')) : null;
+  const remove = rol !== 'principal' && d[rol] ? h('div',{class:'acts-list',style:{marginTop:'8px'}},
+    h('button',{class:'act danger',type:'button',onclick:()=>{ d[rol] = null; closeSheet().then(aiPaint); }}, ic('close'), rol === 'rapido' ? 'Quitar modelo rápido' : 'Quitar modelo de respaldo')) : null;
   paintSeg(); paintList();
-  openSheet({ title: rol === 'principal' ? 'Modelo principal' : 'Modelo de respaldo', body:[h('div',{class:'ai-pick-head'}, seg, inp), remove, info, list], focus: inp });
+  openSheet({ title: { principal:'Modelo principal', respaldo:'Modelo de respaldo', rapido:'Modelo rápido' }[rol], body:[h('div',{class:'ai-pick-head'}, seg, inp), remove, info, list], focus: inp });
   load();
 }
 

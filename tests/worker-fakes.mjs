@@ -29,7 +29,7 @@ export function fakeKV(inicial = {}) {
   const m = new Map(Object.entries(inicial).map(([k, v]) => [k, JSON.stringify(v)]));
   const cuenta = { get: 0, put: 0 };
   return { cuenta, m,
-    async get(k, tipo) { cuenta.get++; const v = m.get(k); return v == null ? null : tipo === 'json' ? JSON.parse(v) : v; },
+    async get(k, tipo) { cuenta.get++; cuenta[k] = (cuenta[k] || 0) + 1; const v = m.get(k); return v == null ? null : tipo === 'json' ? JSON.parse(v) : v; },
     async put(k, v) { cuenta.put++; m.set(k, v); },
     async delete(k) { m.delete(k); } };
 }
@@ -141,6 +141,7 @@ export function fakeModelo(guion = []) {
   async function atender(url, init = {}) {
     const body = JSON.parse(init.body || '{}');
     llamadas.push({ url: String(url), body });
+    await new Promise((ok) => setImmediate(ok)); // un modelo real tarda: deja avanzar lo que corre en paralelo
     if (!cola.length) throw new Error('El guion del modelo se quedó sin respuestas');
     let r = cola.shift();
     if (typeof r === 'function') r = r(body);

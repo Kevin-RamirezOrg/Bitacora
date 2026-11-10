@@ -140,6 +140,7 @@ jobs={
  'panel':('panel',390,844,{},tab('panel')),
  'settings':('settings',390,844,{},tab('settings')),
  'editor':('editor',390,844,{},editor),
+ 'ai':('ai',390,844,{},lambda pg: (pg.click('.tab[data-view="settings"]'), pg.wait_for_timeout(300), pg.click('text=Modelos de IA'), pg.wait_for_timeout(700))),
  'conv':('conv',390,844,{},conv),
  'home_light':('home_light',390,844,{'scheme':'light'},lambda pg: None),
  'chat_uva':('chat_uva',390,844,{'ls':{'bitacora.palette':'uva'}},quiz),

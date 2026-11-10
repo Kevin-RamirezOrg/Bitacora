@@ -115,7 +115,8 @@ const RUTAS = {
 
   'PUT /config/ia': async (req, env) => json({ ok: true, config: await guardarConfig(env, await leerCuerpo(req)) }),
 
-  'POST /ia/chat': async (req, env) => json(await chat(env, await leerCuerpo(req))),
+  // Solo pasan los campos que la app puede enviar; las opciones internas de chat() no se aceptan desde fuera.
+  'POST /ia/chat': async (req, env) => { const { mensajes, config, modelo } = await leerCuerpo(req); return json(await chat(env, { mensajes, config, modelo })); },
 
   // Asistente (Notion + historial en D1)
   'GET /asistente/estado': (req, env) => json({ notion: Boolean(env.NOTION_TOKEN), historial: Boolean(env.DB) }),

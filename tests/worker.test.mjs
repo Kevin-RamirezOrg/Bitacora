@@ -19,7 +19,7 @@ test('charla: responde sin leer Notion y crea el chat al guardar', async () => {
   const r = await procesarMensaje(e.env, { texto: 'qué es un combiner' });
   assert.equal(r.asistente.texto, 'Un **combiner** es un mini-reduce.');
   assert.equal(r.asistente.datos.charla, true);
-  assert.equal(e.notion.llamadas.length, 0, 'no debe consultar Notion');
+  assert.ok(!JSON.stringify(e.modelo.llamadas).includes('Deber 3: MapReduce'), 'los datos de Notion no se envían al modelo en una charla');
   assert.equal((await listarChats(e.env)).length, 1);
 });
 
@@ -110,4 +110,45 @@ test('E18: una opción nueva en Notion se acepta tras refrescar el esquema', asy
   e.notion.bases.get(DS.CLASES).properties.Estado.select.options.push({ name: 'Revisada' }); // Kevin agrega la opción en Notion
   const r = await procesarMensaje(e.env, { texto: 'crea la clase Repaso con estado Revisada' });
   assert.equal(r.asistente.datos.resultados[0].ok, true, JSON.stringify(r.asistente.datos.resultados));
+});
+
+// ---------- Grupo D ----------
+const CON_RAPIDO = { principal: { proveedor: 'gemini', modelo: 'modelo-principal' }, respaldo: null, rapido: { proveedor: 'gemini', modelo: 'modelo-rapido' }, parametros: { temperature: 0.7 }, extra: {}, favoritos: [] };
+
+test('K1/K3/R9: el clasificador usa el modelo rápido, modo JSON y temperatura baja; la config se lee una vez', async () => {
+  const e = montar([{ tipo: 'notion' }, { respuesta: 'Esto tienes.', acciones: [{ accion: 'mostrar_tareas', desde: HOY, hasta: e0(7) }] }], { config: CON_RAPIDO });
+  await procesarMensaje(e.env, { texto: 'qué tengo esta semana' });
+  const [clasif, plan] = e.modelo.llamadas.map((l) => l.body);
+  assert.equal(clasif.model, 'modelo-rapido'); assert.equal(plan.model, 'modelo-principal');
+  assert.deepEqual(clasif.response_format, { type: 'json_object' }); assert.equal(clasif.temperature, 0.2); assert.equal(plan.temperature, 0.2);
+  assert.equal(e.CONFIG.cuenta.ia, 1, 'la configuración de IA se lee una sola vez');
+});
+
+test('K5: el prompt empieza igual aunque cambien la fecha y las tareas', async () => {
+  const e = montar([{ tipo: 'notion' }, { respuesta: 'ok', acciones: [] }, { tipo: 'notion' }, { respuesta: 'ok', acciones: [] }]);
+  await procesarMensaje(e.env, { texto: 'uno' });
+  e.notion.pagina(DS.TAREAS, { Tarea: e.notion.P.titulo('Otra tarea'), Entrega: e.notion.P.fecha(e0(1)), Completada: e.notion.P.casilla(false) });
+  await procesarMensaje(e.env, { texto: 'dos' });
+  const [a, b] = [e.modelo.llamadas[1], e.modelo.llamadas[3]].map((l) => l.body.messages[0].content);
+  let igual = 0; while (igual < a.length && a[igual] === b[igual]) igual++;
+  assert.ok(igual > 9000, `prefijo común de ${igual} caracteres`);
+  assert.ok(a.indexOf('Hoy es') > a.indexOf('Reglas:'), 'la fecha va después de las reglas');
+});
+
+test('K3: si el proveedor rechaza el modo JSON, se pide sin él', async () => {
+  const e = montar([400, { tipo: 'charla', respuesta: 'Hola.' }]);
+  const r = await procesarMensaje(e.env, { texto: 'hola' });
+  assert.equal(r.asistente.texto, 'Hola.');
+  assert.equal(e.modelo.llamadas[1].body.response_format, undefined);
+});
+
+test('K4: un 429 del proveedor se reintenta una vez', async () => {
+  const e = montar([429, { tipo: 'charla', respuesta: 'Listo.' }], { config: { ...CON_RAPIDO, rapido: { proveedor: 'gemini', modelo: 'otro-rapido' } } });
+  const r = await procesarMensaje(e.env, { texto: 'hola' });
+  assert.equal(r.asistente.texto, 'Listo.'); assert.equal(e.modelo.llamadas.length, 2);
+});
+
+test('K2: Notion se lee mientras el clasificador responde', async () => {
+  const e = montar([(body) => { assert.ok(e.notion.llamadas.length > 0, 'la lectura de Notion ya empezó'); return { tipo: 'notion' }; }, { respuesta: 'ok', acciones: [] }]);
+  await procesarMensaje(e.env, { texto: 'qué tengo' });
 });

@@ -73,10 +73,10 @@ export function repartir(largos, total) {
 const fuentesLegibles = (clases) => clases.map((c) => ({ titulo: c.titulo, url: c.url, completa: c.completa }));
 
 // Pide al modelo un JSON y lo extrae (con un reintento si viene mal).
-async function pedirJSON(env, modelo, sistema, usuario, validar) {
+async function pedirJSON(env, { modelo, leida }, sistema, usuario, validar) {
   const mensajes = [{ role: 'system', content: sistema }, { role: 'user', content: usuario }];
   for (let i = 0; i < 2; i++) {
-    const r = await chat(env, { mensajes, modelo });
+    const r = await chat(env, { mensajes, modelo, leida, json: true });
     let t = String(r.texto || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
     const b = t.match(/```(?:json)?\s*([\s\S]*?)```/i); if (b) t = b[1];
     try {
@@ -90,7 +90,7 @@ async function pedirJSON(env, modelo, sistema, usuario, validar) {
 
 // ---------- Preguntas para el Banco ----------
 
-export async function generarPreguntas(env, { materiaId, materiaNombre, semana, cantidad = 5, modelo }) {
+export async function generarPreguntas(env, { materiaId, materiaNombre, semana, cantidad = 5, modelo, leida }) {
   const n = Math.min(Math.max(Number(cantidad) || 5, 1), 10);
   const fuente = await apuntesDeSemana(env, materiaId, semana);
   // Preguntas que ya existen de esa materia, para no repetir.
@@ -103,7 +103,7 @@ Responde SOLO con JSON: {"preguntas": [{"pregunta": "...", "respuesta": "..."}]}
 - Exactamente ${n} preguntas, variadas (definición, diferencia entre conceptos, por qué, aplicación o ejercicio si los apuntes tienen uno).
 - La respuesta en 1 o 2 frases, como aparece en los apuntes.
 - No repitas estas preguntas que ya existen:\n${existentes.slice(0, 60).map((x) => `- ${x}`).join('\n') || '(ninguna)'}`;
-  const datos = await pedirJSON(env, modelo, sistema, `Materia: ${materiaNombre}. Semana ${fuente.semana}.\n\nApuntes:\n${fuente.apuntes}`,
+  const datos = await pedirJSON(env, { modelo, leida }, sistema, `Materia: ${materiaNombre}. Semana ${fuente.semana}.\n\nApuntes:\n${fuente.apuntes}`,
     (j) => (Array.isArray(j?.preguntas) && j.preguntas.length ? j.preguntas : null));
   const vistas = new Set(existentes.map(normal));
   const nuevas = [];
@@ -157,7 +157,7 @@ export async function marcarDominio(env, { id, dominio }) {
 
 // ---------- Resumen semanal ----------
 
-export async function resumenSemanal(env, { materiaId, materiaNombre, semana, modelo }) {
+export async function resumenSemanal(env, { materiaId, materiaNombre, semana, modelo, leida }) {
   const fuente = await apuntesDeSemana(env, materiaId, semana);
   const existe = await notion(env, `/data_sources/${env.NOTION_DS_RESUMENES}/query`, {
     method: 'POST',
@@ -171,7 +171,7 @@ export async function resumenSemanal(env, { materiaId, materiaNombre, semana, mo
 Responde SOLO con JSON: {"secciones": [{"titulo": "Temas vistos", "puntos": ["..."]}, {"titulo": "Conceptos clave", "puntos": ["concepto: explicación como en los apuntes"]}, {"titulo": "Para repasar", "puntos": ["..."]}]}
 - Entre 2 y 4 secciones; omite una sección si no hay contenido para ella.
 - Cada punto en una frase; máximo 8 puntos por sección.`;
-  const secciones = await pedirJSON(env, modelo, sistema, `Materia: ${materiaNombre}. Semana ${fuente.semana}.\n\nApuntes:\n${fuente.apuntes}`,
+  const secciones = await pedirJSON(env, { modelo, leida }, sistema, `Materia: ${materiaNombre}. Semana ${fuente.semana}.\n\nApuntes:\n${fuente.apuntes}`,
     (j) => (Array.isArray(j?.secciones) && j.secciones.some((s) => Array.isArray(s?.puntos) && s.puntos.length) ? j.secciones : null));
   const bloques = [
     { object: 'block', type: 'paragraph', paragraph: { rich_text: rich(`Hecho a partir de: ${fuente.clases.map((c) => c.titulo).filter(Boolean).join(', ') || 'apuntes de la semana'}.`) } },

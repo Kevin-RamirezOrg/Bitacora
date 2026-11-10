@@ -23,6 +23,8 @@ const MAX_FAVORITOS = 20;
 export const CONFIG_INICIAL = {
   principal: { proveedor: 'nanogpt', modelo: '' },
   respaldo: null,
+  // Modelo pequeño y veloz para decidir si un mensaje necesita Notion. Sin elegir, se usa el principal.
+  rapido: null,
   parametros: { temperature: 0.7 },
   extra: {},
   favoritos: [],
@@ -105,6 +107,7 @@ export function validarConfig(c) {
   return {
     principal: validarModelo(c.principal, 'principal'),
     respaldo: c.respaldo ? validarModelo(c.respaldo, 'respaldo') : null,
+    rapido: c.rapido?.modelo ? validarModelo(c.rapido, 'rapido') : null,
     parametros: validarParametros(c.parametros),
     extra: validarExtra(c.extra),
     favoritos: validarFavoritos(c.favoritos),
@@ -148,6 +151,13 @@ function claveDe(env, proveedor) {
   return clave;
 }
 
+const esperar = (ms) => new Promise((ok) => setTimeout(ok, ms));
+// Códigos del proveedor que suelen pasar solos al reintentar: límite de uso o saturación momentánea.
+const PASAJEROS = new Set([429, 500, 503, 529]);
+const ESPERA_REINTENTO_MS = 1200;
+// Modelos que rechazaron el modo JSON: no se les vuelve a pedir en esta instancia del Worker.
+const sinModoJson = new Set();
+
 async function pedir(env, proveedor, ruta, opciones = {}) {
   const { base } = PROVEEDORES[proveedor];
   let respuesta;
@@ -169,7 +179,9 @@ async function pedir(env, proveedor, ruta, opciones = {}) {
   try { datos = JSON.parse(texto); } catch { /* respuesta no JSON */ }
   if (!respuesta.ok) {
     const mensaje = datos?.error?.message || datos?.message || texto.slice(0, 300);
-    throw new ErrorIA(502, `${PROVEEDORES[proveedor].nombre} respondió ${respuesta.status}`, mensaje);
+    const error = new ErrorIA(502, `${PROVEEDORES[proveedor].nombre} respondió ${respuesta.status}`, mensaje);
+    error.origen = respuesta.status; // código real del proveedor
+    throw error;
   }
   return datos;
 }
@@ -195,12 +207,27 @@ export async function listarModelos(env, proveedor) {
     .sort((a, b) => a.localeCompare(b));
 }
 
-async function completar(env, destino, mensajes, parametros, extra) {
+async function completar(env, destino, mensajes, parametros, extra, { json = false } = {}) {
   if (!destino.modelo) throw new ErrorIA(400, 'No hay modelo elegido');
-  const datos = await pedir(env, destino.proveedor, '/chat/completions', {
+  const clave = `${destino.proveedor}/${destino.modelo}`;
+  const llamar = (modoJson) => pedir(env, destino.proveedor, '/chat/completions', {
     method: 'POST',
-    body: JSON.stringify({ ...extra, ...parametros, model: destino.modelo, messages: mensajes, stream: false }),
+    body: JSON.stringify({ ...extra, ...parametros, ...(modoJson ? { response_format: { type: 'json_object' } } : {}),
+      model: destino.modelo, messages: mensajes, stream: false }),
   });
+  let modoJson = json && !sinModoJson.has(clave);
+  let datos;
+  let reintentado = false;
+  for (;;) {
+    try { datos = await llamar(modoJson); break; } catch (error) {
+      if (!(error instanceof ErrorIA)) throw error;
+      // El proveedor no acepta el modo JSON con este modelo: se pide igual que antes (el prompt ya exige JSON).
+      if (modoJson && error.origen === 400) { sinModoJson.add(clave); modoJson = false; continue; }
+      // Límite de uso o saturación: un solo reintento tras una pausa corta, antes de pasar al respaldo.
+      if (!reintentado && PASAJEROS.has(error.origen)) { reintentado = true; await esperar(ESPERA_REINTENTO_MS); continue; }
+      throw error;
+    }
+  }
   const texto = datos?.choices?.[0]?.message?.content;
   if (typeof texto !== 'string') throw new ErrorIA(502, 'Respuesta del proveedor sin texto');
   return { texto, uso: datos.usage || null };
@@ -209,16 +236,27 @@ async function completar(env, destino, mensajes, parametros, extra) {
 // Envía la conversación al modelo principal y, si falla, al de respaldo.
 // Si se pasa `configPrueba` (botón Probar del panel), se usa en lugar de la guardada.
 // Si se pasa `modelo` (un favorito elegido en el chat), reemplaza solo al principal.
-export async function chat(env, { mensajes, config: configPrueba, modelo }) {
+// Opciones internas del Worker (la app no las puede enviar; ver la ruta /ia/chat):
+//   leida        configuración ya leída de KV, para no leerla en cada llamada de un mismo mensaje
+//   rapido       usa primero el "modelo rápido" si está elegido (para clasificar)
+//   json         pide modo JSON al proveedor (se desactiva solo si lo rechaza)
+//   temperatura  tope de temperatura para tareas que deben salir con forma fija
+export async function chat(env, { mensajes, config: configPrueba, modelo, leida, rapido = false, json = false, temperatura }) {
   const lista = validarMensajes(mensajes);
-  const config = configPrueba ? validarConfig(configPrueba) : await leerConfig(env);
+  const guardada = configPrueba ? validarConfig(configPrueba) : leida || await leerConfig(env);
+  const config = { ...guardada };
   if (modelo) config.principal = validarModelo(modelo, 'modelo');
+  const parametros = { ...config.parametros };
+  if (typeof temperatura === 'number') parametros.temperature = Math.min(parametros.temperature ?? temperatura, temperatura);
 
-  const intentos = [config.principal, config.respaldo].filter(Boolean);
+  const mismo = (a, b) => a && b && a.proveedor === b.proveedor && a.modelo === b.modelo;
+  const intentos = [rapido ? config.rapido : null, config.principal, config.respaldo]
+    .filter((d) => d?.modelo).filter((d, i, todos) => todos.findIndex((x) => mismo(x, d)) === i);
+  if (!intentos.length) throw new ErrorIA(400, 'No hay modelo elegido');
   const fallos = [];
   for (const destino of intentos) {
     try {
-      const { texto, uso } = await completar(env, destino, lista, config.parametros, config.extra);
+      const { texto, uso } = await completar(env, destino, lista, parametros, config.extra, { json });
       return { texto, uso, proveedor: destino.proveedor, modelo: destino.modelo, fallos };
     } catch (error) {
       if (!(error instanceof ErrorIA)) throw error;
