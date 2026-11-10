@@ -1941,12 +1941,14 @@ function resultRow(r) {
     case 'crear_fila': return row('plus', r.titulo, `Nueva en ${r.base}` + (valoresTxt(r.valores, r.titulo) ? ' · ' + valoresTxt(r.valores, r.titulo) : ''), r.url);
     case 'editar_fila': return row('edit', r.titulo, `${r.base} · ` + (valoresTxt(r.valores) || 'Actualizada'), r.url);
     case 'archivar_fila': return row('trash', r.titulo, `En la papelera de Notion${r.base ? ' · ' + r.base : ''}`, r.url);
-    case 'resumen_semanal': return row('doc', r.titulo, r.yaExistia ? `Ya existía en Resúmenes · Semana ${r.semana}` : `Nuevo en Resúmenes · Semana ${r.semana} · ${r.puntos} puntos`, r.url);
+    case 'resumen_semanal': return row('doc', r.titulo, r.yaExistia ? `Ya existía en Resúmenes · Semana ${r.semana}` : `Nuevo en Resúmenes · Semana ${r.semana} · ${r.puntos} puntos` + (r.fuentes?.length ? ' · ' + fuentesTxt(r.fuentes) : ''), r.url);
     case 'recordar': return row('brain', 'Guardado en la memoria', r.texto);
     case 'olvidar': return row('brain', 'Borrado de la memoria', r.texto);
     default: return null;
   }
 }
+// Clases de las que salieron las preguntas o el resumen; avisa si alguna no cupo entera.
+const fuentesTxt = f => 'Apuntes usados: ' + f.map(x => x.titulo + (x.completa === false ? ' (recortada)' : '')).join(', ');
 const valoresTxt = (v, skip) => Object.entries(v || {}).filter(([, x]) => x !== skip).slice(0, 4)
   .map(([k, x]) => `${k}: ${Array.isArray(x) ? x.join(', ') : x && typeof x === 'object' ? [x.inicio, x.fin].filter(Boolean).join(' → ') : x === true ? 'sí' : x === false ? 'no' : x ?? '—'}`).join(' · ');
 function rowsList(r) {
@@ -1962,6 +1964,7 @@ function practiceCards(m, r, undone) {
     ? `${r.tarjetas.length} pregunta${r.tarjetas.length === 1 ? '' : 's'} nueva${r.tarjetas.length === 1 ? '' : 's'} en el Banco · ${r.materia} · Semana ${r.semana}`
     : `Práctica · ${r.materia} · ${r.tarjetas.length} de ${r.total}`;
   const box = h('div',{class:'res' + (undone ? ' undone' : '')}, h('div',{class:'res-h',text:head}));
+  if (r.fuentes?.length) box.append(h('p',{class:'msg-meta',style:{margin:'8px 12px 0'},text:fuentesTxt(r.fuentes)}));
   const card = (t, i) => {
     const el = h('div',{class:'pc'});
     const paint = (open) => {

@@ -89,7 +89,7 @@ export function fakeNotion() {
     const ini = cursor ? Number(cursor) : 0; const fin = ini + (tam || 100);
     return { results: lista.slice(ini, fin), has_more: fin < lista.length, next_cursor: fin < lista.length ? String(fin) : null };
   }
-  const registrar = (padre, lista) => lista.map((b) => { const id = nuevoId(); const { _hijos, ...resto } = b; if (_hijos) bloques.set(id, registrar(id, _hijos)); return { id, ...resto }; });
+  const registrar = (padre, lista) => lista.map((b) => { const id = nuevoId(); const { _hijos, id: _anterior, ...resto } = b; if (_hijos) bloques.set(id, registrar(id, _hijos)); return { id, ...resto }; });
 
   async function atender(url, init = {}) {
     const u = new URL(url); const ruta = u.pathname.replace('/v1', ''); const metodo = (init.method || 'GET').toUpperCase();

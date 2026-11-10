@@ -6,7 +6,10 @@ import { normal, notion, rich, sinGuiones, texto } from './notion.js';
 const CLAVE = 'notion:bases:v2';
 const TTL = 6 * 60 * 60;
 const MAX_FILAS = 25;
-const MAX_TEXTO_PAGINA = 6000;
+const MAX_TEXTO_PAGINA = 9000;
+const MAX_BLOQUES = 400;   // bloques leídos por página, contando los anidados
+const MAX_ANIDADOS = 12;   // lecturas extra por página para bloques con hijos (cada una es una petición a Notion)
+const MAX_NIVEL = 2;       // profundidad: sub-viñetas y un nivel más
 
 // Tipos que se pueden escribir desde el asistente.
 const ESCRIBIBLES = new Set(['title', 'rich_text', 'number', 'select', 'status', 'multi_select', 'date', 'checkbox', 'url', 'email', 'phone_number', 'relation']);
@@ -154,18 +157,62 @@ export async function consultar(env, base, { buscar, filtros, limite }, { materi
   return { filas: (r.results || []).map((p) => filaLegible(p, base, materias)), mas: !!r.has_more };
 }
 
-// Texto del cuerpo de una página (apuntes, resúmenes…), recortado.
-export async function leerPagina(env, id) {
-  const r = await notion(env, `/blocks/${id}/children?page_size=100`);
-  const lineas = [];
-  for (const b of r.results || []) {
-    const c = b[b.type] || {};
-    const t = (c.rich_text || []).map((x) => x.plain_text || '').join('');
-    if (t) lineas.push(b.type.startsWith('heading') ? `## ${t}` : b.type.includes('list_item') ? `- ${t}` : b.type === 'to_do' ? `[${c.checked ? 'x' : ' '}] ${t}` : t);
-    if (lineas.join('\n').length > MAX_TEXTO_PAGINA) break;
+// Una línea de texto por bloque. Devuelve null si el bloque no tiene nada que leer (imagen, divisor…).
+function lineaDeBloque(b) {
+  const c = b[b.type] || {};
+  const t = (c.rich_text || []).map((x) => x.plain_text || '').join('').trim();
+  switch (b.type) {
+    case 'heading_1': case 'heading_2': case 'heading_3': return t ? `## ${t}` : null;
+    case 'bulleted_list_item': case 'numbered_list_item': return t ? `- ${t}` : null;
+    case 'to_do': return t ? `[${c.checked ? 'x' : ' '}] ${t}` : null;
+    case 'quote': case 'callout': return t ? `> ${t}` : null;
+    case 'code': return t ? `Código${c.language ? ` (${c.language})` : ''}: ${t}` : null;
+    case 'equation': return c.expression ? `Ecuación: ${c.expression}` : null;
+    case 'table_row': { const celdas = (c.cells || []).map((celda) => celda.map((x) => x.plain_text || '').join('').trim()); return celdas.some(Boolean) ? `| ${celdas.join(' | ')} |` : null; }
+    case 'child_page': return c.title ? `(subpágina: ${c.title})` : null;
+    default: return t || null;
   }
-  const textoPagina = lineas.join('\n');
-  return textoPagina.length > MAX_TEXTO_PAGINA ? textoPagina.slice(0, MAX_TEXTO_PAGINA) + '…' : textoPagina;
+}
+
+// Lee los bloques de una página o de un bloque, por páginas de 100, y baja a los que tienen hijos
+// (sub-viñetas, desplegables, tablas) mientras quede presupuesto. Los hijos de un mismo nivel se piden en paralelo.
+async function leerBloques(env, id, nivel, estado) {
+  const lineas = [];
+  let cursor;
+  do {
+    const r = await notion(env, `/blocks/${id}/children?page_size=100${cursor ? `&start_cursor=${encodeURIComponent(cursor)}` : ''}`);
+    const lote = r.results || [];
+    estado.bloques += lote.length;
+    const hijos = await Promise.all(lote.map((b) => {
+      if (!b.has_children || b.type === 'child_page' || b.type === 'child_database') return null;
+      if (nivel >= MAX_NIVEL || estado.anidados <= 0) { estado.cortada = true; return null; }
+      estado.anidados--;
+      return leerBloques(env, b.id, nivel + 1, estado).catch(() => { estado.cortada = true; return []; });
+    }));
+    lote.forEach((b, i) => {
+      const l = lineaDeBloque(b);
+      if (l) lineas.push('  '.repeat(nivel) + l);
+      if (hijos[i]) lineas.push(...hijos[i]);
+    });
+    cursor = r.has_more ? r.next_cursor : undefined;
+    if (cursor && estado.bloques >= MAX_BLOQUES) { estado.cortada = true; cursor = undefined; }
+  } while (cursor);
+  return lineas;
+}
+
+// Texto completo del cuerpo de una página: { texto, cortada }. `cortada` avisa si quedó algo sin leer.
+// `anidados` limita las lecturas extra (cada una es una petición a Notion; el plan gratuito permite 50 por mensaje).
+export async function leerPaginaCompleta(env, id, { max = MAX_TEXTO_PAGINA, anidados = MAX_ANIDADOS } = {}) {
+  const estado = { bloques: 0, anidados, cortada: false };
+  const completo = (await leerBloques(env, id, 0, estado)).join('\n');
+  const cortada = estado.cortada || completo.length > max;
+  return { texto: completo.length > max ? completo.slice(0, max) : completo, cortada, largo: completo.length };
+}
+
+// Texto del cuerpo de una página (apuntes, resúmenes…). Si no cupo todo, lo dice al final.
+export async function leerPagina(env, id, opciones) {
+  const r = await leerPaginaCompleta(env, id, opciones);
+  return r.cortada ? `${r.texto}\n[La página sigue: aquí solo cabe una parte.]` : r.texto;
 }
 
 // ---------- Escritura ----------

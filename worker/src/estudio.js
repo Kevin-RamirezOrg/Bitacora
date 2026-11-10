@@ -4,10 +4,11 @@
 import { chat } from './ia.js';
 import { hoy, normal, notion, rich, texto } from './notion.js';
 import { semestreInfo } from './horario.js';
-import { leerPagina } from './universidad.js';
+import { leerPaginaCompleta } from './universidad.js';
 
 const DOMINIOS = ['No la sé', 'Más o menos', 'La sé'];
-const MAX_APUNTES = 12000;
+const MAX_APUNTES = 24000;       // caracteres de apuntes que se envían al modelo por pedido
+const ANIDADOS_POR_PEDIDO = 16;  // lecturas extra de sub-viñetas y tablas, repartidas entre las clases
 
 export class ErrorEstudio extends Error {
   constructor(mensaje, status = 400) { super(mensaje); this.status = status; }
@@ -33,16 +34,43 @@ async function apuntesDeSemana(env, materiaId, semanaPedida) {
     });
     const clases = r.results || [];
     if (!clases.length) continue;
-    const partes = [];
-    for (const p of clases) {
-      const t = await leerPagina(env, p.id);
-      if (t.trim()) partes.push(`### ${texto(p.properties?.Clase) || 'Clase'}\n${t}`);
-    }
-    const apuntes = partes.join('\n\n').slice(0, MAX_APUNTES);
-    if (apuntes.trim()) return { semana, apuntes, clases: clases.map((p) => ({ id: p.id, titulo: texto(p.properties?.Clase), url: p.url })) };
+    // Las páginas se leen en paralelo y el límite se reparte: una clase corta cede su espacio a las largas,
+    // así ninguna queda fuera por ir al final.
+    const porClase = Math.max(1, Math.floor(ANIDADOS_POR_PEDIDO / clases.length));
+    const leidas = await Promise.all(clases.map((p) => leerPaginaCompleta(env, p.id, { max: MAX_APUNTES, anidados: porClase })
+      .then((r) => ({ p, ...r })).catch(() => ({ p, texto: '', cortada: true, largo: 0 }))));
+    const conTexto = leidas.filter((x) => x.texto.trim());
+    if (!conTexto.length) continue;
+    const cupos = repartir(conTexto.map((x) => x.texto.length), MAX_APUNTES);
+    const fuentes = conTexto.map((x, i) => ({ id: x.p.id, titulo: texto(x.p.properties?.Clase) || 'Clase', url: x.p.url, completa: !x.cortada && cupos[i] >= x.texto.length }));
+    const apuntes = conTexto.map((x, i) => `### ${fuentes[i].titulo}\n${x.texto.slice(0, cupos[i])}`).join('\n\n');
+    return { semana, apuntes, clases: fuentes };
   }
   throw new ErrorEstudio(semanaPedida ? `no encontré apuntes de la semana ${semanaPedida} de esa materia` : 'no encontré apuntes de esta semana ni de la anterior en esa materia');
 }
+
+// Reparte `total` entre varios textos: cada uno recibe lo que necesita hasta una parte igual, y lo que sobra
+// de los cortos pasa a los largos.
+export function repartir(largos, total) {
+  const cupos = largos.map(() => 0);
+  let resto = total;
+  let pendientes = largos.map((_, i) => i);
+  while (pendientes.length && resto >= pendientes.length) {
+    const parte = Math.floor(resto / pendientes.length);
+    const siguen = [];
+    for (const i of pendientes) {
+      const doy = Math.min(largos[i] - cupos[i], parte);
+      cupos[i] += doy; resto -= doy;
+      if (cupos[i] < largos[i]) siguen.push(i);
+    }
+    if (siguen.length === pendientes.length) break; // todos tomaron su parte entera: ya no sobra nada
+    pendientes = siguen;
+  }
+  return cupos;
+}
+
+// Nombres de las clases usadas, para mostrarlos junto al resultado ("recortada" si no cupo entera).
+const fuentesLegibles = (clases) => clases.map((c) => ({ titulo: c.titulo, url: c.url, completa: c.completa }));
 
 // Pide al modelo un JSON y lo extrae (con un reintento si viene mal).
 async function pedirJSON(env, modelo, sistema, usuario, validar) {
@@ -99,7 +127,7 @@ Responde SOLO con JSON: {"preguntas": [{"pregunta": "...", "respuesta": "..."}]}
     });
     creadas.push({ id: p.id, url: p.url, pregunta: q.pregunta, respuesta: q.respuesta, dominio: 'No la sé' });
   }
-  return { semana: fuente.semana, tarjetas: creadas, deshacer: { tipo: 'papeleras', ids: creadas.map((c) => c.id) } };
+  return { semana: fuente.semana, tarjetas: creadas, fuentes: fuentesLegibles(fuente.clases), deshacer: { tipo: 'papeleras', ids: creadas.map((c) => c.id) } };
 }
 
 // ---------- Práctica ----------
@@ -166,6 +194,6 @@ Responde SOLO con JSON: {"secciones": [{"titulo": "Temas vistos", "puntos": ["..
       children: bloques,
     },
   });
-  return { id: p.id, url: p.url, titulo, semana: fuente.semana, puntos: bloques.filter((b) => b.type === 'bulleted_list_item').length, deshacer: { tipo: 'papelera', id: p.id } };
+  return { id: p.id, url: p.url, titulo, semana: fuente.semana, puntos: bloques.filter((b) => b.type === 'bulleted_list_item').length, fuentes: fuentesLegibles(fuente.clases), deshacer: { tipo: 'papelera', id: p.id } };
 }
 
