@@ -13,7 +13,7 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET' || req.mode !== 'navigate' || new URL(req.url).origin !== location.origin) return;
   e.respondWith(
     fetch(req)
-      .then((r) => { const copia = r.clone(); caches.open(CACHE).then((c) => c.put('/', copia)); return r; })
+      .then((r) => { if (r.ok) { const copia = r.clone(); caches.open(CACHE).then((c) => c.put('/', copia)); } return r; })
       .catch(() => caches.match('/').then((r) => r || new Response('Sin conexión', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })))
   );
 });

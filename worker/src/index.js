@@ -8,6 +8,7 @@ import {
 } from './asistente.js';
 import { datosHoy, marcarRepaso } from './hoy.js';
 import { ErrorEstudio, marcarDominio } from './estudio.js';
+import { ErrorBase } from './universidad.js';
 import { subirAudio, transcribirArchivo } from './audio.js';
 import { hablar } from './voz.js';
 
@@ -88,7 +89,7 @@ function enLineas(ctx, trabajo) {
     try {
       await enviar({ fin: await trabajo((t) => { enviar({ etapa: t }); }) });
     } catch (e) {
-      const conocido = e instanceof ErrorIA || e instanceof ErrorNotion || e instanceof ErrorAsistente || e instanceof ErrorEstudio;
+      const conocido = e instanceof ErrorIA || e instanceof ErrorNotion || e instanceof ErrorAsistente || e instanceof ErrorEstudio || e instanceof ErrorBase;
       if (!conocido) console.error(e);
       await enviar({ error: conocido ? e.message : 'Error interno', detalle: e.detalle ?? null, status: e.status || 500 });
     } finally {
@@ -216,8 +217,8 @@ export default {
       if (error instanceof ErrorIA) {
         return json({ error: error.message, detalle: error.detalle ?? null }, error.status);
       }
-      if (error instanceof ErrorNotion || error instanceof ErrorAsistente || error instanceof ErrorEstudio) {
-        return json({ error: error.message }, error.status);
+      if (error instanceof ErrorNotion || error instanceof ErrorAsistente || error instanceof ErrorEstudio || error instanceof ErrorBase) {
+        return json({ error: error.message }, error.status || 400);
       }
       console.error(error);
       return json({ error: 'Error interno' }, 500);

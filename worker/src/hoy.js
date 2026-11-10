@@ -12,12 +12,12 @@ const HORIZONTE_REPASOS = 14;
 // Días antes de la evaluación en que conviene repasar (sesiones cortas y espaciadas).
 export const PLAN_REPASO = { Examen: [10, 6, 3, 1], Prueba: [6, 3, 1] };
 
-let tablaLista = false;
+const basesListas = new WeakSet();
 async function db(env) {
   if (!env.DB) throw new ErrorAsistente(503, 'Falta la base D1 en Cloudflare');
-  if (!tablaLista) {
+  if (!basesListas.has(env.DB)) {
     await env.DB.prepare('CREATE TABLE IF NOT EXISTS repasos (tarea TEXT NOT NULL, fecha TEXT NOT NULL, hecho INTEGER NOT NULL DEFAULT 1, actualizado INTEGER NOT NULL, PRIMARY KEY (tarea, fecha))').run();
-    tablaLista = true;
+    basesListas.add(env.DB);
   }
   return env.DB;
 }

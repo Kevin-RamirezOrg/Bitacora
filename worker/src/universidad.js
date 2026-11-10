@@ -11,7 +11,9 @@ const MAX_TEXTO_PAGINA = 6000;
 // Tipos que se pueden escribir desde el asistente.
 const ESCRIBIBLES = new Set(['title', 'rich_text', 'number', 'select', 'status', 'multi_select', 'date', 'checkbox', 'url', 'email', 'phone_number', 'relation']);
 
-export class ErrorBase extends Error {}
+export class ErrorBase extends Error {
+  constructor(mensaje, status = 400) { super(mensaje); this.status = status; }
+}
 
 // ---------- Esquemas ----------
 

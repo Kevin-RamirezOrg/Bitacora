@@ -9,7 +9,9 @@ import { leerPagina } from './universidad.js';
 const DOMINIOS = ['No la sé', 'Más o menos', 'La sé'];
 const MAX_APUNTES = 12000;
 
-export class ErrorEstudio extends Error {}
+export class ErrorEstudio extends Error {
+  constructor(mensaje, status = 400) { super(mensaje); this.status = status; }
+}
 
 // Semana del semestre para una fecha (1 = la semana del inicio).
 export function semanaDe(fecha, inicio) {

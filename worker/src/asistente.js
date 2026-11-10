@@ -29,10 +29,10 @@ export class ErrorAsistente extends Error {
 
 // ---------- Historial, chats, memoria y valoraciones en D1 ----------
 
-let tablaLista = false;
+const basesListas = new WeakSet(); // una vez por instancia del Worker
 async function db(env) {
   if (!env.DB) throw new ErrorAsistente(503, 'Falta la base D1 del historial en Cloudflare');
-  if (!tablaLista) {
+  if (!basesListas.has(env.DB)) {
     await env.DB.batch([
       env.DB.prepare('CREATE TABLE IF NOT EXISTS mensajes (id INTEGER PRIMARY KEY AUTOINCREMENT, rol TEXT NOT NULL, texto TEXT NOT NULL, datos TEXT, creado INTEGER NOT NULL)'),
       env.DB.prepare('CREATE INDEX IF NOT EXISTS mensajes_creado ON mensajes (creado)'),
@@ -48,7 +48,7 @@ async function db(env) {
       const c = await env.DB.prepare('INSERT INTO chats (titulo, creado, actualizado) VALUES (?, ?, ?)').bind('Conversación anterior', sueltos.ini, sueltos.fin).run();
       await env.DB.prepare('UPDATE mensajes SET chat = ? WHERE chat IS NULL').bind(c.meta.last_row_id).run();
     }
-    tablaLista = true;
+    basesListas.add(env.DB);
   }
   return env.DB;
 }
@@ -684,7 +684,7 @@ async function clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, vo
 }
 
 // Guarda el par de mensajes (o lo devuelve sin guardar en un chat temporal).
-async function guardarTurno(base, { temporal, chatInfo, entrada, respuesta, datos }) {
+async function guardarTurno(env, base, { temporal, chatInfo, entrada, respuesta, datos }) {
   const ahora = Date.now();
   if (temporal) {
     return {
@@ -693,6 +693,8 @@ async function guardarTurno(base, { temporal, chatInfo, entrada, respuesta, dato
       asistente: { id: `t${ahora}a`, rol: 'asistente', texto: respuesta, datos, creado: ahora + 1 },
     };
   }
+  // Un chat nuevo se crea recién aquí: si el modelo falló antes, no queda un chat vacío.
+  if (!chatInfo) chatInfo = await crearChat(env, entrada);
   const [u, a] = await base.batch([
     base.prepare('INSERT INTO mensajes (rol, texto, datos, creado, chat) VALUES (?, ?, NULL, ?, ?)').bind('usuario', entrada, ahora, chatInfo.id),
     base.prepare('INSERT INTO mensajes (rol, texto, datos, creado, chat) VALUES (?, ?, ?, ?, ?)').bind('asistente', respuesta, JSON.stringify(datos), ahora + 1, chatInfo.id),
@@ -725,18 +727,14 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
   const base = await db(env);
 
   const fechaHoy = hoy();
-  // Chat: el temporal no se guarda; uno normal se crea con el primer mensaje si no existe.
+  // Chat: el temporal no se guarda; uno nuevo se crea al guardar el turno (ver guardarTurno).
   let chatInfo = null;
-  if (!temporal) {
-    if (chatPedido) {
-      const c = await base.prepare('SELECT id, titulo FROM chats WHERE id = ?').bind(Number(chatPedido)).first();
-      if (!c) throw new ErrorAsistente(404, 'Ese chat ya no existe');
-      chatInfo = c;
-    } else {
-      chatInfo = await crearChat(env, entrada);
-    }
+  if (!temporal && chatPedido) {
+    const c = await base.prepare('SELECT id, titulo FROM chats WHERE id = ?').bind(Number(chatPedido)).first();
+    if (!c) throw new ErrorAsistente(404, 'Ese chat ya no existe');
+    chatInfo = c;
   }
-  const previos = temporal ? previosTemporales(historialCliente) : await historial(env, { chat: chatInfo.id, limite: HISTORIAL_CONTEXTO });
+  const previos = temporal ? previosTemporales(historialCliente) : chatInfo ? await historial(env, { chat: chatInfo.id, limite: HISTORIAL_CONTEXTO }) : [];
   const memoria = await listarMemoria(env);
 
   // Conversación simple: se responde sin leer Notion.
@@ -746,7 +744,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
   const c = practica ? { tipo: 'notion', fallos: [] } : await clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, voz });
   if (c.tipo === 'charla') {
     const datos = { resultados: c.contenido ? [c.contenido] : [], modelo: c.r.modelo, proveedor: c.r.proveedor, respaldo: c.r.fallos?.length ? true : undefined, charla: true };
-    return guardarTurno(base, { temporal, chatInfo, entrada, respuesta: c.respuesta, datos });
+    return guardarTurno(env, base, { temporal, chatInfo, entrada, respuesta: c.respuesta, datos });
   }
 
   progreso('Leyendo tu Notion…');
@@ -895,7 +893,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     if (pr && pr.hechas.length < pr.tarjetas.length) datos.practica = pr; // se arrastra hasta terminar
     datos.voz = true;
   }
-  return guardarTurno(base, { temporal, chatInfo, entrada, respuesta, datos });
+  return guardarTurno(env, base, { temporal, chatInfo, entrada, respuesta, datos });
 }
 
 // Un paso de deshacer: en Notion o en la memoria (D1).

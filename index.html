@@ -70,6 +70,7 @@
 html{height:100%;-webkit-text-size-adjust:100%;background:var(--bg)}
 body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
+::placeholder{color:var(--muted);opacity:1}
 img{max-width:100%}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;background:none;border:0;padding:0}
@@ -420,6 +421,22 @@ input.search-field::placeholder{color:var(--muted)}
 .msg.ia{align-self:flex-start;width:min(88%,620px)}
 .msg.ia > .txt{background:var(--surface);border:1px solid var(--line);padding:10px 14px;border-radius:18px 18px 18px 6px;white-space:pre-wrap}
 .msg.err > .txt{background:var(--danger-soft);border-color:var(--danger)}
+.msg.ia > .txt.md{white-space:normal}
+.txt.md > :first-child{margin-top:0}
+.txt.md > :last-child{margin-bottom:0}
+.txt.md p{margin:.5em 0}
+.txt.md ul,.txt.md ol{margin:.4em 0;padding-left:1.3em}
+.txt.md li{margin:.15em 0}
+.txt.md h1,.txt.md h2,.txt.md h3,.txt.md h4{font-size:1em;font-weight:700;margin:.8em 0 .3em}
+.txt.md a{color:var(--accent-ink);text-underline-offset:3px}
+.txt.md code{font-family:var(--f-mono);font-size:.88em;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:.05em .35em}
+.txt.md pre{font-family:var(--f-mono);font-size:14px;line-height:1.5;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;overflow-x:auto;margin:.5em 0}
+.txt.md pre code{background:none;border:0;padding:0;font-size:inherit}
+.txt.md table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%;font-size:.94em;margin:.5em 0}
+.txt.md th,.txt.md td{border:1px solid var(--line-strong);padding:5px 8px;text-align:left}
+.txt.md th{background:var(--surface-2)}
+.txt.md blockquote{margin:.5em 0;padding-left:.8em;border-left:3px solid var(--line-strong);color:var(--ink-2)}
+.txt.md hr{border:0;border-top:1px solid var(--line-strong);margin:.8em 0}
 .msg-acts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}
 button.msg.yo{font:inherit;color:var(--ink);text-align:left;cursor:pointer}
 button.msg.yo[aria-expanded="true"]{border-color:var(--accent-ink)}
@@ -593,7 +610,8 @@ button.msg.yo[aria-expanded="true"]{border-color:var(--accent-ink)}
 .rate[aria-pressed="true"]{color:var(--accent-ink);background:var(--accent-soft)}
 .send{width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;flex:none}
 .send svg{width:20px;height:20px}
-.send:disabled{opacity:.55;cursor:default}
+.send:disabled{background:var(--surface-3);color:var(--muted);cursor:default}
+.send.stop{background:var(--surface);color:var(--ink);border:1.5px solid var(--line-strong)}
 @media (min-width:900px){ .chat-comp{padding-bottom:16px} }
 
 /* ---------- Lock ---------- */
@@ -1344,14 +1362,15 @@ function chatModelo() { // favorite picked in the chat, or null = saved principa
 }
 async function chatSend(text, opts = {}) {
   text = String(text || '').trim(); if (!text || CHAT.sending) return null; let reply = null;
-  CHAT.sending = { texto:text }; CHAT.failed = null; CHAT.draft = ''; chatPaint(true);
+  const ctl = new AbortController();
+  CHAT.sending = { texto:text, ctl }; CHAT.failed = null; CHAT.draft = ''; chatPaint(true);
   const temporal = CHAT.temporal;
   try {
     const modelo = chatModelo();
     const body = { texto:text, ...(modelo ? { modelo } : {}), ...(opts.voz ? { voz:true } : {}) };
     if (temporal) Object.assign(body, { temporal:true, historial: CHAT.tmsgs.slice(-8).map(m => ({ rol:m.rol, texto:m.texto, datos:m.datos })) });
     else if (CHAT.chatId) body.chat = CHAT.chatId;
-    const r = await apiStream('/asistente/mensaje', body, t => { if (CHAT.sending) { CHAT.sending.etapa = t; const el = $('#chatTyping .etapa'); if (el) el.textContent = t; CHAT.onEtapa?.(t); } });
+    const r = await apiStream('/asistente/mensaje', body, t => { if (CHAT.sending) { CHAT.sending.etapa = t; const el = $('#chatTyping .etapa'); if (el) el.textContent = t; CHAT.onEtapa?.(t); } }, ctl);
     reply = r.asistente;
     if (temporal) { if (CHAT.temporal) CHAT.tmsgs.push(r.usuario, r.asistente); }
     else {
@@ -1360,10 +1379,11 @@ async function chatSend(text, opts = {}) {
       CHAT.chats = [c, ...CHAT.chats.filter(x => x.id !== c.id)];
       if (!CHAT.temporal && (CHAT.chatId === r.chat.id || !CHAT.chatId)) { CHAT.chatId = r.chat.id; setPref('bitacora.chatActual', r.chat.id); CHAT.msgs.push(r.usuario, r.asistente); }
     }
-  } catch (e) { CHAT.failed = { texto:text, error:e.message }; }
+  } catch (e) { CHAT.failed = { texto:text, error:e.message, detenido:!!e.detenido }; }
   finally { CHAT.sending = false; chatPaint(true); }
   return reply;
 }
+function chatStop() { CHAT.sending?.ctl?.abort(); }
 async function chatUndo(m, btn) {
   btn.disabled = true;
   try {
@@ -2079,6 +2099,16 @@ function chatDelete(m) {
       CHAT.selUser = null; chatPaint(); toast('Mensaje borrado'); return true; } });
 }
 
+// Las respuestas de Kell pueden traer Markdown (negritas, viñetas, tablas): se dibuja saneado; el texto simple queda tal cual.
+function chatMd(src, el) {
+  src = String(src || '');
+  if (!/[*_`#|~]|\[[^\]]+\]\(|^\s*(?:[-+>]|\d+[.)])\s/m.test(src)) { el.textContent = src; return; }
+  try {
+    el.innerHTML = DOMPurify.sanitize(marked.parse(src, {gfm:true, breaks:true}), {FORBID_TAGS:['img','style','form','input','button','iframe','video','audio','svg']});
+    el.classList.add('md');
+    el.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+  } catch { el.classList.remove('md'); el.textContent = src; }
+}
 function chatMessage(m) {
   if (m.rol === 'usuario') {
     const sel = CHAT.selUser === m;
@@ -2091,7 +2121,7 @@ function chatMessage(m) {
   }
   const d = m.datos || {}; const res = d.resultados || [];
   const leyendo = VOZ.msg === m;
-  const txt = h('div',{class:'txt'}); if (leyendo) { vozWordsEl(m.texto, txt); vozMark(txt, VOZ.word); } else txt.textContent = m.texto;
+  const txt = h('div',{class:'txt'}); if (leyendo) { vozWordsEl(m.texto, txt); vozMark(txt, VOZ.word); } else chatMd(m.texto, txt);
   const el = h('div',{class:'msg ia' + (leyendo ? ' reading-now' : '')}, txt);
   const actions = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','proponer_recuerdo','preguntas_estudio','practicar','mostrar_contenido'].includes(r.accion) || !r.ok).map(resultRow).filter(Boolean);
   if (actions.length) el.append(h('div',{class:'res' + (d.deshecho ? ' undone' : '')}, ...actions));
@@ -2180,7 +2210,7 @@ function viewAssistant(scr) {
     h('span',{class:'dots','aria-hidden':'true'}, h('i'), h('i'), h('i')), h('span',{class:'etapa',text:CHAT.sending.etapa || 'Enviando…'})));
   if (CHAT.failed) {
     const f = CHAT.failed;
-    log.append(h('div',{class:'msg yo',text:f.texto}), h('div',{class:'msg ia err',role:'alert'}, h('div',{class:'txt',text:'No se pudo procesar: ' + f.error}),
+    log.append(h('div',{class:'msg yo',text:f.texto}), h('div',{class:'msg ia err',role:'alert'}, h('div',{class:'txt',text: f.detenido ? 'Envío detenido. Si Kell ya había guardado algo en Notion, eso se mantiene.' : 'No se pudo procesar: ' + f.error}),
       h('div',{class:'msg-acts'}, h('button',{class:'link',type:'button',onclick:()=>chatSend(f.texto),text:'Reintentar'}),
         h('button',{class:'link',type:'button',onclick:()=>{ CHAT.failed = null; CHAT.draft = f.texto; chatPaint(true); $('#chatIn')?.focus(); },text:'Editar'}))));
   }
@@ -2189,11 +2219,13 @@ function viewAssistant(scr) {
   const comp = h('div',{class:'chat-comp'}); const cw = h('div',{class:'wrap pad'}); comp.append(cw); scr.append(comp);
   const ta = h('textarea',{class:'comp-in',id:'chatIn',rows:'1',placeholder: CHAT.temporal ? 'Mensaje temporal' : 'Escribe una tarea o una pregunta','aria-label':'Mensaje para Kell'});
   ta.value = CHAT.draft;
-  const send = h('button',{class:'send',type:'button','aria-label':'Enviar',html:ICON.send});
-  const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 3, 148) + 'px'; send.disabled = !!CHAT.sending || !ta.value.trim(); };
+  // Mientras Kell responde, el botón de enviar pasa a ser Detener.
+  const send = CHAT.sending ? h('button',{class:'send stop',type:'button','aria-label':'Detener',html:ICON.stop})
+    : h('button',{class:'send',type:'button','aria-label':'Enviar',html:ICON.send});
+  const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 3, 148) + 'px'; if (!CHAT.sending) send.disabled = !ta.value.trim(); };
   ta.addEventListener('input', () => { CHAT.draft = ta.value; fit(); });
   ta.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !matchMedia('(pointer:coarse)').matches) { ev.preventDefault(); send.click(); } });
-  send.onclick = () => { if (CHAT.editing) { const ed = CHAT.editing; chatRedo(ed.msg, ta.value); } else chatSend(ta.value); };
+  send.onclick = () => { if (CHAT.sending) chatStop(); else if (CHAT.editing) { const ed = CHAT.editing; chatRedo(ed.msg, ta.value); } else chatSend(ta.value); };
   if (CHAT.editing && !chatList().includes(CHAT.editing.msg)) CHAT.editing = null;
   if (CHAT.editing) cw.append(h('div',{class:'note-bar edit-bar',role:'status'}, ic('edit'), h('span',{text:'Editando tu mensaje'}),
     h('button',{class:'link',type:'button',text:'Cancelar',onclick:()=>{ CHAT.editing = null; CHAT.draft = ''; chatPaint(true); }})));
@@ -2268,41 +2300,52 @@ const AI_MAX_FAV = 20, AI_LIST_MAX = 80;
 const AI = { loaded:false, loading:false, err:null, prov:null, draft:null, saved:'', models:{}, modelsErr:{}, testMsg:'Responde solo: hola', ui:{} };
 const provName = id => AI_PROV[id]?.label || id || '';
 
+const API_MAX_MS = 130000;      // tope de una petición normal
+const STREAM_IDLE_MS = 150000;  // el chat se corta si pasan 2,5 min sin recibir nada
 async function api(path, { method='GET', body } = {}) {
   const user = auth.currentUser;
   if (!user || user.uid !== OWNER_UID) throw new Error('Ingresa con tu PIN para continuar.');
   const token = await user.getIdToken();
-  let r;
-  try { r = await fetch(WORKER_URL + path, { method, body: body ? JSON.stringify(body) : undefined,
+  let r; const limite = AbortSignal.timeout ? AbortSignal.timeout(API_MAX_MS) : undefined;
+  try { r = await fetch(WORKER_URL + path, { method, body: body ? JSON.stringify(body) : undefined, signal: limite,
     headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type':'application/json' } : {}) } }); }
-  catch { throw new Error('No se pudo conectar con el Worker. Revisa tu conexión.'); }
+  catch { throw new Error(limite?.aborted ? 'El Worker tardó demasiado en responder. Inténtalo de nuevo.' : 'No se pudo conectar con el Worker. Revisa tu conexión.'); }
   const data = await r.json().catch(() => ({}));
   if (!r.ok) { const e = new Error(data.error || 'El Worker respondió ' + r.status); e.status = r.status; e.detalle = data.detalle; throw e; }
   return data;
 }
 
 // Same as api() but reads the Worker's line-by-line progress ({etapa}) until the final {fin} or {error}.
-async function apiStream(path, body, onEtapa) {
+async function apiStream(path, body, onEtapa, ctl) {
   const user = auth.currentUser;
   if (!user || user.uid !== OWNER_UID) throw new Error('Ingresa con tu PIN para continuar.');
   const token = await user.getIdToken();
-  let r;
-  try { r = await fetch(WORKER_URL + path, { method:'POST', body: JSON.stringify(body),
-    headers: { Authorization: 'Bearer ' + token, 'Content-Type':'application/json', Accept:'application/x-ndjson' } }); }
-  catch { throw new Error('No se pudo conectar con el Worker. Revisa tu conexión.'); }
-  if (!r.ok || !(r.headers.get('Content-Type') || '').includes('ndjson') || !r.body) {
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) { const e = new Error(data.error || 'El Worker respondió ' + r.status); e.status = r.status; throw e; }
-    return data;
-  }
-  const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = ''; let fin = null;
-  const linea = l => { if (!l.trim()) return; let o; try { o = JSON.parse(l); } catch { return; }
-    if (o.etapa) onEtapa?.(o.etapa); else if (o.fin) fin = o.fin; else if (o.error) { const e = new Error(o.error); e.status = o.status; throw e; } };
-  for (;;) { const { value, done } = await reader.read(); if (done) break; buf += dec.decode(value, { stream:true });
-    let i; while ((i = buf.indexOf('\n')) >= 0) { linea(buf.slice(0, i)); buf = buf.slice(i + 1); } }
-  linea(buf);
-  if (!fin) throw new Error('La respuesta se cortó; revisa el chat en un momento.');
-  return fin;
+  // Se puede cortar a mano (botón Detener) o solo, si pasa demasiado tiempo sin recibir nada.
+  const ac = ctl || new AbortController(); let idle = null, lento = false;
+  const arm = () => { clearTimeout(idle); idle = setTimeout(() => { lento = true; ac.abort(); }, STREAM_IDLE_MS); };
+  const corte = (otro) => { if (!ac.signal.aborted) return new Error(otro);
+    const e = new Error(lento ? 'Kell tardó demasiado en responder. Reintenta; si ya había guardado algo, no se duplica.' : 'Envío detenido.'); e.detenido = !lento; return e; };
+  arm();
+  try {
+    let r;
+    try { r = await fetch(WORKER_URL + path, { method:'POST', body: JSON.stringify(body), signal: ac.signal,
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type':'application/json', Accept:'application/x-ndjson' } }); }
+    catch { throw corte('No se pudo conectar con el Worker. Revisa tu conexión.'); }
+    if (!r.ok || !(r.headers.get('Content-Type') || '').includes('ndjson') || !r.body) {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) { const e = new Error(data.error || 'El Worker respondió ' + r.status); e.status = r.status; throw e; }
+      return data;
+    }
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = ''; let fin = null;
+    const linea = l => { if (!l.trim()) return; let o; try { o = JSON.parse(l); } catch { return; }
+      if (o.etapa) onEtapa?.(o.etapa); else if (o.fin) fin = o.fin; else if (o.error) { const e = new Error(o.error); e.status = o.status; throw e; } };
+    for (;;) { let paso; try { paso = await reader.read(); } catch { throw corte('Se perdió la conexión a mitad de la respuesta. Reintenta.'); }
+      if (paso.done) break; arm(); buf += dec.decode(paso.value, { stream:true });
+      let i; while ((i = buf.indexOf('\n')) >= 0) { linea(buf.slice(0, i)); buf = buf.slice(i + 1); } }
+    linea(buf);
+    if (!fin) throw new Error('La respuesta se cortó. Reintenta.');
+    return fin;
+  } finally { clearTimeout(idle); }
 }
 
 // Form state keeps numbers as typed text; fromDraft validates like the Worker does.
@@ -2689,7 +2732,7 @@ function itemSheet(id) {
   else L.append(act('copy','Copiar contenido',()=>{ closeSheet(); copyText(plainOf(it)); }), act('download','Descargar archivo',()=>{ closeSheet(); fileExport(id); }));
   L.append(act('edit','Renombrar',()=>renameSheet(id)), act('palette','Cambiar color',()=>colorSheet(id)), act('move','Mover a…',()=>moveSheet(id)));
   if (it.type==='file') { L.append(act('dup','Duplicar',()=>{ closeSheet(); duplicate(id); }));
-    Object.entries(FORMATS).filter(([f])=>f!==it.format).forEach(([f,info]) => L.append(act('convert','Convertir a '+info.long,()=>{ closeSheet(); convertTo(id, f); }))); }
+    Object.entries(FORMATS).filter(([f])=>f!==it.format).forEach(([f,info]) => L.append(act('convert','Convertir a '+info.long,()=>{ closeSheet().then(() => convertTo(id, f)); }))); }
   L.append(h('div',{class:'act-sep'}), act('trash','Eliminar',()=>deleteSheet(id),'danger'));
   openSheet({ title: it.name, body:[L] });
 }
@@ -2901,7 +2944,13 @@ function fileExport(id) { if (S.view==='editor') flushSave(); const it = get(id)
   else { filename = base+'.'+langInfo(it.lang)[2]; data = it.content||''; }
   saveBlob(filename, data, 'text/plain;charset=utf-8'); toast('Descargado: '+filename);
 }
-function convertTo(id, fmt) { if (S.view==='editor') flushSave(); const it = get(id); if (!it || it.format===fmt) return;
+function convertTo(id, fmt, confirmado=false) { if (S.view==='editor') flushSave(); const it = get(id); if (!it || it.format===fmt) return;
+  // De texto con formato a Markdown o código solo queda el texto: se avisa antes porque no se puede recuperar.
+  if (it.format==='rich' && !confirmado && /<(b|i|u|s|strong|em|h[1-6]|ul|ol|a|span|blockquote|pre|table|mark|font)\b/i.test(it.content||'')) {
+    openSheet({ title:'Convertir a '+FORMATS[fmt].long, confirm:'Convertir', body:[h('p',{class:'sheet-p',text:'Esta nota tiene formato (negritas, títulos, listas o colores). Al convertirla queda solo el texto y ese formato no se puede recuperar.'})],
+      onConfirm: () => { convertTo(id, fmt, true); } });
+    return;
+  }
   let content = it.content||'';
   if (it.format==='rich') content = plainOf(it);
   if (fmt==='rich') content = it.format==='md' ? DOMPurify.sanitize(marked.parse(content,{gfm:true,breaks:true})) : '<pre><code>'+content.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</code></pre>';
