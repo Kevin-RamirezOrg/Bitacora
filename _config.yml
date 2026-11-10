@@ -3,3 +3,5 @@ exclude:
   - CLAUDE.md
   - worker
   - README.md
+  - tests
+  - lib/LEEME.md
