@@ -643,7 +643,7 @@ button.msg.yo[aria-expanded="true"]{border-color:var(--accent-ink)}
   <nav class="tabbar" id="tabbar" aria-label="Secciones">
     <button class="tab" data-view="home"><span class="tab-ic" data-ic="home"></span>Inicio</button>
     <button class="tab" data-view="files"><span class="tab-ic" data-ic="folder"></span>Archivos</button>
-    <button class="tab main" data-view="assistant"><span class="tab-ic" data-ic="asistente"></span>Asistente</button>
+    <button class="tab main" data-view="assistant"><span class="tab-ic" data-ic="asistente"></span>Kell</button>
     <button class="tab" data-view="panel"><span class="tab-ic" data-ic="chart"></span>Panel</button>
     <button class="tab" data-view="settings"><span class="tab-ic" data-ic="gear"></span>Ajustes</button>
   </nav>
@@ -695,7 +695,7 @@ const ICON = {
   folder: sv('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
   folderFill: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
   plus: sv('<path d="M12 5v14M5 12h14"/>', 2.6),
-  asistente: '<svg class="icono-asistente" viewBox="-17 -17 34 34" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(-1 1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(1 -1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(-1 -1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path fill="currentColor" stroke="none" d="M0 -15 L2.6 -2.6 L13 0 L2.6 2.6 L0 15 L-2.6 2.6 L-13 0 L-2.6 -2.6 Z"/></svg>',
+  asistente: '<svg class="icono-petalos" viewBox="-17 -17 34 34" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M0 -4.5 C3.5 -7 3.8 -12 1 -15.5 C-1.8 -11.5 -1.8 -7.5 0 -4.5 Z"/><path transform="rotate(45)" d="M0 -4.5 C3.5 -7 3.8 -12 1 -15.5 C-1.8 -11.5 -1.8 -7.5 0 -4.5 Z"/><path transform="rotate(90)" d="M0 -4.5 C3.5 -7 3.8 -12 1 -15.5 C-1.8 -11.5 -1.8 -7.5 0 -4.5 Z"/><path transform="rotate(135)" d="M0 -4.5 C3.5 -7 3.8 -12 1 -15.5 C-1.8 -11.5 -1.8 -7.5 0 -4.5 Z"/><path transform="rotate(180)" d="M0 -4.5 C3.5 -7 3.8 -12 1 -15.5 C-1.8 -11.5 -1.8 -7.5 0 -4.5 Z"/><path transform="rotate(225)" d="M0 -4.5 C3.5 -7 3.8 -12 1 -15.5 C-1.8 -11.5 -1.8 -7.5 0 -4.5 Z"/><path transform="rotate(270)" d="M0 -4.5 C3.5 -7 3.8 -12 1 -15.5 C-1.8 -11.5 -1.8 -7.5 0 -4.5 Z"/><path transform="rotate(315)" d="M0 -4.5 C3.5 -7 3.8 -12 1 -15.5 C-1.8 -11.5 -1.8 -7.5 0 -4.5 Z"/></svg>',
   retry: sv('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
   speaker: sv('<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/>'),
   stop: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>',
@@ -1341,13 +1341,13 @@ function chatModelo() { // favorite picked in the chat, or null = saved principa
   if (!f) { setPref('bitacora.chatModelo', null); return null; }
   return f;
 }
-async function chatSend(text) {
+async function chatSend(text, opts = {}) {
   text = String(text || '').trim(); if (!text || CHAT.sending) return null; let reply = null;
   CHAT.sending = { texto:text }; CHAT.failed = null; CHAT.draft = ''; chatPaint(true);
   const temporal = CHAT.temporal;
   try {
     const modelo = chatModelo();
-    const body = { texto:text, ...(modelo ? { modelo } : {}) };
+    const body = { texto:text, ...(modelo ? { modelo } : {}), ...(opts.voz ? { voz:true } : {}) };
     if (temporal) Object.assign(body, { temporal:true, historial: CHAT.tmsgs.slice(-8).map(m => ({ rol:m.rol, texto:m.texto, datos:m.datos })) });
     else if (CHAT.chatId) body.chat = CHAT.chatId;
     const r = await apiStream('/asistente/mensaje', body, t => { if (CHAT.sending) { CHAT.sending.etapa = t; const el = $('#chatTyping .etapa'); if (el) el.textContent = t; CHAT.onEtapa?.(t); } });
@@ -1414,7 +1414,7 @@ function chatRename(c) {
 }
 function chatMenu() {
   const c = chatActual();
-  openSheet({ title:'Asistente', body:[h('div',{class:'acts-list'},
+  openSheet({ title:'Kell', body:[h('div',{class:'acts-list'},
     act('list','Chats',()=>{ closeSheet().then(chatsSheet); }),
     act('newChat','Nuevo chat',()=>{ closeSheet().then(chatNew); }),
     act('ghost', CHAT.temporal ? 'Salir del chat temporal' : 'Chat temporal',()=>{ closeSheet().then(() => chatTemporal(!CHAT.temporal)); }),
@@ -1451,7 +1451,7 @@ async function memoriaSheet() {
   add.onclick = async () => { if (!inp.value.trim()) return; add.disabled = true;
     try { const r = await api('/asistente/memoria', { method:'POST', body:{ texto:inp.value } }); if (!r.memoria.repetido) items.push({ ...r.memoria, origen:'usuario' }); inp.value = ''; paint(); }
     catch (e) { toast(e.message); } finally { add.disabled = false; } };
-  openSheet({ title:'Memoria del asistente', body:[
+  openSheet({ title:'Memoria de Kell', body:[
     h('p',{class:'msg-meta',style:{margin:'0 0 10px'},text:'El asistente tiene esto en cuenta en cada mensaje. Solo guarda lo que pides o lo que aceptas.'}),
     list, h('div',{class:'mem-add'}, inp, add)] });
 }
@@ -1644,6 +1644,24 @@ function vozSystem(text, words, cfg, job, finish) {
   });
 }
 // Gemini voice: the Worker returns 16-bit PCM in base64; it is wrapped as WAV and played. The highlight follows the audio time.
+// Gemini sometimes ends with a hiss or breath and a hard cut: the tail after the last voiced sound is trimmed
+// (only the final 1.5 s are inspected) and a short fade-out removes the click.
+function pcmClean(bytes, rate) {
+  const n = bytes.length >> 1; if (n < rate * 0.3) return bytes;
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, n * 2);
+  const win = Math.round(rate * 0.02); const from = Math.max(0, n - Math.round(rate * 1.5));
+  let last = -1;
+  for (let st = from; st + win <= n; st += win) {
+    let sum = 0, zc = 0, prev = 0;
+    for (let i = st; i < st + win; i++) { const v = dv.getInt16(i * 2, true); sum += v * v; if ((v >= 0) !== (prev >= 0)) zc++; prev = v; }
+    if (Math.sqrt(sum / win) > 900 && zc / win < 0.3) last = st + win; // voiced: loud and not noise-like
+  }
+  const end = last < 0 ? n : Math.min(n, last + Math.round(rate * 0.15));
+  const out = bytes.slice(0, end * 2); const o = new DataView(out.buffer);
+  const f = Math.min(end, Math.round(rate * 0.04));
+  for (let i = 0; i < f; i++) { const k = (end - f + i) * 2; o.setInt16(k, Math.round(o.getInt16(k, true) * (1 - (i + 1) / f)), true); }
+  return out;
+}
 function pcmToWav(bytes, rate) {
   const h = new ArrayBuffer(44); const v = new DataView(h); const w = (o, str) => [...str].forEach((ch, i) => v.setUint8(o + i, ch.charCodeAt(0)));
   w(0, 'RIFF'); v.setUint32(4, 36 + bytes.length, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
@@ -1664,7 +1682,7 @@ async function vozGemini(text, words, cfg, job, finish) {
     if (!part) throw new Error('La voz de Gemini no devolvió audio');
     const bin = atob(part.inlineData.data); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     const rate = Number((part.inlineData.mimeType || '').match(/rate=(\d+)/)?.[1]) || 24000;
-    url = URL.createObjectURL(pcmToWav(bytes, rate));
+    url = URL.createObjectURL(pcmToWav(pcmClean(bytes, rate), rate));
     if (VOZ.cache.size > 20) { const [k0, u0] = VOZ.cache.entries().next().value; URL.revokeObjectURL(u0); VOZ.cache.delete(k0); }
     VOZ.cache.set(key, url);
   }
@@ -1742,7 +1760,7 @@ function convOpen() {
   dictEnd(); vozStop(); VOZ.msg = null;
   Object.assign(CONV, { on:true, fase:'escuchando', mute:false, yo:'', interim:'', preg:'', resp:'', nota:'', error:'', etapa:'', word:-1, ui:null });
   history.pushState({ ...(history.state || {}), conv:true }, '');
-  CONV.el = h('div',{class:'conv',role:'dialog','aria-modal':'true','aria-label':'Conversación por voz'}); document.body.append(CONV.el);
+  CONV.el = h('div',{class:'conv',role:'dialog','aria-modal':'true','aria-label':'Conversación por voz con Kell'}); document.body.append(CONV.el);
   navigator.wakeLock?.request('screen').then(l => { CONV.lock = l; }).catch(() => {});
   convPaint(); convListen();
 }
@@ -1783,13 +1801,13 @@ async function convSend() {
   convStopListening();
   Object.assign(CONV, { yo:'', interim:'', preg:text, resp:'', nota:'', error:'', etapa:'', fase:'pensando', word:-1 }); convPaint();
   CHAT.onEtapa = t => { CONV.etapa = t; convPaint(); };
-  const a = await chatSend(text);
+  const a = await chatSend(text, { voz:true });
   CHAT.onEtapa = null;
   if (!CONV.on) return;
   if (!a) { CONV.error = 'No se pudo procesar: ' + (CHAT.failed?.error || 'error'); CHAT.failed = null; chatPaint(true); CONV.fase = CONV.mute ? 'silenciado' : 'escuchando'; convPaint(); convListen(); return; }
   const res = (a.datos?.resultados || []).filter(r => r.ok);
-  const guardados = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','mostrar_contenido','practicar','proponer_recuerdo'].includes(r.accion)).length;
-  const vistas = res.some(r => ['mostrar_tareas','mostrar_contenido','practicar','preguntas_estudio'].includes(r.accion) || (r.accion === 'consultar_base' && r.mostrar));
+  const guardados = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','mostrar_contenido','practicar','proponer_recuerdo','marcar_dominio'].includes(r.accion)).length;
+  const vistas = res.some(r => r.accion === 'mostrar_tareas' || (r.accion === 'consultar_base' && r.mostrar));
   CONV.nota = [guardados ? `${guardados} ${guardados === 1 ? 'cambio guardado' : 'cambios guardados'} en Notion` : '', vistas ? 'el detalle quedó en el chat' : ''].filter(Boolean).join(' · ');
   CONV.resp = a.texto; CONV.fase = 'hablando'; CONV.word = -1; convPaint();
   vozSpeak(a.texto, { word: i => { CONV.word = i; vozMark($('.conv-resp'), i); }, end: () => { if (!CONV.on) return; CONV.word = 9e9; vozMark($('.conv-resp'), 9e9);
@@ -1810,7 +1828,7 @@ function convPaint() {
     const estado = h('p',{class:'conv-estado',role:'status','aria-live':'polite'});
     const talk = h('div',{class:'conv-talk'});
     const sub = h('span',{});
-    const top = h('div',{class:'conv-top'}, h('div',{class:'conv-tt'}, h('b',{text:'Conversación'}), sub),
+    const top = h('div',{class:'conv-top'}, h('div',{class:'conv-tt'}, h('b',{text:'Conversación con Kell'}), sub),
       h('button',{class:'icon-btn',type:'button','aria-label':'Configurar la voz',html:ICON.gear,onclick:()=>{ if (CONV.fase === 'hablando') vozStop(); vozSheet(); }}));
     const stage = h('div',{class:'conv-stage',onclick:()=>{ if (CONV.fase === 'hablando') convInterrupt(); }}, orb, estado, talk);
     const bar = h('div',{class:'conv-bar'});
@@ -1876,6 +1894,7 @@ function resultRow(r) {
     case 'crear_tarea': return row('cal', r.titulo, [r.tipo, r.materia || 'Sin materia', fmtDue(r.fecha, r.hora), r.grupal ? 'Grupal' : null].filter(Boolean).join(' · '), r.url,
       r.fecha ? dueBadge({ fecha:r.fecha }) : null);
     case 'completar_tarea': return row('done', 'Hecha: ' + r.titulo, 'Marcada como completada en Notion', r.url);
+    case 'marcar_dominio': return row('check', r.pregunta, 'Dominio: ' + r.dominio);
     case 'apunte_clase': return row('doc', r.titulo, [r.materia, r.creada ? 'Clase nueva' + (r.semana ? ' · ' + r.semana : '') + (r.numero ? ' · ' + r.numero : '') : 'Agregado a la clase', `${r.lineas} apunte${r.lineas === 1 ? '' : 's'}`].filter(Boolean).join(' · '), r.url);
     case 'guardar_persona': return row('user', r.nombre,
       [r.creada ? 'Nueva en Personas' : r.sinCambios ? 'Ya estaba al día' : 'Actualizada', r.rol, (r.materias || []).join(', ')].filter(Boolean).join(' · '), r.url);
@@ -2096,11 +2115,11 @@ function viewAssistant(scr) {
   const actual = chatActual();
   const sub = CHAT.temporal ? 'Chat temporal: no se guarda' : actual ? actual.titulo : 'Nuevo chat';
   const head = h('div',{class:'wrap pad'}, h('div',{class:'page-h'},
-    h('div',{class:'chat-title'}, h('h1',{text:'Asistente'}), S.isOwner && CHAT.loaded ? h('span',{class:'chat-sub' + (CHAT.temporal ? ' temp' : ''),text:sub}) : null),
+    h('div',{class:'chat-title'}, h('h1',{text:'Kell'}), S.isOwner && CHAT.loaded ? h('span',{class:'chat-sub' + (CHAT.temporal ? ' temp' : ''),text:sub}) : null),
     S.isOwner && CHAT.loaded ? h('span',{class:'head-acts'},
       h('button',{class:'icon-btn','aria-label':'Chats',html:ICON.list,onclick:chatsSheet}),
       h('button',{class:'icon-btn','aria-label':'Nuevo chat',html:ICON.newChat,onclick:chatNew}),
-      h('button',{class:'icon-btn','aria-label':'Opciones del asistente',html:ICON.dots,onclick:chatMenu})) : null));
+      h('button',{class:'icon-btn','aria-label':'Opciones de Kell',html:ICON.dots,onclick:chatMenu})) : null));
   const sc = h('div',{class:'scroll'}); const w = h('div',{class:'wrap pad'}); sc.append(w); scr.append(head, sc);
   const intro = () => h('div',{class:'hoy'}, h('span',{class:'hoy-ic',html:ICON.sparkle}), h('div',{},
     h('p',{text:'Escribe lo que pasó y el asistente lo guarda en tu Notion: pruebas, entregas, datos de docentes y pendientes.'}),
@@ -2149,7 +2168,7 @@ function viewAssistant(scr) {
 
   // Composer: text box with the model picker and send button underneath (like Gemini / Claude)
   const comp = h('div',{class:'chat-comp'}); const cw = h('div',{class:'wrap pad'}); comp.append(cw); scr.append(comp);
-  const ta = h('textarea',{class:'comp-in',id:'chatIn',rows:'1',placeholder: CHAT.temporal ? 'Mensaje temporal' : 'Escribe una tarea o una pregunta','aria-label':'Mensaje para el asistente'});
+  const ta = h('textarea',{class:'comp-in',id:'chatIn',rows:'1',placeholder: CHAT.temporal ? 'Mensaje temporal' : 'Escribe una tarea o una pregunta','aria-label':'Mensaje para Kell'});
   ta.value = CHAT.draft;
   const send = h('button',{class:'send',type:'button','aria-label':'Enviar',html:ICON.send});
   const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 3, 148) + 'px'; send.disabled = !!CHAT.sending || !ta.value.trim(); };
@@ -2164,7 +2183,7 @@ function viewAssistant(scr) {
   const mdl = h('button',{class:'mdl-btn',type:'button','aria-haspopup':'dialog','aria-label':'Modelo: ' + mdlLabel + '. Cambiar modelo',onclick:chatModelSheet},
     h('span',{text:mdlLabel}), ic('chevD'));
   const mic = SpeechRec ? h('button',{class:'mic' + (dictActive({kind:'chat'}) ? ' on' : ''),id:'micBtn',type:'button','aria-label':'Dictar por voz',...micAttrs({kind:'chat'}),html:ICON.mic,onclick:()=>dictToggleTarget({kind:'chat'})}) : null;
-  const vozBtn = SpeechRec ? h('button',{class:'mic',type:'button','aria-label':'Conversación por voz',html:ICON.wave,onclick:convOpen}) : null;
+  const vozBtn = SpeechRec ? h('button',{class:'mic',type:'button','aria-label':'Conversación por voz con Kell',html:ICON.wave,onclick:convOpen}) : null;
   cw.append(h('div',{class:'comp-box' + (CHAT.temporal ? ' temp' : '')}, ta, h('div',{class:'comp-foot'}, mdl, h('span',{class:'comp-right'}, vozBtn, mic, send))));
   requestAnimationFrame(fit);
 }
@@ -2209,7 +2228,7 @@ function viewSettings(scr) {
   w.append(h('div',{class:'set-group'}, h('button',{class:'set-row',onclick:openAI}, ic('sparkle'),
     h('span',{class:'row-t'}, h('b',{text:'Modelos de IA'}), h('span',{text:aiSum})), h('span',{class:'chev',html:ICON.chevR})),
     h('button',{class:'set-row',onclick:()=> S.isOwner ? memoriaSheet() : showLock(true)}, ic('brain'),
-      h('span',{class:'row-t'}, h('b',{text:'Memoria del asistente'}), h('span',{text: S.isOwner ? 'Lo que el asistente recuerda de ti' : 'Requiere tu PIN'})), h('span',{class:'chev',html:ICON.chevR})),
+      h('span',{class:'row-t'}, h('b',{text:'Memoria de Kell'}), h('span',{text: S.isOwner ? 'Lo que Kell recuerda de ti' : 'Requiere tu PIN'})), h('span',{class:'chev',html:ICON.chevR})),
     h('button',{class:'set-row',onclick:vozSheet}, ic('speaker'),
       h('span',{class:'row-t'}, h('b',{text:'Voz'}), h('span',{text: vozCfg().motor === 'gemini' ? 'Gemini (natural) · ' + vozCfg().gem : 'Voz del sistema'})), h('span',{class:'chev',html:ICON.chevR}))));
 

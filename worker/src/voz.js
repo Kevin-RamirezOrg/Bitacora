@@ -17,7 +17,8 @@ export async function hablar(env, { texto, voz }, cors) {
   if (!t) throw new ErrorIA(400, 'No hay texto para leer');
   const nombre = VOCES.includes(voz) ? voz : 'Kore';
   const cuerpo = JSON.stringify({
-    contents: [{ parts: [{ text: `Lee en español latinoamericano, con tono natural y cercano, sin añadir nada:\n${t}` }] }],
+    // Solo el texto: una instrucción de estilo delante a veces se leía en voz alta. El idioma se detecta solo.
+    contents: [{ parts: [{ text: t }] }],
     generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: nombre } } } },
   });
   let ultimo = null;

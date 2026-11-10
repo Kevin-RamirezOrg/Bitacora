@@ -8,7 +8,7 @@ import {
 } from './notion.js';
 import { CLAVE_HORARIO, horarioParaPrompt, horarioSemana } from './horario.js';
 import { claseReciente, guardarApunte } from './clases.js';
-import { ErrorEstudio, elegirPractica, generarPreguntas, resumenSemanal } from './estudio.js';
+import { ErrorEstudio, elegirPractica, generarPreguntas, marcarDominio, resumenSemanal } from './estudio.js';
 import { ESPEC_CONTENIDO, REGLA_CONTENIDO, resumenContenido, validarContenido } from './contenido.js';
 import {
   ErrorBase, archivarFila, bases as leerBases, basesParaPrompt, buscarPorTitulo, consultar, crearFila, editarFila,
@@ -214,7 +214,7 @@ function prompt(fechaHoy, claves) {
   const tareas = claves.tareas.length
     ? claves.tareas.map((t) => `${t.clave}: ${t.tipo || 'Sin tipo'} · ${t.titulo} · ${t.materia || 'sin materia'} · ${t.fecha || 'sin fecha'}${t.hora ? ' ' + t.hora : ''}`).join('\n')
     : '(no hay pendientes)';
-  return `Eres el asistente de estudio de Kevin, estudiante universitario en Ecuador. Conviertes lo que escribe en acciones sobre su Notion y le respondes en español, tratándolo de tú, en una o dos frases.
+  return `${claves.voz ? REGLAS_VOZ + '\n\n' : ''}${claves.practica ? practicaParaPrompt(claves.practica) + '\n\n' : ''}Eres Kell, el asistente de estudio de Kevin, estudiante universitario en Ecuador. Conviertes lo que escribe en acciones sobre su Notion y le respondes en español, tratándolo de tú, en una o dos frases.
 
 Hoy es ${diaSemana(fechaHoy)} ${fechaHoy} y son las ${claves.hora} (zona horaria America/Guayaquil).
 Calendario de referencia:
@@ -258,6 +258,7 @@ Acciones posibles (máximo ${MAX_ACCIONES} por mensaje):
 {"accion": "editar_fila", "fila": "r1", "propiedades": {"Nombre de la propiedad": valor}}
 {"accion": "archivar_fila", "fila": "r1"}
 ${ESPEC_CONTENIDO}
+{"accion": "marcar_dominio", "tarjeta": "p1", "dominio": "La sé|Más o menos|No la sé"}
 
 Reglas:
 - Usa las acciones especializadas (crear_tarea, completar_tarea, guardar_persona, nota_inbox, mostrar_tareas) para Tareas, Personas e Inbox. Para cualquier otra base usa consultar_base, leer_pagina, crear_fila, editar_fila o archivar_fila.
@@ -381,8 +382,16 @@ export function validarAcciones(acciones, claves) {
   for (const a of acciones.slice(0, MAX_ACCIONES)) {
     const tipo = a?.accion;
     try {
+      if (tipo === 'marcar_dominio') {
+        const k = /^p(\d+)$/.exec(String(a.tarjeta || ''));
+        const t = k && claves.practica?.tarjetas[Number(k[1]) - 1];
+        if (!t) throw new Error('no hay esa pregunta en la práctica');
+        if (!DOMINIOS_VOZ.includes(a.dominio)) throw new Error('dominio no válido');
+        validas.push({ accion: tipo, id: t.id, pregunta: t.pregunta, dominio: a.dominio });
+        continue;
+      }
       if (tipo === 'mostrar_contenido') {
-        if (validas.some((x) => x.accion === tipo)) continue; // solo uno por mensaje
+        if (claves.voz || validas.some((x) => x.accion === tipo)) continue; // en voz no se muestra; uno por mensaje
         validas.push({ accion: tipo, contenido: validarContenido(a) });
         continue;
       }
@@ -512,6 +521,7 @@ function resumenFila(props) {
 async function ejecutar(env, a, lista, ctx = {}) {
   switch (a.accion) {
     case 'mostrar_contenido': return { accion: a.accion, ok: true, ...a.contenido };
+    case 'marcar_dominio': await marcarDominio(env, { id: a.id, dominio: a.dominio }); return { accion: a.accion, ok: true, id: a.id, pregunta: a.pregunta, dominio: a.dominio };
     case 'crear_tarea': {
       const p = await crearTarea(env, a);
       return { accion: a.accion, ok: true, titulo: a.titulo, tipo: a.tipo, fecha: a.fecha, hora: a.hora, materia: a.materiaNombre, grupal: a.grupal, url: p.url,
@@ -589,6 +599,7 @@ function resumenParaModelo(m) {
   const r = m.datos?.resultados || [];
   const hechos = r.filter((x) => x.ok && !['mostrar_tareas', 'consultar_base', 'leer_pagina'].includes(x.accion)).map((x) => {
     if (x.accion === 'mostrar_contenido') return resumenContenido(x);
+    if (x.accion === 'marcar_dominio') return `marqué "${x.pregunta}" como ${x.dominio}`;
     if (x.accion === 'crear_tarea') return `creé "${x.titulo}" (${x.tipo}, ${x.fecha || 'sin fecha'})`;
     if (x.accion === 'completar_tarea') return `marqué como hecha "${x.titulo}"`;
     if (x.accion === 'guardar_persona') return `guardé a ${x.nombre}`;
@@ -611,10 +622,32 @@ function resumenParaModelo(m) {
   return `${m.texto}\n[Hecho: ${hechos.join('; ')}]`;
 }
 
+// ---------- Modo voz ----------
+// En la conversación por voz Kevin no ve la pantalla: todo va en la respuesta hablada y los quiz son orales.
+const DOMINIOS_VOZ = ['No la sé', 'Más o menos', 'La sé'];
+const REGLAS_VOZ = `MODO VOZ: Kevin te está hablando y escuchará tu respuesta en voz alta; no está mirando la pantalla.
+- No uses mostrar_contenido. Lo importante va en "respuesta", escrito para decirse en voz alta: frases naturales, sin viñetas, símbolos, tablas, markdown ni enlaces; fechas como se dicen ("el jueves 12").
+- Respuestas de 1 a 3 frases, salvo cuando hagas una pregunta de quiz.
+- Quiz oral: si pide preguntas, un quiz o repasar (sin pedir guardarlas), hazlas tú, UNA por turno. En opción múltiple di las opciones así: "A, …; B, …; C, …". Cuando responda, dile en una frase si acertó y por qué; acepta respuestas aproximadas o con sus palabras si la idea es correcta ("la segunda" es la B). Lleva la cuenta en tu cabeza y pasa a la siguiente en el mismo turno. Por defecto 5 preguntas; al terminar di el resultado ("4 de 5") y qué conviene repasar. Si deben salir de sus apuntes, léelos primero con consultar_base y leer_pagina y pregunta solo lo que dicen.
+- Si pide practicar con su Banco de preguntas, usa practicar (el Worker dice la primera pregunta). En la práctica en curso, evalúa cada respuesta suya contra la respuesta guardada, usa marcar_dominio ("La sé", "Más o menos" o "No la sé") y en el mismo turno haz la siguiente pregunta pendiente. Al terminar, di el resultado.
+- Tareas, horario o fechas: usa mostrar_tareas como siempre, pero resume además en "respuesta" lo principal (qué y cuándo), porque no ve la lista.
+- Estas reglas de voz mandan sobre cualquier otra que diga que la respuesta sea solo una confirmación.`;
+
+// Práctica del Banco en curso: viene de la última respuesta (resultado de practicar o arrastrada en datos.practica).
+function practicaEnCurso(previos) {
+  const ultimo = [...previos].reverse().find((m) => m.rol !== 'usuario');
+  const d = ultimo?.datos; if (!d || d.deshecho) return null;
+  if (d.practica?.tarjetas?.length) return d.practica;
+  const r = (d.resultados || []).find((x) => x?.ok && (x.accion === 'practicar' || x.accion === 'preguntas_estudio') && x.tarjetas?.length);
+  return r ? { materia: r.materia, tarjetas: r.tarjetas.map((t) => ({ id: t.id, pregunta: t.pregunta, respuesta: t.respuesta || '' })), hechas: [] } : null;
+}
+const practicaParaPrompt = (pr) => `Práctica en curso del Banco de preguntas (${pr.materia}). Usa la clave con marcar_dominio:\n` +
+  pr.tarjetas.map((t, i) => `p${i + 1}${pr.hechas.includes(t.id) ? ' [ya respondida]' : ''}: ${t.pregunta} → respuesta guardada: ${t.respuesta || '(sin respuesta)'}`).join('\n');
+
 // Primer paso: decide si el mensaje necesita Notion. Si es solo conversación, lo responde aquí mismo,
 // sin leer Notion (más rápido y no envía su información al modelo). Ante la duda, va por Notion.
-function promptClasificar(fechaHoy, hora, memoria) {
-  return `Eres el asistente de estudio de Kevin, estudiante universitario en Ecuador. Hoy es ${diaSemana(fechaHoy)} ${fechaHoy}, son las ${hora}.
+function promptClasificar(fechaHoy, hora, memoria, voz) {
+  return `Eres Kell, el asistente de estudio de Kevin, estudiante universitario en Ecuador. Hoy es ${diaSemana(fechaHoy)} ${fechaHoy}, son las ${hora}.
 Lo que Kevin te pidió recordar. Respétalo siempre:
 ${memoria.length ? memoria.map((m) => '- ' + m.texto).join('\n') : '(nada)'}
 
@@ -624,13 +657,14 @@ Decide si su último mensaje necesita su Notion (tareas, pruebas, fechas, horari
 En "respuesta" contesta en español, tratándolo de tú, de forma breve y directa: de 1 a 4 frases, o una lista corta si lo pide. Sin relleno.
 "contenido" es opcional: si pide un quiz, opción múltiple, verdadero o falso, completar, tarjetas, una tabla o pasos (o si una tabla o pasos responden mejor), pon ahí UNO de estos objetos (sin el campo "accion"); con ejercicio, "respuesta" solo lo presenta y no revela las respuestas. Hasta 10 elementos (5 si no dice cuántos):
 ${ESPEC_CONTENIDO.replace(/"accion": "mostrar_contenido", /g, '')}
+${voz ? `\n${REGLAS_VOZ}\nEn modo voz "contenido" siempre es null.` : ''}
 Responde SOLO con el objeto JSON, sin texto antes ni después.`;
 }
 
-async function clasificar(env, { fechaHoy, memoria, previos, entrada, modelo }) {
+async function clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, voz }) {
   try {
     const r = await chat(env, { modelo, mensajes: [
-      { role: 'system', content: promptClasificar(fechaHoy, horaActual(), memoria) },
+      { role: 'system', content: promptClasificar(fechaHoy, horaActual(), memoria, voz) },
       ...previos.slice(-6).map((m) => ({ role: m.rol === 'usuario' ? 'user' : 'assistant', content: m.rol === 'usuario' ? m.texto : resumenParaModelo(m) })),
       { role: 'user', content: entrada },
     ] });
@@ -639,7 +673,7 @@ async function clasificar(env, { fechaHoy, memoria, previos, entrada, modelo }) 
     const j = ini >= 0 && fin > ini ? JSON.parse(texto.slice(ini, fin + 1)) : null;
     if (j?.tipo === 'charla' && typeof j.respuesta === 'string' && j.respuesta.trim()) {
       let contenido = null;
-      if (j.contenido) { try { contenido = { accion: 'mostrar_contenido', ok: true, ...validarContenido(j.contenido) }; } catch { /* sin formato */ } }
+      if (j.contenido && !voz) { try { contenido = { accion: 'mostrar_contenido', ok: true, ...validarContenido(j.contenido) }; } catch { /* sin formato */ } }
       return { tipo: 'charla', respuesta: j.respuesta.trim().slice(0, 4000), contenido, r };
     }
     return { tipo: 'notion', fallos: r.fallos || [] };
@@ -677,11 +711,13 @@ function previosTemporales(lista) {
   return (Array.isArray(lista) ? lista : []).slice(-HISTORIAL_CONTEXTO).map((m) => ({
     rol: m?.rol === 'usuario' ? 'usuario' : 'asistente',
     texto: String(m?.texto || '').slice(0, MAX_TEXTO),
-    datos: m?.rol === 'usuario' ? null : { resultados: Array.isArray(m?.datos?.resultados) ? m.datos.resultados.slice(0, 10) : [], deshecho: !!m?.datos?.deshecho },
+    datos: m?.rol === 'usuario' ? null : { resultados: Array.isArray(m?.datos?.resultados) ? m.datos.resultados.slice(0, 10) : [], deshecho: !!m?.datos?.deshecho,
+      practica: m?.datos?.practica?.tarjetas ? m.datos.practica : undefined },
   })).filter((m) => m.texto);
 }
 
-export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, temporal = false, historial: historialCliente, progreso: progresoFn }) {
+export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, temporal = false, historial: historialCliente, progreso: progresoFn, voz = false }) {
+  voz = voz === true;
   const progreso = typeof progresoFn === 'function' ? progresoFn : () => {};
   const entrada = typeof texto === 'string' ? texto.trim() : '';
   if (!entrada) throw new ErrorAsistente(400, 'Escribe un mensaje');
@@ -704,8 +740,10 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
   const memoria = await listarMemoria(env);
 
   // Conversación simple: se responde sin leer Notion.
+  // En voz, una práctica del Banco en curso siempre va por Notion (hay que marcar el Dominio).
+  const practica = voz ? practicaEnCurso(previos) : null;
   progreso('Pensando…');
-  const c = await clasificar(env, { fechaHoy, memoria, previos, entrada, modelo });
+  const c = practica ? { tipo: 'notion', fallos: [] } : await clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, voz });
   if (c.tipo === 'charla') {
     const datos = { resultados: c.contenido ? [c.contenido] : [], modelo: c.r.modelo, proveedor: c.r.proveedor, respaldo: c.r.fallos?.length ? true : undefined, charla: true };
     return guardarTurno(base, { temporal, chatInfo, entrada, respuesta: c.respuesta, datos });
@@ -728,6 +766,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     filas: [], nombres: new Map(),
     memoria: memoria.map((m, i) => ({ ...m, clave: `k${i + 1}` })),
     valoraciones: await resumenValoraciones(base).catch(() => null),
+    voz, practica,
     dsHorario: env.NOTION_DS_HORARIO, dsTareas: env.NOTION_DS_TAREAS, dsClases: env.NOTION_DS_CLASES,
     fecha: fechaHoy,
     hora: horaActual(),
@@ -846,7 +885,17 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     reintento: reintentos ? true : undefined,
     aviso,
   };
-  return guardarTurno(base, { temporal, chatInfo, entrada, respuesta: plan.respuesta || 'Listo.', datos });
+  let respuesta = plan.respuesta || 'Listo.';
+  if (voz) {
+    // Práctica o preguntas nuevas: el Worker dice la primera pregunta (el modelo no las conocía al responder).
+    const est = resultados.find((x) => x.ok && (x.accion === 'practicar' || x.accion === 'preguntas_estudio') && x.tarjetas?.length);
+    let pr = est ? { materia: est.materia, tarjetas: est.tarjetas.map((t) => ({ id: t.id, pregunta: t.pregunta, respuesta: t.respuesta || '' })), hechas: [] } : practica;
+    if (est) respuesta = `${est.accion === 'preguntas_estudio' ? `Guardé ${est.tarjetas.length} preguntas nuevas de ${est.materia} en tu Banco. ` : ''}Vamos con ${est.tarjetas.length} ${est.tarjetas.length === 1 ? 'pregunta' : 'preguntas'} de ${est.materia}. Primera: ${est.tarjetas[0].pregunta}`;
+    else if (pr) pr = { ...pr, hechas: [...new Set([...pr.hechas, ...resultados.filter((x) => x.ok && x.accion === 'marcar_dominio').map((x) => x.id)])] };
+    if (pr && pr.hechas.length < pr.tarjetas.length) datos.practica = pr; // se arrastra hasta terminar
+    datos.voz = true;
+  }
+  return guardarTurno(base, { temporal, chatInfo, entrada, respuesta, datos });
 }
 
 // Un paso de deshacer: en Notion o en la memoria (D1).

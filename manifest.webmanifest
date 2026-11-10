@@ -1,7 +1,7 @@
 {
   "name": "Bitácora",
   "short_name": "Bitácora",
-  "description": "Notas, horario y asistente de estudio",
+  "description": "Notas, horario y Kell, tu asistente de estudio",
   "lang": "es",
   "id": "/",
   "start_url": "/",
@@ -16,7 +16,7 @@
     { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Asistente", "url": "/?v=assistant", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Kell", "url": "/?v=assistant", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Panel", "url": "/?v=panel", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }
