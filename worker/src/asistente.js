@@ -9,6 +9,7 @@ import {
 import { CLAVE_HORARIO, horarioParaPrompt, horarioSemana } from './horario.js';
 import { claseReciente, guardarApunte } from './clases.js';
 import { ErrorEstudio, elegirPractica, generarPreguntas, resumenSemanal } from './estudio.js';
+import { ESPEC_CONTENIDO, REGLA_CONTENIDO, resumenContenido, validarContenido } from './contenido.js';
 import {
   ErrorBase, archivarFila, bases as leerBases, basesParaPrompt, buscarPorTitulo, consultar, crearFila, editarFila,
   leerPagina, propiedadesEscritura,
@@ -256,6 +257,7 @@ Acciones posibles (máximo ${MAX_ACCIONES} por mensaje):
 {"accion": "crear_fila", "base": "b1", "propiedades": {"Nombre de la propiedad": valor}}
 {"accion": "editar_fila", "fila": "r1", "propiedades": {"Nombre de la propiedad": valor}}
 {"accion": "archivar_fila", "fila": "r1"}
+${ESPEC_CONTENIDO}
 
 Reglas:
 - Usa las acciones especializadas (crear_tarea, completar_tarea, guardar_persona, nota_inbox, mostrar_tareas) para Tareas, Personas e Inbox. Para cualquier otra base usa consultar_base, leer_pagina, crear_fila, editar_fila o archivar_fila.
@@ -280,7 +282,8 @@ Reglas:
 - Lo que un profesor dijo sobre la materia (temas, cómo será la prueba) va como apunte_clase; si además da una fecha de entrega o evaluación, agrega crear_tarea. Lo que describe a la persona va en guardar_persona. Un mismo mensaje puede tener varias acciones.
 - Lo que no sea una tarea ni un dato de contacto (cómo son las pruebas, temas, consejos, ideas, pedidos largos) va con nota_inbox.
 - Toda pregunta sobre sus pendientes o fechas ("¿qué tengo esta semana?", "¿tengo prueba el martes 17?", "¿el 17 tengo algo?") se responde SIEMPRE con mostrar_tareas y el rango de fechas que corresponda (un solo día si pregunta por un día). Nunca respondas de memoria ni por el historial; la lista la muestra la app, no la repitas. En "respuesta" di solo algo breve como "Esto tienes para el martes 17".
-- Si solo conversa o pide algo ajeno a Notion, responde sin acciones.
+${REGLA_CONTENIDO}
+- Si solo conversa o pide algo ajeno a Notion, responde sin acciones (salvo mostrar_contenido).
 - "Resume", "dame un resumen", "explícame eso" sobre algo que ya aparece en la conversación (clases, páginas o filas leídas) NO es resumen_semanal: si necesitas el contenido, usa leer_pagina con la clave "r…" de esa fila y resume tú en "respuesta" (en viñetas breves). Usa resumen_semanal solo si pide expresamente el resumen de la semana de una materia.
 - "respuesta" confirma en pocas palabras; no repite los detalles que ya muestran las acciones.`;
 }
@@ -378,6 +381,11 @@ export function validarAcciones(acciones, claves) {
   for (const a of acciones.slice(0, MAX_ACCIONES)) {
     const tipo = a?.accion;
     try {
+      if (tipo === 'mostrar_contenido') {
+        if (validas.some((x) => x.accion === tipo)) continue; // solo uno por mensaje
+        validas.push({ accion: tipo, contenido: validarContenido(a) });
+        continue;
+      }
       if (tipo === 'preguntas_estudio' || tipo === 'practicar' || tipo === 'resumen_semanal') {
         if (validas.some((x) => ['preguntas_estudio', 'practicar', 'resumen_semanal'].includes(x.accion))) throw new Error('solo una acción de estudio por mensaje');
         const m = materia(a.materia);
@@ -503,6 +511,7 @@ function resumenFila(props) {
 
 async function ejecutar(env, a, lista, ctx = {}) {
   switch (a.accion) {
+    case 'mostrar_contenido': return { accion: a.accion, ok: true, ...a.contenido };
     case 'crear_tarea': {
       const p = await crearTarea(env, a);
       return { accion: a.accion, ok: true, titulo: a.titulo, tipo: a.tipo, fecha: a.fecha, hora: a.hora, materia: a.materiaNombre, grupal: a.grupal, url: p.url,
@@ -579,6 +588,7 @@ async function ejecutar(env, a, lista, ctx = {}) {
 function resumenParaModelo(m) {
   const r = m.datos?.resultados || [];
   const hechos = r.filter((x) => x.ok && !['mostrar_tareas', 'consultar_base', 'leer_pagina'].includes(x.accion)).map((x) => {
+    if (x.accion === 'mostrar_contenido') return resumenContenido(x);
     if (x.accion === 'crear_tarea') return `creé "${x.titulo}" (${x.tipo}, ${x.fecha || 'sin fecha'})`;
     if (x.accion === 'completar_tarea') return `marqué como hecha "${x.titulo}"`;
     if (x.accion === 'guardar_persona') return `guardé a ${x.nombre}`;
@@ -610,8 +620,10 @@ ${memoria.length ? memoria.map((m) => '- ' + m.texto).join('\n') : '(nada)'}
 
 Decide si su último mensaje necesita su Notion (tareas, pruebas, fechas, horario, clases, apuntes, materias, profesores, compañeros, preguntas de estudio, práctica, resúmenes, recordar u olvidar algo, deshacer, o seguir con algo de Notion que aparece en la conversación).
 - Si lo necesita, o tienes la menor duda: {"tipo": "notion"}
-- Si es solo conversación o una pregunta general (saludos, cultura general, explicar un concepto, ideas, traducir, opiniones): {"tipo": "charla", "respuesta": "..."}
+- Si es solo conversación o una pregunta general (saludos, cultura general, explicar un concepto, ideas, traducir, opiniones, un quiz sobre un tema general): {"tipo": "charla", "respuesta": "...", "contenido": null}
 En "respuesta" contesta en español, tratándolo de tú, de forma breve y directa: de 1 a 4 frases, o una lista corta si lo pide. Sin relleno.
+"contenido" es opcional: si pide un quiz, opción múltiple, verdadero o falso, completar, tarjetas, una tabla o pasos (o si una tabla o pasos responden mejor), pon ahí UNO de estos objetos (sin el campo "accion"); con ejercicio, "respuesta" solo lo presenta y no revela las respuestas. Hasta 10 elementos (5 si no dice cuántos):
+${ESPEC_CONTENIDO.replace(/"accion": "mostrar_contenido", /g, '')}
 Responde SOLO con el objeto JSON, sin texto antes ni después.`;
 }
 
@@ -626,7 +638,9 @@ async function clasificar(env, { fechaHoy, memoria, previos, entrada, modelo }) 
     const ini = texto.indexOf('{'); const fin = texto.lastIndexOf('}');
     const j = ini >= 0 && fin > ini ? JSON.parse(texto.slice(ini, fin + 1)) : null;
     if (j?.tipo === 'charla' && typeof j.respuesta === 'string' && j.respuesta.trim()) {
-      return { tipo: 'charla', respuesta: j.respuesta.trim().slice(0, 4000), r };
+      let contenido = null;
+      if (j.contenido) { try { contenido = { accion: 'mostrar_contenido', ok: true, ...validarContenido(j.contenido) }; } catch { /* sin formato */ } }
+      return { tipo: 'charla', respuesta: j.respuesta.trim().slice(0, 4000), contenido, r };
     }
     return { tipo: 'notion', fallos: r.fallos || [] };
   } catch (e) {
@@ -693,7 +707,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
   progreso('Pensando…');
   const c = await clasificar(env, { fechaHoy, memoria, previos, entrada, modelo });
   if (c.tipo === 'charla') {
-    const datos = { resultados: [], modelo: c.r.modelo, proveedor: c.r.proveedor, respaldo: c.r.fallos?.length ? true : undefined, charla: true };
+    const datos = { resultados: c.contenido ? [c.contenido] : [], modelo: c.r.modelo, proveedor: c.r.proveedor, respaldo: c.r.fallos?.length ? true : undefined, charla: true };
     return guardarTurno(base, { temporal, chatInfo, entrada, respuesta: c.respuesta, datos });
   }
 
@@ -814,7 +828,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     plan = { respuesta: String(r.texto).replace(/<think>[\s\S]*?<\/think>/gi, '').trim().slice(0, 2000) || 'No entendí el mensaje.', acciones: [] };
   }
   const escrituras = plan.acciones.filter((x) => !LECTURAS.has(x?.accion));
-  if (escrituras.some((x) => !['mostrar_tareas', 'practicar', 'proponer_recuerdo'].includes(x?.accion))) progreso('Guardando en Notion…');
+  if (escrituras.some((x) => !['mostrar_tareas', 'practicar', 'proponer_recuerdo', 'mostrar_contenido'].includes(x?.accion))) progreso('Guardando en Notion…');
   await ejecutarTodas(escrituras);
   r = ultimo || r;
   if (!aviso && resultados.some((x) => !x.ok)) aviso = 'Algo no se pudo hacer; revisa el detalle arriba.';
@@ -873,3 +887,62 @@ export async function deshacerTemporal(env, datos) {
 }
 
 export { ErrorIA };
+
+// ---------- Editar, regenerar y borrar mensajes ----------
+
+// Turno al que pertenece un mensaje: el del usuario y la respuesta que le sigue.
+async function turnoDe(base, id) {
+  const m = await base.prepare('SELECT * FROM mensajes WHERE id = ?').bind(Number(id)).first();
+  if (!m) throw new ErrorAsistente(404, 'No encontré ese mensaje');
+  const usuario = m.rol === 'usuario' ? m
+    : await base.prepare('SELECT * FROM mensajes WHERE chat = ? AND id < ? AND rol = ? ORDER BY id DESC LIMIT 1').bind(m.chat, m.id, 'usuario').first();
+  if (!usuario) throw new ErrorAsistente(404, 'No encontré el mensaje al que responde');
+  return usuario;
+}
+
+const pendienteDeDeshacer = (d) => !!d && !d.deshecho && (d.resultados || []).some((x) => x?.ok && x.deshacer && PASOS_VALIDOS.has(x.deshacer.tipo));
+
+// Para regenerar o editar: deshace en Notion lo que hicieron las respuestas desde ese turno
+// (de la más nueva a la más antigua) y borra esos mensajes. Devuelve el texto original del turno.
+// Con "simular" solo informa qué pasaría, para que la app pida confirmación.
+export async function recortarDesde(env, { id, simular = false }) {
+  const base = await db(env);
+  const usuario = await turnoDe(base, id);
+  const { results } = await base.prepare('SELECT * FROM mensajes WHERE chat = ? AND id >= ? ORDER BY id DESC').bind(usuario.chat, usuario.id).all();
+  const filas = results.map(fila);
+  const conCambios = filas.filter((m) => m.rol === 'asistente' && pendienteDeDeshacer(m.datos));
+  const informe = { texto: usuario.texto, chat: usuario.chat, mensajes: filas.length, posteriores: filas.filter((m) => m.rol === 'usuario').length - 1,
+    cambios: conCambios.reduce((n, m) => n + m.datos.resultados.filter((x) => x?.ok && x.deshacer).length, 0) };
+  if (simular) return informe;
+  const errores = [];
+  for (const m of conCambios) {
+    try {
+      const datos = await revertir(env, m.datos);
+      if (datos.erroresDeshacer) errores.push(...datos.erroresDeshacer);
+    } catch (e) { errores.push(e.message); }
+  }
+  if (errores.length && conCambios.length && errores.length >= conCambios.length) {
+    throw new ErrorAsistente(502, `No se pudo deshacer lo que creó en Notion: ${errores[0]}`);
+  }
+  await base.batch([
+    base.prepare('DELETE FROM valoraciones WHERE mensaje IN (SELECT id FROM mensajes WHERE chat = ? AND id >= ?)').bind(usuario.chat, usuario.id),
+    base.prepare('DELETE FROM mensajes WHERE chat = ? AND id >= ?').bind(usuario.chat, usuario.id),
+  ]);
+  return { ...informe, avisos: errores.length ? errores : undefined };
+}
+
+// Borra un turno (pregunta y respuesta) del historial. Lo guardado en Notion se mantiene.
+export async function borrarTurno(env, id) {
+  const base = await db(env);
+  const usuario = await turnoDe(base, id);
+  const respuesta = await base.prepare('SELECT id FROM mensajes WHERE chat = ? AND id > ? AND rol = ? ORDER BY id LIMIT 1').bind(usuario.chat, usuario.id, 'asistente').first();
+  const siguienteUsuario = await base.prepare('SELECT id FROM mensajes WHERE chat = ? AND id > ? AND rol = ? ORDER BY id LIMIT 1').bind(usuario.chat, usuario.id, 'usuario').first();
+  const ids = [usuario.id];
+  if (respuesta && (!siguienteUsuario || respuesta.id < siguienteUsuario.id)) ids.push(respuesta.id);
+  const marcas = ids.map(() => '?').join(',');
+  await base.batch([
+    base.prepare(`DELETE FROM valoraciones WHERE mensaje IN (${marcas})`).bind(...ids),
+    base.prepare(`DELETE FROM mensajes WHERE id IN (${marcas})`).bind(...ids),
+  ]);
+  return { borrados: ids };
+}

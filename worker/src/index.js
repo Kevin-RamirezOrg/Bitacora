@@ -4,9 +4,11 @@ import { ErrorNotion } from './notion.js';
 import {
   ErrorAsistente, agregarMemoria, borrarChat, borrarHistorial, borrarMemoria, crearChat, deshacerMensaje, deshacerTemporal,
   editarMemoria, guardarMarcaTarjeta, historial, listarChats, listarMemoria, procesarMensaje, renombrarChat, responderPropuesta, valorar,
+  recortarDesde, borrarTurno,
 } from './asistente.js';
 import { datosHoy, marcarRepaso } from './hoy.js';
 import { ErrorEstudio, marcarDominio } from './estudio.js';
+import { subirAudio, transcribirArchivo } from './audio.js';
 
 const ORIGEN = 'https://ellenkev.me';
 const TAMANO_MAXIMO_CUERPO = 200_000;
@@ -75,6 +77,27 @@ async function leerCuerpo(request) {
   }
 }
 
+// Respuesta en líneas (NDJSON): {etapa} mientras trabaja y al final {fin} o {error}.
+function enLineas(ctx, trabajo) {
+  const { readable, writable } = new TransformStream();
+  const w = writable.getWriter();
+  const enc = new TextEncoder();
+  const enviar = (o) => w.write(enc.encode(JSON.stringify(o) + '\n')).catch(() => {});
+  const tarea = (async () => {
+    try {
+      await enviar({ fin: await trabajo((t) => { enviar({ etapa: t }); }) });
+    } catch (e) {
+      const conocido = e instanceof ErrorIA || e instanceof ErrorNotion || e instanceof ErrorAsistente || e instanceof ErrorEstudio;
+      if (!conocido) console.error(e);
+      await enviar({ error: conocido ? e.message : 'Error interno', detalle: e.detalle ?? null, status: e.status || 500 });
+    } finally {
+      await w.close().catch(() => {});
+    }
+  })();
+  ctx?.waitUntil?.(tarea);
+  return new Response(readable, { headers: { ...CORS, 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
 // Rutas privadas: "MÉTODO /ruta" → función.
 const RUTAS = {
   'GET /yo': (req, env, sesion) => json({ ok: true, uid: sesion.sub }),
@@ -118,24 +141,14 @@ const RUTAS = {
   'POST /asistente/mensaje': async (req, env, sesion, ctx) => {
     const cuerpo = await leerCuerpo(req);
     if (!(req.headers.get('Accept') || '').includes('application/x-ndjson')) return json(await procesarMensaje(env, cuerpo));
-    const { readable, writable } = new TransformStream();
-    const w = writable.getWriter();
-    const enc = new TextEncoder();
-    const enviar = (o) => w.write(enc.encode(JSON.stringify(o) + '\n')).catch(() => {});
-    const tarea = (async () => {
-      try {
-        const r = await procesarMensaje(env, { ...cuerpo, progreso: (t) => { enviar({ etapa: t }); } });
-        await enviar({ fin: r });
-      } catch (e) {
-        const conocido = e instanceof ErrorIA || e instanceof ErrorNotion || e instanceof ErrorAsistente || e instanceof ErrorEstudio;
-        if (!conocido) console.error(e);
-        await enviar({ error: conocido ? e.message : 'Error interno', status: e.status || 500 });
-      } finally {
-        await w.close().catch(() => {});
-      }
-    })();
-    ctx?.waitUntil?.(tarea);
-    return new Response(readable, { headers: { ...CORS, 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' } });
+    return enLineas(ctx, (progreso) => procesarMensaje(env, { ...cuerpo, progreso }));
+  },
+
+  // Audio → texto con Gemini. El cuerpo es el archivo de audio: primero se reenvía completo a Gemini
+  // y luego se responde en líneas mientras se procesa y transcribe.
+  'POST /audio/transcribir': async (req, env, sesion, ctx) => {
+    const archivo = await subirAudio(env, req);
+    return enLineas(ctx, (progreso) => transcribirArchivo(env, archivo, progreso));
   },
 
   // Práctica: marcar cuánto domina una pregunta (y recordarlo en la tarjeta del mensaje)
@@ -145,6 +158,10 @@ const RUTAS = {
     if (b.mensaje && b.indice != null) await guardarMarcaTarjeta(env, b.mensaje, b.indice, b.dominio).catch(() => {});
     return json(r);
   },
+
+  // Editar o regenerar: con {simular:true} informa qué se deshará; sin él, deshace y recorta la conversación.
+  'POST /asistente/recortar': async (req, env) => json(await recortarDesde(env, await leerCuerpo(req))),
+  'DELETE /asistente/mensaje': async (req, env) => json(await borrarTurno(env, new URL(req.url).searchParams.get('id'))),
 
   'POST /asistente/deshacer': async (req, env) => {
     const { id, datos } = await leerCuerpo(req);

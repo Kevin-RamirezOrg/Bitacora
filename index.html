@@ -421,6 +421,49 @@ input.search-field::placeholder{color:var(--muted)}
 .msg.ia > .txt{background:var(--surface);border:1px solid var(--line);padding:10px 14px;border-radius:18px 18px 18px 6px;white-space:pre-wrap}
 .msg.err > .txt{background:var(--danger-soft);border-color:var(--danger)}
 .msg-acts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}
+button.msg.yo{font:inherit;color:var(--ink);text-align:left;cursor:pointer}
+button.msg.yo[aria-expanded="true"]{border-color:var(--accent-ink)}
+.msg-yo-w{align-self:flex-end;display:flex;flex-direction:column;align-items:flex-end;max-width:min(88%,620px)}
+.msg-yo-w .msg.yo{max-width:100%}
+.yo-acts{justify-content:flex-end;gap:2px}
+.msg-acts{gap:2px}
+.rate:disabled{opacity:.5}
+.sheet-p{margin:0 0 10px;font-size:15px;color:var(--ink-2)}
+.prog{height:10px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line-strong);overflow:hidden;margin:4px 0 12px}
+.prog i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.edit-bar{margin:0 0 8px}
+.edit-bar span{flex:1}
+.cnt .pc{gap:10px}
+.cnt-opts{display:flex;flex-direction:column;gap:6px;width:100%}
+.cnt-opt{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:8px 12px;border-radius:12px;border:1.5px solid var(--line-strong);background:var(--surface);color:var(--ink);font:inherit;font-size:15px;text-align:left}
+.cnt-opt:not(:disabled):hover{background:var(--surface-2)}
+.cnt-opt:disabled{cursor:default}
+.cnt-mark{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line-strong)}
+.cnt-mark svg{width:14px;height:14px}
+.cnt-opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,var(--surface))}
+.cnt-opt.ok .cnt-mark{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.cnt-opt.bad{border-color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,var(--surface))}
+.cnt-opt.bad .cnt-mark{background:var(--danger);border-color:var(--danger);color:var(--bg)}
+.cnt-opt.off{color:var(--ink-2)}
+.cnt-fb{margin:0;font-size:14px;color:var(--ink-2)}
+.cnt-fb b{color:var(--ink);font-weight:600}
+.cnt-fill{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:15px;line-height:1.6}
+.cnt-in{min-height:40px;min-width:120px;flex:0 1 180px;padding:6px 10px;border-radius:10px;border:1.5px solid var(--line-strong);background:var(--bg);color:var(--ink);font:inherit;font-size:15px}
+.cnt-in:disabled{opacity:1;color:var(--ink-2)}
+.cnt-score{padding:10px 12px;font-size:14px;font-weight:600;color:var(--ink)}
+.cnt-score[hidden]{display:none}
+.cnt-tw{overflow-x:auto}
+.cnt-tab{border-collapse:collapse;width:100%;font-size:14px}
+.cnt-tab th,.cnt-tab td{padding:8px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+.cnt-tab th{font-weight:600;color:var(--ink);background:var(--surface-2)}
+.cnt-tab td{color:var(--ink-2);min-width:110px}
+.cnt-tab tr:last-child td{border-bottom:0}
+.cnt-steps{list-style:none;counter-reset:paso;margin:0;padding:6px 12px 10px}
+.cnt-steps li{counter-increment:paso;position:relative;padding:8px 0 8px 40px;border-bottom:1px solid var(--line)}
+.cnt-steps li:last-child{border-bottom:0}
+.cnt-steps li::before{content:counter(paso);position:absolute;left:0;top:8px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);font-weight:700;font-size:14px}
+.cnt-steps b{display:block;font-weight:600;font-size:15px}
+.cnt-steps span{display:block;font-size:14px;color:var(--ink-2)}
 .msg-acts .link{min-height:40px;font-size:14px}
 .msg-meta{font-size:13px;color:var(--muted);margin:6px 4px 0}
 .res{margin-top:8px;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--line);overflow:hidden}
@@ -604,6 +647,7 @@ const ICON = {
   folderFill: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
   plus: sv('<path d="M12 5v14M5 12h14"/>', 2.6),
   asistente: '<svg class="icono-asistente" viewBox="-17 -17 34 34" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(-1 1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(1 -1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(-1 -1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path fill="currentColor" stroke="none" d="M0 -15 L2.6 -2.6 L13 0 L2.6 2.6 L0 15 L-2.6 2.6 L-13 0 L-2.6 -2.6 Z"/></svg>',
+  retry: sv('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
   chat: sv('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h8"/>'),
   gear: sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>', 1.8),
   search: sv('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'),
@@ -1572,13 +1616,131 @@ function taskList(r) {
     h('span',{class:'res-t'}, h('b',{text:t.titulo}), h('span',{text:[t.tipo, t.materia || 'Sin materia', fmtDue(t.fecha, t.hora)].filter(Boolean).join(' · ')}), dueBadge(t)), openLink(t.url))));
   return box;
 }
+// Interactive formats the assistant can show (no Notion writes): multiple choice, true/false, fill in, flashcards, table, steps.
+const normAns = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ ]/g, ' ').replace(/\s+/g, ' ').trim();
+function contentBlock(r) {
+  const st = r._st || (r._st = {}); const ok = st.ok || (st.ok = {}); // ok[i]: answered right or wrong
+  const names = { opcion_multiple:'Opción múltiple', verdadero_falso:'Verdadero o falso', completar:'Completar', tarjetas:'Tarjetas', tabla:'Tabla', pasos:'Pasos' };
+  const box = h('div',{class:'res cnt'}, h('div',{class:'res-h',text: r.titulo ? `${names[r.formato]} · ${r.titulo}` : names[r.formato]}));
+  const score = h('div',{class:'cnt-score',role:'status'});
+  const paintScore = () => { const done = Object.keys(ok).length; const bien = Object.values(ok).filter(Boolean).length;
+    score.textContent = done === r.items.length ? `Resultado: ${bien} de ${r.items.length}` : ''; score.hidden = done !== r.items.length; };
+  const quiz = (i, q, opciones, correcta, explicacion) => {
+    const el = h('div',{class:'pc'});
+    const paint = () => {
+      el.innerHTML = ''; const elegida = st['o' + i];
+      el.append(h('div',{class:'pc-q'}, h('b',{text: `${i + 1}. ${q}`})));
+      const g = h('div',{class:'cnt-opts',role:'group','aria-label':'Opciones'});
+      opciones.forEach((o, k) => {
+        const answered = elegida != null;
+        const cls = !answered ? '' : k === correcta ? ' ok' : k === elegida ? ' bad' : ' off';
+        const b = h('button',{class:'cnt-opt' + cls,type:'button',disabled:answered,'aria-pressed':String(k === elegida)},
+          h('span',{class:'cnt-mark','aria-hidden':'true',html: answered && k === correcta ? ICON.check : answered && k === elegida ? ICON.close : ''}), h('span',{text:o}));
+        b.onclick = () => { st['o' + i] = k; ok[i] = k === correcta; paint(); paintScore(); };
+        g.append(b);
+      });
+      el.append(g);
+      if (elegida != null) el.append(h('p',{class:'cnt-fb'}, h('b',{text: elegida === correcta ? 'Correcto. ' : `Era: ${opciones[correcta]}. `}), explicacion || ''));
+    };
+    paint(); return el;
+  };
+  if (r.formato === 'opcion_multiple') r.items.forEach((p, i) => box.append(quiz(i, p.pregunta, p.opciones, p.correcta, p.explicacion)));
+  if (r.formato === 'verdadero_falso') r.items.forEach((p, i) => box.append(quiz(i, p.afirmacion, ['Verdadero', 'Falso'], p.verdadero ? 0 : 1, p.explicacion)));
+  if (r.formato === 'completar') r.items.forEach((p, i) => {
+    const el = h('div',{class:'pc'});
+    const paint = () => {
+      el.innerHTML = ''; const [a, b] = p.texto.split(/_{3,}/);
+      const inp = h('input',{class:'cnt-in',type:'text','aria-label':`Respuesta ${i + 1}`,value: st['t' + i] || '',autocomplete:'off',disabled: ok[i] != null});
+      el.append(h('div',{class:'cnt-fill'}, h('span',{text:`${i + 1}. ${a || ''}`}), inp, h('span',{text: b || ''})));
+      if (ok[i] == null) {
+        const check = () => { const v = inp.value.trim(); if (!v) { inp.focus(); return; } st['t' + i] = v; ok[i] = normAns(v) === normAns(p.respuesta); paint(); paintScore(); };
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); check(); } });
+        el.append(h('div',{class:'pc-d'}, h('button',{class:'btn secondary sm',type:'button',text:'Comprobar',onclick:check}),
+          h('button',{class:'link',type:'button',text:'Ver respuesta',onclick:()=>{ st['t' + i] = ''; ok[i] = false; paint(); paintScore(); }})));
+      } else el.append(h('p',{class:'cnt-fb'}, h('b',{text: ok[i] ? 'Correcto.' : `Respuesta: ${p.respuesta}`})));
+    };
+    paint(); box.append(el);
+  });
+  if (r.formato === 'tarjetas') r.items.forEach((t, i) => {
+    const el = h('div',{class:'pc'});
+    const paint = () => { el.innerHTML = ''; const open = !!st['v' + i];
+      el.append(h('div',{class:'pc-q'}, h('b',{text:t.frente})));
+      if (open) el.append(h('p',{class:'pc-a',text:t.reverso}));
+      el.append(h('button',{class:'btn secondary sm',type:'button',text: open ? 'Ocultar' : 'Voltear',onclick:()=>{ st['v' + i] = !open; paint(); }})); };
+    paint(); box.append(el);
+  });
+  if (r.formato === 'tabla') box.append(h('div',{class:'cnt-tw'}, h('table',{class:'cnt-tab'},
+    h('thead',{}, h('tr',{}, ...r.columnas.map(c => h('th',{scope:'col',text:c})))),
+    h('tbody',{}, ...r.filas.map(f => h('tr',{}, ...f.map(c => h('td',{text:c}))))))));
+  if (r.formato === 'pasos') box.append(h('ol',{class:'cnt-steps'}, ...r.items.map(p => h('li',{}, h('b',{text:p.titulo}), p.detalle ? h('span',{text:p.detalle}) : null))));
+  if (['opcion_multiple','verdadero_falso','completar'].includes(r.formato)) { box.append(score); paintScore(); }
+  return box;
+}
+
+// Message tools: copy, regenerate, edit and delete (like Claude or Gemini).
+const chatList = () => CHAT.temporal ? CHAT.tmsgs : CHAT.msgs;
+const undoable = d => !!d && !d.deshecho && (d.resultados || []).some(r => r.ok && r.deshacer);
+// Turn of a message: the user message and everything after it (it is replaced when regenerating or editing).
+function chatTurnFrom(m) {
+  const list = chatList(); let i = list.indexOf(m);
+  if (i < 0) return null;
+  if (m.rol !== 'usuario') { while (i >= 0 && list[i].rol !== 'usuario') i--; if (i < 0) return null; }
+  return { user: list[i], index: i, after: list.slice(i) };
+}
+// Undoes what the replaced replies created in Notion and removes them, after confirming when it matters.
+async function chatRedo(m, newText) {
+  if (CHAT.sending) return;
+  const t = chatTurnFrom(m); if (!t) return;
+  const texto = (newText ?? t.user.texto).trim(); if (!texto) return;
+  const persisted = !CHAT.temporal && typeof t.user.id === 'number';
+  let info;
+  try { info = persisted ? await api('/asistente/recortar', { method:'POST', body:{ id:t.user.id, simular:true } })
+    : { cambios: t.after.filter(x => undoable(x.datos)).reduce((n, x) => n + x.datos.resultados.filter(r => r.ok && r.deshacer).length, 0),
+        posteriores: t.after.filter(x => x.rol === 'usuario').length - 1 }; }
+  catch (e) { toast(e.message); return; }
+  const run = async () => {
+    try {
+      if (persisted) await api('/asistente/recortar', { method:'POST', body:{ id:t.user.id } });
+      else for (const x of [...t.after].reverse()) if (undoable(x.datos)) await api('/asistente/deshacer', { method:'POST', body:{ datos:x.datos } });
+    } catch (e) { toast(e.message); return false; }
+    chatList().splice(t.index); CHAT.editing = null; CHAT.draft = ''; CHAT.selUser = null;
+    chatSend(texto); return true;
+  };
+  if (!info.cambios && !info.posteriores) { await run(); return; }
+  const lines = [];
+  if (info.cambios) lines.push(`Se deshará en Notion lo que creó esta respuesta (${info.cambios} ${info.cambios === 1 ? 'cambio' : 'cambios'}).`);
+  if (info.posteriores > 0) lines.push(info.posteriores === 1 ? 'Se borrará el mensaje posterior de esta conversación.' : `Se borrarán los ${info.posteriores} mensajes posteriores de esta conversación.`);
+  openSheet({ title: newText != null ? 'Editar mensaje' : 'Regenerar respuesta', body: lines.map(l => h('p',{class:'sheet-p',text:l})),
+    confirm: newText != null ? 'Enviar' : 'Regenerar', onConfirm: run });
+}
+function chatEdit(m) { CHAT.editing = { msg:m }; CHAT.draft = m.texto; CHAT.selUser = null; chatPaint(true); const i = $('#chatIn'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+function chatDelete(m) {
+  const t = chatTurnFrom(m); if (!t) return;
+  openSheet({ title:'Borrar mensaje', danger:true, confirm:'Borrar', body:[h('p',{class:'sheet-p',text:'Se borra este mensaje y su respuesta de la conversación. Lo que se guardó en Notion se mantiene; para quitarlo usa Deshacer antes.'})],
+    onConfirm: async () => {
+      try { if (!CHAT.temporal && typeof t.user.id === 'number') await api('/asistente/mensaje?id=' + t.user.id, { method:'DELETE' }); }
+      catch (e) { toast(e.message); return false; }
+      const list = chatList(); const next = list[t.index + 1];
+      list.splice(t.index, next && next.rol !== 'usuario' ? 2 : 1);
+      CHAT.selUser = null; chatPaint(); toast('Mensaje borrado'); return true; } });
+}
+
 function chatMessage(m) {
-  if (m.rol === 'usuario') return h('div',{class:'msg yo',text:m.texto});
+  if (m.rol === 'usuario') {
+    const sel = CHAT.selUser === m;
+    const bub = h('button',{class:'msg yo',type:'button','aria-expanded':String(sel),text:m.texto,onclick:()=>{ CHAT.selUser = sel ? null : m; chatPaint(); }});
+    if (!sel) return bub;
+    return h('div',{class:'msg-yo-w'}, bub, h('div',{class:'msg-acts yo-acts'},
+      h('button',{class:'rate',type:'button','aria-label':'Copiar mensaje',html:ICON.copy,onclick:()=>copyText(m.texto)}),
+      h('button',{class:'rate',type:'button','aria-label':'Editar mensaje',html:ICON.edit,onclick:()=>chatEdit(m)}),
+      h('button',{class:'rate',type:'button','aria-label':'Borrar mensaje',html:ICON.trash,onclick:()=>chatDelete(m)})));
+  }
   const d = m.datos || {}; const res = d.resultados || [];
   const el = h('div',{class:'msg ia'}, h('div',{class:'txt',text:m.texto}));
-  const actions = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','proponer_recuerdo','preguntas_estudio','practicar'].includes(r.accion) || !r.ok).map(resultRow).filter(Boolean);
+  const actions = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','proponer_recuerdo','preguntas_estudio','practicar','mostrar_contenido'].includes(r.accion) || !r.ok).map(resultRow).filter(Boolean);
   if (actions.length) el.append(h('div',{class:'res' + (d.deshecho ? ' undone' : '')}, ...actions));
   res.filter(r => r.accion === 'mostrar_tareas' && r.ok).forEach(r => el.append(taskList(r)));
+  res.filter(r => r.accion === 'mostrar_contenido' && r.ok).forEach(r => el.append(contentBlock(r)));
   res.filter(r => r.accion === 'consultar_base' && r.ok && r.mostrar).forEach(r => el.append(rowsList(r)));
   res.filter(r => (r.accion === 'preguntas_estudio' || r.accion === 'practicar') && r.ok).forEach(r => el.append(practiceCards(m, r, d.deshecho)));
   const leidas = res.filter(r => r.ok && (r.accion === 'leer_pagina' || (r.accion === 'consultar_base' && !r.mostrar)));
@@ -1597,12 +1759,16 @@ function chatMessage(m) {
     leidas.length ? 'Consultó ' + [...new Set(leidas.map(r => r.base || r.titulo))].join(', ') : null, d.deshecho ? 'Deshecho' : null].filter(Boolean).join(' · ');
   const canUndo = !d.deshecho && res.some(r => r.ok && r.deshacer);
   const canRate = typeof m.id === 'number';
-  const bar = h('div',{class:'msg-acts'}, meta ? h('span',{class:'msg-meta',style:{margin:'0 4px',flex:'1'},text:meta}) : h('span',{style:{flex:'1'}}));
+  if (meta) el.append(h('p',{class:'msg-meta',text:meta}));
+  const bar = h('div',{class:'msg-acts'},
+    h('button',{class:'rate',type:'button','aria-label':'Copiar respuesta',html:ICON.copy,onclick:()=>copyText(m.texto)}),
+    h('button',{class:'rate',type:'button','aria-label':'Regenerar respuesta',html:ICON.retry,disabled:!!CHAT.sending,onclick:()=>chatRedo(m)}));
   if (canRate) bar.append(
     h('button',{class:'rate','aria-label':'Buena respuesta','aria-pressed':String(m.valoracion === 1),html:ICON.thumbUp,onclick:()=>chatRate(m, 1)}),
     h('button',{class:'rate','aria-label':'Mala respuesta','aria-pressed':String(m.valoracion === -1),html:ICON.thumbDown,onclick:()=>chatRate(m, -1)}));
-  if (canUndo) { const b = h('button',{class:'link',type:'button',text:'Deshacer'}); b.onclick = () => chatUndo(m, b); bar.append(b); }
-  if (canUndo || meta || canRate) el.append(bar);
+  bar.append(h('button',{class:'rate',type:'button','aria-label':'Borrar respuesta',html:ICON.trash,onclick:()=>chatDelete(m)}));
+  if (canUndo) { const b = h('button',{class:'link',type:'button',text:'Deshacer'}); b.onclick = () => chatUndo(m, b); bar.append(h('span',{style:{flex:'1'}}), b); }
+  el.append(bar);
   if (d.aviso) el.append(h('p',{class:'msg-meta',text:d.aviso}));
   return el;
 }
@@ -1670,7 +1836,10 @@ function viewAssistant(scr) {
   const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 3, 148) + 'px'; send.disabled = !!CHAT.sending || !ta.value.trim(); };
   ta.addEventListener('input', () => { CHAT.draft = ta.value; fit(); });
   ta.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !matchMedia('(pointer:coarse)').matches) { ev.preventDefault(); send.click(); } });
-  send.onclick = () => chatSend(ta.value);
+  send.onclick = () => { if (CHAT.editing) { const ed = CHAT.editing; chatRedo(ed.msg, ta.value); } else chatSend(ta.value); };
+  if (CHAT.editing && !chatList().includes(CHAT.editing.msg)) CHAT.editing = null;
+  if (CHAT.editing) cw.append(h('div',{class:'note-bar edit-bar',role:'status'}, ic('edit'), h('span',{text:'Editando tu mensaje'}),
+    h('button',{class:'link',type:'button',text:'Cancelar',onclick:()=>{ CHAT.editing = null; CHAT.draft = ''; chatPaint(true); }})));
   const cur = chatModelo(); const principal = CHAT.config?.principal?.modelo;
   const mdlLabel = cur ? shortModel(cur.modelo) : principal ? shortModel(principal) : 'Modelo';
   const mdl = h('button',{class:'mdl-btn',type:'button','aria-haspopup':'dialog','aria-label':'Modelo: ' + mdlLabel + '. Cambiar modelo',onclick:chatModelSheet},
@@ -2067,7 +2236,8 @@ function createSheet(folder = S.view==='files' ? S.folder : null) {
   const extra = h('div',{class:'acts-list',style:{marginTop:'6px'}},
     h('div',{class:'act-sep'}),
     act('folder','Nueva carpeta',()=>folderSheet(folder)),
-    act('paste','Guardar en el portapapeles',()=>clipEdit(true)));
+    act('paste','Guardar en el portapapeles',()=>clipEdit(true)),
+    S.isOwner ? act('upload','Transcribir un audio a nota',()=>audioPick(loc.value || folder)) : null);
   openSheet({ title:'Nueva nota', confirm:'Crear nota', focus:name,
     body:[h('div',{class:'field'}, h('label',{for:'fName',text:'Nombre'}), name), h('div',{class:'field'}, h('label',{text:'Formato'}), fm), langF, h('div',{class:'field'}, h('label',{for:'locSel',text:'Carpeta'}), loc), extra],
     onConfirm: () => { const n = name.value.trim() || 'Sin título'; const id = uid(); const p = loc.value || null;
@@ -2075,6 +2245,75 @@ function createSheet(folder = S.view==='files' ? S.folder : null) {
       if (fmt==='code') data.lang = lang.value;
       Store.set(id, data); closeSheet().then(()=>openFile(id)); return false; } });
 }
+// Audio → note: the recording goes to the Worker, Gemini transcribes it and the text becomes a new note.
+const AUDIO_MAX = 95 * 1024 * 1024;
+const AUDIO_EXT = { m4a:'audio/x-m4a', mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', oga:'audio/ogg', opus:'audio/opus', aac:'audio/aac', flac:'audio/flac', webm:'audio/webm', mp4:'audio/mp4', aiff:'audio/aiff' };
+const AUDIO = { job:null };
+function audioPick(folder) {
+  if (AUDIO.job) { audioSheet(); return; }
+  const inp = h('input',{type:'file',accept:'audio/*,.m4a,.mp3,.wav,.ogg,.opus,.aac,.flac,.webm',hidden:true});
+  inp.onchange = () => { const f = inp.files[0]; inp.remove(); if (f) audioStart(f, folder || null); };
+  document.body.append(inp); closeSheet().then(() => inp.click());
+}
+function audioSheet() {
+  const j = AUDIO.job; if (!j) return;
+  const bar = h('div',{class:'prog',role:'progressbar','aria-label':'Progreso','aria-valuemin':'0','aria-valuemax':'100','aria-valuenow':String(j.pct || 0)}, h('i',{style:{width:(j.subido ? 100 : j.pct || 0) + '%'}}));
+  openSheet({ title:'Transcribir audio', cancel:'Seguir en segundo plano', confirm: j.error ? 'Cerrar' : null,
+    body:[h('p',{class:'sheet-p'}, h('b',{text:j.nombre}), ` · ${(j.size / 1048576).toFixed(1)} MB`),
+      j.error ? h('div',{class:'note-bar alert',role:'alert'}, h('span',{text:j.error})) : h('p',{class:'sheet-p',id:'audioEtapa',role:'status',text:j.etapa}),
+      j.error ? null : bar,
+      h('p',{class:'msg-meta',text:'Deja Bitácora abierta y la pantalla encendida hasta que termine; al terminar se abre la nota. El audio pasa por Gemini (Google) y se borra de allí al final.'})].filter(Boolean),
+    onConfirm: () => { AUDIO.job = null; } });
+}
+function audioPaint() {
+  const j = AUDIO.job; const e = $('#audioEtapa'); if (!j || !e) return;
+  e.textContent = j.etapa; const b = document.querySelector('.prog'); if (b) { const v = j.subido ? 100 : j.pct || 0; b.setAttribute('aria-valuenow', String(v)); b.firstChild.style.width = v + '%'; }
+}
+async function audioStart(file, folder) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const mime = AUDIO_EXT[ext] || (file.type.startsWith('audio/') || file.type.startsWith('video/') ? file.type : '');
+  if (!mime) { toast('Ese archivo no parece un audio (usa m4a, mp3, wav, ogg, aac o webm).'); return; }
+  if (file.size > AUDIO_MAX) { toast('El audio supera 95 MB. Grábalo en calidad estándar o divídelo en partes.'); return; }
+  const user = auth.currentUser; if (!user || user.uid !== OWNER_UID) { toast('Ingresa con tu PIN para continuar.'); return; }
+  const j = AUDIO.job = { nombre:file.name, size:file.size, pct:0, etapa:'Subiendo el audio… 0 %' };
+  audioSheet();
+  let lock = null; try { lock = await navigator.wakeLock?.request('screen'); } catch {}
+  const done = (err) => { try { lock?.release(); } catch {}
+    if (err) { j.error = err; if (AUDIO.job === j && $('#audioEtapa')) audioSheet(); else { toast('No se pudo transcribir: ' + err); AUDIO.job = null; } } };
+  try {
+    const token = await user.getIdToken();
+    const fin = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest(); let seen = 0, result = null, failed = null;
+      const lines = () => { const t = xhr.responseText; let i;
+        while ((i = t.indexOf('\n', seen)) >= 0) { const l = t.slice(seen, i); seen = i + 1; if (!l.trim()) continue;
+          let o; try { o = JSON.parse(l); } catch { continue; }
+          if (o.etapa) { j.etapa = o.etapa; audioPaint(); } else if (o.fin) result = o.fin; else if (o.error) failed = o.error; } };
+      xhr.open('POST', WORKER_URL + '/audio/transcribir?nombre=' + encodeURIComponent(file.name.slice(0, 100)));
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token); xhr.setRequestHeader('Content-Type', mime); xhr.setRequestHeader('Accept', 'application/x-ndjson');
+      xhr.upload.onprogress = e => { if (e.lengthComputable) { j.pct = Math.round(e.loaded / e.total * 100); j.etapa = `Subiendo el audio… ${j.pct} %`; audioPaint(); } };
+      xhr.upload.onload = () => { j.subido = true; j.etapa = 'Enviando a Gemini…'; audioPaint(); };
+      xhr.onprogress = lines;
+      xhr.onload = () => {
+        if (xhr.status !== 200) { let m = 'El Worker respondió ' + xhr.status; try { m = JSON.parse(xhr.responseText).error || m; } catch {} reject(new Error(m)); return; }
+        lines(); seen = xhr.responseText.length;
+        const rest = xhr.responseText.split('\n').map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+        if (!result) result = rest.find(o => o.fin)?.fin || null; if (!failed && !result) failed = rest.find(o => o.error)?.error || null;
+        if (failed) reject(new Error(failed)); else if (result) resolve(result); else reject(new Error('La respuesta se cortó.')); };
+      xhr.onerror = () => reject(new Error('Se perdió la conexión con el Worker.'));
+      xhr.send(file);
+    });
+    // Paragraphs with their [mm:ss] mark in bold.
+    const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const html = fin.texto.split(/\n+/).map(l => l.trim()).filter(Boolean)
+      .map(l => { const m = l.match(/^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*(.*)$/); return m ? `<p><b>[${m[1]}]</b> ${esc(m[2])}</p>` : `<p>${esc(l)}</p>`; }).join('')
+      + (fin.incompleta ? '<p><i>La transcripción quedó incompleta: el audio es demasiado largo para una sola respuesta. Divide el audio y transcribe el resto.</i></p>' : '');
+    const id = uid(); const base = file.name.replace(/\.[^.]+$/, '');
+    await Store.set(id, { type:'file', name:'Transcripción · ' + base, parent: folder && get(folder) ? folder : null, format:'rich', content:html, created:Date.now(), updated:Date.now() });
+    done(); const open = AUDIO.job === j && !!$('#audioEtapa'); AUDIO.job = null; onData();
+    if (open) closeSheet().then(() => openFile(id)); else toast('Transcripción lista: ' + base);
+  } catch (e) { done(e.message); }
+}
+
 function folderSheet(parent) {
   const name = h('input',{class:'input',id:'fName',placeholder:'Ej. Fundamentos de Big Data',autocomplete:'off'});
   const cp = colorPicker('c5'); const loc = folderSelect(parent);
