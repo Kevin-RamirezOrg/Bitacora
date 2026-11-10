@@ -281,6 +281,7 @@ Reglas:
 - Lo que no sea una tarea ni un dato de contacto (cómo son las pruebas, temas, consejos, ideas, pedidos largos) va con nota_inbox.
 - Toda pregunta sobre sus pendientes o fechas ("¿qué tengo esta semana?", "¿tengo prueba el martes 17?", "¿el 17 tengo algo?") se responde SIEMPRE con mostrar_tareas y el rango de fechas que corresponda (un solo día si pregunta por un día). Nunca respondas de memoria ni por el historial; la lista la muestra la app, no la repitas. En "respuesta" di solo algo breve como "Esto tienes para el martes 17".
 - Si solo conversa o pide algo ajeno a Notion, responde sin acciones.
+- "Resume", "dame un resumen", "explícame eso" sobre algo que ya aparece en la conversación (clases, páginas o filas leídas) NO es resumen_semanal: si necesitas el contenido, usa leer_pagina con la clave "r…" de esa fila y resume tú en "respuesta" (en viñetas breves). Usa resumen_semanal solo si pide expresamente el resumen de la semana de una materia.
 - "respuesta" confirma en pocas palabras; no repite los detalles que ya muestran las acciones.`;
 }
 
@@ -600,6 +601,62 @@ function resumenParaModelo(m) {
   return `${m.texto}\n[Hecho: ${hechos.join('; ')}]`;
 }
 
+// Primer paso: decide si el mensaje necesita Notion. Si es solo conversación, lo responde aquí mismo,
+// sin leer Notion (más rápido y no envía su información al modelo). Ante la duda, va por Notion.
+function promptClasificar(fechaHoy, hora, memoria) {
+  return `Eres el asistente de estudio de Kevin, estudiante universitario en Ecuador. Hoy es ${diaSemana(fechaHoy)} ${fechaHoy}, son las ${hora}.
+Lo que Kevin te pidió recordar. Respétalo siempre:
+${memoria.length ? memoria.map((m) => '- ' + m.texto).join('\n') : '(nada)'}
+
+Decide si su último mensaje necesita su Notion (tareas, pruebas, fechas, horario, clases, apuntes, materias, profesores, compañeros, preguntas de estudio, práctica, resúmenes, recordar u olvidar algo, deshacer, o seguir con algo de Notion que aparece en la conversación).
+- Si lo necesita, o tienes la menor duda: {"tipo": "notion"}
+- Si es solo conversación o una pregunta general (saludos, cultura general, explicar un concepto, ideas, traducir, opiniones): {"tipo": "charla", "respuesta": "..."}
+En "respuesta" contesta en español, tratándolo de tú, de forma breve y directa: de 1 a 4 frases, o una lista corta si lo pide. Sin relleno.
+Responde SOLO con el objeto JSON, sin texto antes ni después.`;
+}
+
+async function clasificar(env, { fechaHoy, memoria, previos, entrada, modelo }) {
+  try {
+    const r = await chat(env, { modelo, mensajes: [
+      { role: 'system', content: promptClasificar(fechaHoy, horaActual(), memoria) },
+      ...previos.slice(-6).map((m) => ({ role: m.rol === 'usuario' ? 'user' : 'assistant', content: m.rol === 'usuario' ? m.texto : resumenParaModelo(m) })),
+      { role: 'user', content: entrada },
+    ] });
+    const texto = String(r.texto || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
+    const ini = texto.indexOf('{'); const fin = texto.lastIndexOf('}');
+    const j = ini >= 0 && fin > ini ? JSON.parse(texto.slice(ini, fin + 1)) : null;
+    if (j?.tipo === 'charla' && typeof j.respuesta === 'string' && j.respuesta.trim()) {
+      return { tipo: 'charla', respuesta: j.respuesta.trim().slice(0, 4000), r };
+    }
+    return { tipo: 'notion', fallos: r.fallos || [] };
+  } catch (e) {
+    if (e instanceof ErrorIA) throw e;
+    return { tipo: 'notion', fallos: [] };
+  }
+}
+
+// Guarda el par de mensajes (o lo devuelve sin guardar en un chat temporal).
+async function guardarTurno(base, { temporal, chatInfo, entrada, respuesta, datos }) {
+  const ahora = Date.now();
+  if (temporal) {
+    return {
+      temporal: true,
+      usuario: { id: `t${ahora}u`, rol: 'usuario', texto: entrada, datos: null, creado: ahora },
+      asistente: { id: `t${ahora}a`, rol: 'asistente', texto: respuesta, datos, creado: ahora + 1 },
+    };
+  }
+  const [u, a] = await base.batch([
+    base.prepare('INSERT INTO mensajes (rol, texto, datos, creado, chat) VALUES (?, ?, NULL, ?, ?)').bind('usuario', entrada, ahora, chatInfo.id),
+    base.prepare('INSERT INTO mensajes (rol, texto, datos, creado, chat) VALUES (?, ?, ?, ?, ?)').bind('asistente', respuesta, JSON.stringify(datos), ahora + 1, chatInfo.id),
+    base.prepare('UPDATE chats SET actualizado = ? WHERE id = ?').bind(ahora + 1, chatInfo.id),
+  ]);
+  return {
+    chat: { id: chatInfo.id, titulo: chatInfo.titulo },
+    usuario: { id: u.meta.last_row_id, rol: 'usuario', texto: entrada, datos: null, creado: ahora, chat: chatInfo.id },
+    asistente: { id: a.meta.last_row_id, rol: 'asistente', texto: respuesta, datos, creado: ahora + 1, chat: chatInfo.id },
+  };
+}
+
 // Procesa un mensaje completo. Solo guarda en el historial si hubo respuesta del modelo.
 // Historial que manda la app en un chat temporal (no se guarda en D1): se limpia y se recorta.
 function previosTemporales(lista) {
@@ -617,8 +674,30 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
   if (entrada.length > MAX_TEXTO) throw new ErrorAsistente(400, `El mensaje es demasiado largo (máximo ${MAX_TEXTO} caracteres)`);
   const base = await db(env);
 
-  progreso('Leyendo tu Notion…');
   const fechaHoy = hoy();
+  // Chat: el temporal no se guarda; uno normal se crea con el primer mensaje si no existe.
+  let chatInfo = null;
+  if (!temporal) {
+    if (chatPedido) {
+      const c = await base.prepare('SELECT id, titulo FROM chats WHERE id = ?').bind(Number(chatPedido)).first();
+      if (!c) throw new ErrorAsistente(404, 'Ese chat ya no existe');
+      chatInfo = c;
+    } else {
+      chatInfo = await crearChat(env, entrada);
+    }
+  }
+  const previos = temporal ? previosTemporales(historialCliente) : await historial(env, { chat: chatInfo.id, limite: HISTORIAL_CONTEXTO });
+  const memoria = await listarMemoria(env);
+
+  // Conversación simple: se responde sin leer Notion.
+  progreso('Pensando…');
+  const c = await clasificar(env, { fechaHoy, memoria, previos, entrada, modelo });
+  if (c.tipo === 'charla') {
+    const datos = { resultados: [], modelo: c.r.modelo, proveedor: c.r.proveedor, respaldo: c.r.fallos?.length ? true : undefined, charla: true };
+    return guardarTurno(base, { temporal, chatInfo, entrada, respuesta: c.respuesta, datos });
+  }
+
+  progreso('Leyendo tu Notion…');
   const lista = await leerMaterias(env);
   const [pendientes, semana, todas] = await Promise.all([
     consultarTareas(env, { desde: sumarDias(fechaHoy, -30), hasta: sumarDias(fechaHoy, 120), sinFecha: true, limite: 60 }, lista),
@@ -633,7 +712,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     bases: basesConClave,
     basesTexto: basesConClave.length ? basesParaPrompt(basesConClave) : '(no se pudieron leer)',
     filas: [], nombres: new Map(),
-    memoria: (await listarMemoria(env)).map((m, i) => ({ ...m, clave: `k${i + 1}` })),
+    memoria: memoria.map((m, i) => ({ ...m, clave: `k${i + 1}` })),
     valoraciones: await resumenValoraciones(base).catch(() => null),
     dsHorario: env.NOTION_DS_HORARIO, dsTareas: env.NOTION_DS_TAREAS, dsClases: env.NOTION_DS_CLASES,
     fecha: fechaHoy,
@@ -641,25 +720,13 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     modelo, progreso,
   };
 
-  // Chat: el temporal no se guarda; uno normal se crea con el primer mensaje si no existe.
-  let chatInfo = null;
-  if (!temporal) {
-    if (chatPedido) {
-      const c = await base.prepare('SELECT id, titulo FROM chats WHERE id = ?').bind(Number(chatPedido)).first();
-      if (!c) throw new ErrorAsistente(404, 'Ese chat ya no existe');
-      chatInfo = c;
-    } else {
-      chatInfo = await crearChat(env, entrada);
-    }
-  }
-  const previos = temporal ? previosTemporales(historialCliente) : await historial(env, { chat: chatInfo.id, limite: HISTORIAL_CONTEXTO });
   const mensajes = [
     { role: 'system', content: prompt(fechaHoy, claves) },
     ...previos.map((m) => ({ role: m.rol === 'usuario' ? 'user' : 'assistant', content: m.rol === 'usuario' ? m.texto : resumenParaModelo(m) })),
     { role: 'user', content: entrada },
   ];
 
-  let fallos = [];
+  let fallos = [...(c.fallos || [])];
   let reintentos = 0;
   let ultimo = null;
   // Una llamada al modelo; si el JSON viene mal, se pide una vez más.
@@ -765,25 +832,7 @@ export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, te
     reintento: reintentos ? true : undefined,
     aviso,
   };
-  const ahora = Date.now();
-  const respuesta = plan.respuesta || 'Listo.';
-  if (temporal) {
-    return {
-      temporal: true,
-      usuario: { id: `t${ahora}u`, rol: 'usuario', texto: entrada, datos: null, creado: ahora },
-      asistente: { id: `t${ahora}a`, rol: 'asistente', texto: respuesta, datos, creado: ahora + 1 },
-    };
-  }
-  const [u, a] = await base.batch([
-    base.prepare('INSERT INTO mensajes (rol, texto, datos, creado, chat) VALUES (?, ?, NULL, ?, ?)').bind('usuario', entrada, ahora, chatInfo.id),
-    base.prepare('INSERT INTO mensajes (rol, texto, datos, creado, chat) VALUES (?, ?, ?, ?, ?)').bind('asistente', respuesta, JSON.stringify(datos), ahora + 1, chatInfo.id),
-    base.prepare('UPDATE chats SET actualizado = ? WHERE id = ?').bind(ahora + 1, chatInfo.id),
-  ]);
-  return {
-    chat: { id: chatInfo.id, titulo: chatInfo.titulo },
-    usuario: { id: u.meta.last_row_id, rol: 'usuario', texto: entrada, datos: null, creado: ahora, chat: chatInfo.id },
-    asistente: { id: a.meta.last_row_id, rol: 'asistente', texto: respuesta, datos, creado: ahora + 1, chat: chatInfo.id },
-  };
+  return guardarTurno(base, { temporal, chatInfo, entrada, respuesta: plan.respuesta || 'Listo.', datos });
 }
 
 // Un paso de deshacer: en Notion o en la memoria (D1).

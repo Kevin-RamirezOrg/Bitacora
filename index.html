@@ -252,9 +252,17 @@ input.search-field::placeholder{color:var(--muted)}
 .ed-body{flex:1;min-height:0;display:flex;flex-direction:column}
 .ed-tools{flex:none;display:flex;align-items:center;gap:4px;overflow-x:auto;scrollbar-width:none;padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));background:var(--surface);border-top:1px solid var(--line)}
 .ed-tools::-webkit-scrollbar{display:none}
-.dict-bar{flex:none;padding:8px max(16px,env(safe-area-inset-left,0px));font-size:14px;color:var(--ink);background:var(--accent-soft);border-top:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dict-bar{flex:none;position:relative;z-index:6;display:flex;align-items:center;gap:10px;min-height:56px;padding:6px max(12px,env(safe-area-inset-right,0px)) 6px max(16px,env(safe-area-inset-left,0px));font-size:14px;color:var(--ink);background:var(--accent-soft);border-top:1px solid var(--line)}
+.dict-bar:not([hidden]){padding-bottom:28px}
+.app.in-editor .dict-bar:not([hidden]){padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+.dict-dot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--danger);animation:pulse 1.4s ease-in-out infinite}
+.dict-t{flex:1;min-width:0;display:flex;flex-direction:column}
+.dict-t b,.dict-t span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dict-t span{color:var(--ink-2);font-size:13px}
+.dict-bar .link{flex:none;min-height:44px;padding:0 6px}
+.dict-stop{flex:none;min-height:44px;padding:0 14px}
 .dict-bar[hidden]{display:none}
-.tb.on[aria-label="Dictar por voz"]{background:var(--danger);color:var(--bg)}
+.tb.on[aria-label="Dictar por voz"],.tb[aria-pressed="true"][aria-label="Dictar por voz"]{background:var(--danger);color:var(--bg)}
 .tb{flex:none;min-width:44px;height:44px;padding:0 8px;border-radius:12px;display:inline-grid;place-items:center;color:var(--ink);font-size:16px;font-weight:700}
 .tb svg{width:22px;height:22px}
 .tb:active,.tb.on{background:var(--accent-soft);color:var(--accent-ink)}
@@ -463,11 +471,6 @@ input.search-field::placeholder{color:var(--muted)}
 .pc-q b{flex:1;font-weight:600;font-size:15px}
 .pc-a{margin:0;font-size:15px;color:var(--ink-2);white-space:pre-wrap}
 .pc-d{display:flex;flex-wrap:wrap;gap:6px}
-.sugs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:8px}
-.sugs::-webkit-scrollbar{display:none}
-.sugs[hidden]{display:none}
-.sug{flex:none;min-height:44px;padding:0 14px;border-radius:var(--r-pill);border:1.5px solid var(--line-strong);background:var(--surface);font-size:14px;font-weight:600;color:var(--ink-2);white-space:nowrap}
-.sug:hover{background:var(--surface-2)}
 .mic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line-strong);background:var(--surface);color:var(--ink-2)}
 .mic svg{width:20px;height:20px}
 .mic[aria-pressed="true"]{background:var(--danger);border-color:var(--danger);color:var(--bg);animation:pulse 1.4s ease-in-out infinite}
@@ -529,6 +532,7 @@ input.search-field::placeholder{color:var(--muted)}
   .tab.main .tab-ic{margin-top:0;width:52px;height:52px}
   .fab{right:32px;bottom:28px}
   .app.in-editor .tabbar{display:flex}
+  .dict-bar,.dict-bar:not([hidden]),.app.in-editor .dict-bar:not([hidden]){position:fixed;z-index:30;left:calc(96px + 24px);right:24px;bottom:24px;max-width:640px;margin:0 auto;padding:6px 12px 6px 16px;border:1px solid var(--line-strong);border-radius:18px;box-shadow:0 8px 22px rgba(0,0,0,.25)}
   .sheet-scrim{align-items:center;padding:20px}
   .sheet{border-radius:24px;border-bottom:1px solid var(--line);max-height:84vh}
   .sheet-f{padding-bottom:16px}
@@ -805,7 +809,7 @@ $('#lockForm').addEventListener('submit', async e => {
   finally { btn.disabled = false; btn.textContent = 'Entrar'; }
 });
 $('#lockCancel').onclick = hideLock;
-function lockNow() { flushSave(); try { localStorage.removeItem('bitacora.temp'); } catch {} auth.signOut().then(()=>toast('Bitácora bloqueada')); }
+function lockNow() { dictEnd(); flushSave(); try { localStorage.removeItem('bitacora.temp'); } catch {} auth.signOut().then(()=>toast('Bitácora bloqueada')); }
 const IDLE_MS = 30 * 60 * 1000; let idleT = null;
 function armIdle() { clearTimeout(idleT); let temp = false; try { temp = localStorage.getItem('bitacora.temp') === '1'; } catch {}
   if (S.isOwner && temp) idleT = setTimeout(() => { flushSave(); auth.signOut(); toast('Sesión cerrada por inactividad'); }, IDLE_MS); }
@@ -869,9 +873,9 @@ function render() {
   const tabView = S.view === 'search' ? 'home' : S.view === 'ai' ? 'settings' : S.view === 'editor' ? null : S.view;
   const cur = document.querySelector(`.tab[data-view="${tabView}"]`); if (cur) cur.setAttribute('aria-current','page');
   if (S.view !== 'editor') ed = null;
-  if (dict && dict.view !== S.view) dictStop();
   scr.innerHTML = '';
   ({ home:viewHome, files:viewFiles, panel:viewPanel, search:viewSearch, assistant:viewAssistant, settings:viewSettings, ai:viewAI, editor:viewEditor }[S.view] || viewHome)(scr);
+  dictUi();
 }
 function onData() {
   // The AI panel keeps unsaved edits in its form; note changes don't affect it, so don't redraw it under the user.
@@ -1241,7 +1245,6 @@ function chatModelo() { // favorite picked in the chat, or null = saved principa
 }
 async function chatSend(text) {
   text = String(text || '').trim(); if (!text || CHAT.sending) return;
-  dictStop();
   CHAT.sending = { texto:text }; CHAT.failed = null; CHAT.draft = ''; chatPaint(true);
   const temporal = CHAT.temporal;
   try {
@@ -1376,63 +1379,109 @@ async function chatProposal(m, aceptar, btn) {
   } catch (e) { toast(e.message); btn.disabled = false; }
 }
 
-// Suggestions for the moment: notes of the class in progress, practice before a test, tomorrow's plan.
-function chatSugerencias() {
-  const out = []; const d = HOY.data; const now = new Date(); const mins = now.getHours() * 60 + now.getMinutes();
-  const toM = t => { const [hh, mm] = String(t || '').split(':').map(Number); return hh * 60 + (mm || 0); };
-  const cl = d?.clases || [];
-  const reciente = cl.find(c => toM(c.inicio) <= mins && mins < toM(c.fin)) || cl.filter(c => toM(c.fin) <= mins && mins - toM(c.fin) <= 180).pop();
-  if (reciente) out.push({ t:`Apuntes de ${reciente.titulo}`, prefill:`En la clase de ${reciente.titulo} de hoy vimos ` });
-  const prueba = (d?.tareas || []).filter(t => !t.completada && t.fecha && t.materia && (t.tipo === 'Prueba' || t.tipo === 'Examen'))
-    .map(t => ({ ...t, n: daysUntil(t.fecha) })).filter(t => t.n >= 0 && t.n <= 5).sort((a, b) => a.n - b.n)[0];
-  if (prueba) out.push({ t:`Practicar ${prueba.materia}`, send:`Quiero practicar ${prueba.materia}` });
-  if (now.getHours() >= 18) out.push({ t:'¿Qué tengo mañana?', send:'¿Qué tengo mañana?' });
-  else if (cl.some(c => toM(c.fin) > mins)) out.push({ t:'¿Qué clase me toca?', send:'¿Qué clase me toca ahora?' });
-  if (now.getDay() === 5 || now.getDay() === 6 || now.getDay() === 0) out.push({ t:'Resumir la semana', prefill:'Resume la semana de ' });
-  return out.slice(0, 3);
-}
-
-// Voice dictation (Web Speech API; Chrome on Android supports it). One recognizer at a time, shared by chat and editor.
+// Voice dictation (Web Speech API). One global session that survives navigation inside Bitácora:
+// it keeps writing into the chat draft or the note where it started until the person taps the mic again.
+// Android Chrome repeats phrases in continuous mode, so there each phrase is its own short session that
+// restarts on its own; the gaps are a fraction of a second.
 var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-var dict = null; // var: render() may run before this line during start-up
-function dictStop() {
-  if (!dict) return; const d = dict; dict = null;
-  try { d.rec.stop(); } catch {}
-  d.btn?.setAttribute('aria-pressed','false'); d.btn?.classList.remove('on'); d.onEnd?.();
+var DICT = { on:false, target:null, rec:null, interim:'', errors:0, pending:'', flushT:null, lastFinal:'', lastAt:0 }; // var: render() may run first
+const DICT_ANDROID = /Android/i.test(navigator.userAgent);
+const dictSame = (a, b) => !!a && !!b && a.kind === b.kind && a.id === b.id;
+const dictActive = target => DICT.on && dictSame(DICT.target, target);
+function dictJoin(prev, t) { prev = prev || ''; return prev + (prev && !/\s$/.test(prev) ? ' ' : '') + t; }
+
+function dictToggleTarget(target) {
+  if (!SpeechRec) return;
+  if (dictActive(target)) { dictEnd(); return; }
+  if (DICT.on) { dictFlush(); DICT.target = target; DICT.interim = ''; dictUi(); return; }
+  DICT.on = true; DICT.target = target; DICT.errors = 0; DICT.interim = ''; DICT.lastFinal = '';
+  dictSession(); dictUi();
 }
-// Starts listening; onText(final, interim) is called as results arrive.
-function dictStart(btn, { onFinal, onInterim, onEnd } = {}) {
-  if (dict) { const same = dict.btn === btn; dictStop(); if (same) return; }
-  const rec = new SpeechRec(); rec.lang = 'es-EC'; rec.continuous = true; rec.interimResults = true;
-  rec.onresult = ev => { let interim = '';
-    for (let i = ev.resultIndex; i < ev.results.length; i++) { const t = ev.results[i][0].transcript; if (ev.results[i].isFinal) onFinal?.(t); else interim += t; }
-    onInterim?.(interim); };
-  rec.onerror = ev => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') toast('Permite el micrófono para dictar'); else if (ev.error !== 'aborted' && ev.error !== 'no-speech') toast('No se pudo dictar: ' + ev.error); };
-  rec.onend = () => { if (dict?.rec === rec) dictStop(); };
-  try { rec.start(); dict = { rec, btn, onEnd, view:S.view }; btn.setAttribute('aria-pressed','true'); btn.classList.add('on'); } catch { toast('No se pudo iniciar el dictado'); }
+function dictEnd() {
+  if (!DICT.on) return;
+  DICT.on = false; const rec = DICT.rec; DICT.rec = null;
+  try { rec?.stop(); } catch {}
+  dictFlush(); DICT.interim = ''; DICT.target = null; dictUi();
 }
-function dictToggle(ta, btn) {
-  if (dict) { dictStop(); return; }
-  const base = ta.value ? ta.value.replace(/\s*$/, ' ') : '';
-  let finals = '';
-  const show = interim => { ta.value = (base + finals + interim).replace(/\s+/g, ' ').trimStart(); CHAT.draft = ta.value; ta.dispatchEvent(new Event('input')); };
-  dictStart(btn, { onFinal: t => { finals += t + ' '; show(''); }, onInterim: show });
+function dictSession() {
+  if (!DICT.on || DICT.rec || document.hidden) return;
+  const rec = new SpeechRec(); rec.lang = 'es-EC'; rec.interimResults = true; rec.continuous = !DICT_ANDROID;
+  let emitted = ''; // text already written in this session (guards against repeated results)
+  rec.onresult = ev => {
+    let finals = '', interim = '';
+    for (let i = 0; i < ev.results.length; i++) { const t = ev.results[i][0].transcript.trim(); if (!t) continue;
+      if (ev.results[i].isFinal) finals = dictJoin(finals, t); else interim = dictJoin(interim, t); }
+    // Some engines resend everything heard so far; write only what is new.
+    let nuevo = finals.startsWith(emitted) ? finals.slice(emitted.length).trim() : finals;
+    if (nuevo && !(nuevo === DICT.lastFinal && Date.now() - DICT.lastAt < 2000)) { dictEmit(nuevo); DICT.lastFinal = nuevo; DICT.lastAt = Date.now(); }
+    emitted = finals; DICT.interim = interim; DICT.errors = 0; armIdle(); dictUi();
+  };
+  rec.onerror = ev => {
+    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { toast('Permite el micrófono para dictar'); DICT.rec = null; dictEnd(); return; }
+    if (ev.error !== 'aborted' && ev.error !== 'no-speech') DICT.errors++;
+    if (DICT.errors >= 5) { toast('El dictado se detuvo: ' + ev.error); DICT.rec = null; dictEnd(); }
+  };
+  rec.onend = () => { if (DICT.rec !== rec) return; DICT.rec = null; DICT.interim = ''; dictUi();
+    if (DICT.on) setTimeout(dictSession, DICT.errors ? 800 : 120); };
+  try { rec.start(); DICT.rec = rec; } catch { DICT.rec = null; if (DICT.on) setTimeout(dictSession, 800); }
 }
-// Editor: each final phrase is typed at the cursor; the partial phrase shows in a bar above the toolbar.
-function dictEditor(target, btn, bar) {
+// Chrome stops listening when the page is hidden; it resumes on return while still on.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && DICT.on) dictSession(); });
+
+// Writes a finished phrase where the dictation started.
+function dictEmit(t) {
+  const tg = DICT.target; if (!tg) return;
+  if (tg.kind === 'chat') {
+    CHAT.draft = dictJoin(CHAT.draft, t);
+    const ta = S.view === 'assistant' ? $('#chatIn') : null;
+    if (ta) { ta.value = CHAT.draft; ta.dispatchEvent(new Event('input')); ta.scrollTop = ta.scrollHeight; }
+    return;
+  }
+  if (S.view === 'editor' && S.fileId === tg.id && ed?.dictar) { ed.dictar(t); return; }
+  DICT.pending = dictJoin(DICT.pending, t);
+  clearTimeout(DICT.flushT); DICT.flushT = setTimeout(dictFlush, 4000);
+}
+// Saves phrases dictated while the note is closed (appended at the end).
+function dictFlush() {
+  clearTimeout(DICT.flushT); const tg = DICT.target; const txt = DICT.pending.trim(); DICT.pending = '';
+  if (!txt || tg?.kind !== 'note') return;
+  const it = get(tg.id); if (!it || !S.canWrite) return;
+  const esc = txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const content = it.format === 'rich' ? (it.content || '') + `<p>${esc}</p>` : dictJoin(it.content || '', txt);
+  Store.patch(tg.id, { content, updated: Date.now() });
+}
+// Inserter for the open editor: each phrase goes where the cursor was.
+function dictInserter(target) {
   let range = null;
   const keep = () => { const s = getSelection(); if (s.rangeCount && target.contains(s.anchorNode)) range = s.getRangeAt(0).cloneRange(); };
-  keep();
-  const put = t => {
+  document.addEventListener('selectionchange', () => { if (target.isConnected) keep(); });
+  return t => {
+    if (!target.isConnected) return;
     if (document.activeElement !== target) { target.focus({ preventScroll:true }); if (range && target.isContentEditable) { const s = getSelection(); s.removeAllRanges(); s.addRange(range); } }
     let txt = t.trim(); if (!txt) return;
     if (target.tagName === 'TEXTAREA') { const prev = target.value.slice(0, target.selectionStart); if (prev && !/\s$/.test(prev)) txt = ' ' + txt; }
+    else { const r = getSelection().rangeCount ? getSelection().getRangeAt(0) : null;
+      if (r && r.startContainer.nodeType === 3 && r.startOffset > 0 && !/[\s\u00a0]/.test(r.startContainer.data[r.startOffset - 1])) txt = ' ' + txt; }
     if (!document.execCommand('insertText', false, txt + ' ') && target.tagName === 'TEXTAREA') { target.setRangeText(txt + ' ', target.selectionStart, target.selectionEnd, 'end'); target.dispatchEvent(new Event('input')); }
     keep();
   };
-  bar.hidden = false; bar.textContent = 'Escuchando… habla y el texto aparecerá donde está el cursor.';
-  dictStart(btn, { onFinal: put, onInterim: t => { bar.textContent = t ? '… ' + t : 'Escuchando…'; }, onEnd: () => { bar.hidden = true; } });
 }
+// Mic buttons and the "Dictando" bar above the navigation reflect the global state.
+function dictUi() {
+  document.querySelectorAll('[data-dict]').forEach(b => { const on = dictActive(JSON.parse(b.dataset.dict));
+    b.setAttribute('aria-pressed', String(on)); b.classList.toggle('on', on); });
+  let bar = $('#dictBar');
+  if (!DICT.on) { if (bar) bar.hidden = true; return; }
+  if (!bar) { bar = h('div',{class:'dict-bar',id:'dictBar',role:'status'}); $('#app').insertBefore(bar, $('#tabbar')); }
+  const tg = DICT.target; const dest = tg.kind === 'chat' ? 'el chat' : `«${get(tg.id)?.name || 'la nota'}»`;
+  const aqui = tg.kind === 'chat' ? S.view === 'assistant' : S.view === 'editor' && S.fileId === tg.id;
+  bar.hidden = false; bar.innerHTML = '';
+  bar.append(...[h('span',{class:'dict-dot'}),
+    h('span',{class:'dict-t'}, h('b',{text:`Dictando en ${dest}`}), h('span',{text: DICT.interim ? '… ' + DICT.interim : 'Escuchando…'})),
+    aqui ? null : h('button',{class:'link',type:'button',text:'Ir',onclick:()=> tg.kind === 'chat' ? navigate('assistant') : openFile(tg.id)}),
+    h('button',{class:'btn secondary dict-stop',type:'button',text:'Detener',onclick:dictEnd})].filter(Boolean));
+}
+const micAttrs = target => ({ 'data-dict': JSON.stringify(target), 'aria-pressed': String(dictActive(target)) });
 
 // Sheet to pick the model for the chat: saved principal or one of the favorites.
 function chatModelSheet() {
@@ -1594,7 +1643,7 @@ function viewAssistant(scr) {
   const log = h('div',{class:'chat-log'}); w.append(log);
   if (CHAT.more && !CHAT.temporal) { const b = h('button',{class:'btn secondary',type:'button',style:{alignSelf:'center'},text:'Ver mensajes anteriores'}); b.onclick = () => chatOlder(b); log.append(b); }
   if (!msgs.length && !CHAT.sending && !CHAT.failed) {
-    log.append(intro(), h('div',{class:'sec-h',style:{marginTop:'8px'}}, h('h2',{style:{fontSize:'18px'},text:'Prueba con'})),
+    log.append(h('div',{class:'sec-h',style:{marginTop:'8px'}}, h('h2',{style:{fontSize:'18px'},text:'Prueba con'})),
       h('div',{class:'as-ex'}, ...CHAT_EXAMPLES.map(t => h('button',{type:'button',onclick:()=>{ const i = $('#chatIn'); i.value = t; CHAT.draft = t; i.dispatchEvent(new Event('input')); i.focus(); }}, t))));
   }
   let lastDay = null;
@@ -1619,20 +1668,14 @@ function viewAssistant(scr) {
   ta.value = CHAT.draft;
   const send = h('button',{class:'send',type:'button','aria-label':'Enviar',html:ICON.send});
   const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight + 3, 148) + 'px'; send.disabled = !!CHAT.sending || !ta.value.trim(); };
-  ta.addEventListener('input', () => { CHAT.draft = ta.value; fit(); const sg = $('.sugs'); if (sg) sg.hidden = !!ta.value.trim(); });
+  ta.addEventListener('input', () => { CHAT.draft = ta.value; fit(); });
   ta.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !matchMedia('(pointer:coarse)').matches) { ev.preventDefault(); send.click(); } });
   send.onclick = () => chatSend(ta.value);
   const cur = chatModelo(); const principal = CHAT.config?.principal?.modelo;
   const mdlLabel = cur ? shortModel(cur.modelo) : principal ? shortModel(principal) : 'Modelo';
   const mdl = h('button',{class:'mdl-btn',type:'button','aria-haspopup':'dialog','aria-label':'Modelo: ' + mdlLabel + '. Cambiar modelo',onclick:chatModelSheet},
     h('span',{text:mdlLabel}), ic('chevD'));
-  const mic = SpeechRec ? h('button',{class:'mic',id:'micBtn',type:'button','aria-label':'Dictar por voz','aria-pressed':String(!!dict),html:ICON.mic,onclick:()=>dictToggle(ta, mic)}) : null;
-  if (!CHAT.sending && !CHAT.draft.trim()) {
-    if (!HOY.data && !HOY.loading && !HOY.err) setTimeout(hoyLoad);
-    const sg = chatSugerencias();
-    if (sg.length) cw.append(h('div',{class:'sugs',role:'group','aria-label':'Sugerencias'}, ...sg.map(x => h('button',{class:'sug',type:'button',text:x.t,onclick:()=>{
-      if (x.send) chatSend(x.send); else { CHAT.draft = x.prefill; chatPaint(true); const i = $('#chatIn'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } } }}))));
-  }
+  const mic = SpeechRec ? h('button',{class:'mic' + (dictActive({kind:'chat'}) ? ' on' : ''),id:'micBtn',type:'button','aria-label':'Dictar por voz',...micAttrs({kind:'chat'}),html:ICON.mic,onclick:()=>dictToggleTarget({kind:'chat'})}) : null;
   cw.append(h('div',{class:'comp-box' + (CHAT.temporal ? ' temp' : '')}, ta, h('div',{class:'comp-foot'}, mdl, h('span',{class:'comp-right'}, mic, send))));
   requestAnimationFrame(fit);
 }
@@ -2076,7 +2119,8 @@ function openFile(id) { if (!get(id)) return; if (S.view === 'editor') { navigat
 function viewEditor(scr) {
   const id = S.fileId; const it = get(id);
   if (!it) { if (!S.ready) { scr.append(h('p',{class:'pad date',style:{marginTop:'40px'},text:'Cargando…'})); } else { setTimeout(()=>navigate('home',{},'replace'),0); } return; }
-  S.dirty = false; S.lastSaved = it.content || '';
+  if (dictActive({kind:'note',id})) dictFlush(); // phrases dictated while away are saved before opening
+  S.dirty = false; S.lastSaved = get(id).content || '';
   const parentName = it.parent && get(it.parent) ? get(it.parent).name : 'Volver';
   const top = h('div',{class:'ed-top pad'},
     h('button',{class:'ed-back',onclick:()=>goBack('files'),'aria-label':'Volver'}, ic('back'), h('span',{text:parentName})),
@@ -2090,7 +2134,10 @@ function viewEditor(scr) {
   const head = h('div',{class:'ed-head pad'}, title, meta);
   const body = h('div',{class:'ed-body'});
   scr.append(top, head, body);
-  ed = it.format==='rich' ? richEditor(body, it) : it.format==='md' ? mdEditor(body, it) : codeEditor(body, it);
+  ed = it.format==='rich' ? richEditor(body, get(id)) : it.format==='md' ? mdEditor(body, get(id)) : codeEditor(body, get(id));
+  const dTarget = body.querySelector('.rich, textarea');
+  if (dTarget && it.format !== 'code') ed.dictar = dictInserter(dTarget);
+  body.querySelectorAll('.tb[aria-label="Dictar por voz"]').forEach(b => { Object.entries(micAttrs({kind:'note',id})).forEach(([k, v]) => b.setAttribute(k, v)); b.classList.toggle('on', dictActive({kind:'note',id})); });
   updateMeta();
 }
 function updateMeta(state) {
@@ -2140,8 +2187,7 @@ function richEditor(host, it) {
   const B = { bold:tb('<b>B</b>','Negrita',()=>exec('bold')), italic:tb('<i style="font-family:Georgia,serif">I</i>','Cursiva',()=>exec('italic')),
     underline:tb('<u>U</u>','Subrayado',()=>exec('underline')), strike:tb('<s>S</s>','Tachado',()=>exec('strikeThrough')) };
   const pasteBtn = tb('<span style="font-size:13px;font-weight:600">Texto plano</span>','Pegar sin formato',()=>{ S.pastePlain = !S.pastePlain; pasteBtn.classList.toggle('on', S.pastePlain); toast(S.pastePlain ? 'Pegarás solo el texto' : 'Pegarás con formato'); }, 'txt'+(S.pastePlain?' on':''));
-  const dictBar = h('div',{class:'dict-bar',role:'status',hidden:true});
-  const micB = SpeechRec ? tb('mic','Dictar por voz',()=>dictEditor(area, micB, dictBar)) : null;
+  const micB = SpeechRec ? tb('mic','Dictar por voz',()=>dictToggleTarget({kind:'note',id:S.fileId})) : null;
   const tools = h('div',{class:'ed-tools',role:'toolbar','aria-label':'Formato'},
     micB, micB ? tsep() : null, tb('undo','Deshacer',()=>exec('undo')), tb('redo','Rehacer',()=>exec('redo')), tsep(),
     tb('<span style="font-family:var(--f-display);font-weight:700">T1</span>','Título',()=>block('h1')), tb('<span style="font-family:var(--f-display);font-weight:700">T2</span>','Subtítulo',()=>block('h2')), tb('<span style="font-weight:600">¶</span>','Párrafo',()=>exec('formatBlock','p')), tsep(),
@@ -2162,7 +2208,7 @@ function richEditor(host, it) {
     if (!S.pastePlain && html) document.execCommand('insertHTML', false, DOMPurify.sanitize(html, {FORBID_TAGS:['style','meta','font','script','iframe','form','input','button'], FORBID_ATTR:['style','class','id','width','height','bgcolor','color','face','size']}));
     else document.execCommand('insertText', false, txt);
     changed(); });
-  host.append(area); if (S.canWrite) host.append(dictBar, tools);
+  host.append(area); if (S.canWrite) host.append(tools);
   return { getContent:()=>area.innerHTML, setContent:v=>{ area.innerHTML = DOMPurify.sanitize(v,{ADD_ATTR:['data-check','data-checked']}); },
     isFocused:()=>area.contains(document.activeElement)||document.activeElement===area, text:()=>area.innerText,
     stats:()=>{ const n = countWords(area.innerText||''); return `${n.toLocaleString('es')} palabra${n===1?'':'s'}`; } };
@@ -2198,8 +2244,7 @@ function mdEditor(host, it) {
   const apply = () => { wrap.classList.toggle('split', mode==='split'); ta.classList.toggle('hide', mode==='view'); prev.classList.toggle('hide', mode==='edit');
     seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.m===mode))); if (mode!=='edit') renderMd(ta.value, prev); };
   let pt; const rerender = () => { clearTimeout(pt); pt = setTimeout(()=>{ if (mode!=='edit') renderMd(ta.value, prev); }, 140); };
-  const dictBar = h('div',{class:'dict-bar',role:'status',hidden:true});
-  const micB = SpeechRec ? tb('mic','Dictar por voz',()=>{ if (mode === 'view') { mode = 'edit'; apply(); } dictEditor(ta, micB, dictBar); }) : null;
+  const micB = SpeechRec ? tb('mic','Dictar por voz',()=>{ if (mode === 'view') { mode = 'edit'; apply(); } dictToggleTarget({kind:'note',id:S.fileId}); }) : null;
   const tools = h('div',{class:'ed-tools',role:'toolbar','aria-label':'Formato Markdown'}, micB, micB ? tsep() : null, seg, tsep(),
     tb('<span style="font-family:var(--f-display);font-weight:700">H1</span>','Título',()=>prefixLines(ta,'# ')), tb('<span style="font-family:var(--f-display);font-weight:700">H2</span>','Subtítulo',()=>prefixLines(ta,'## ')),
     tb('<b>B</b>','Negrita',()=>insertAround(ta,'**','**')), tb('<i style="font-family:Georgia,serif">I</i>','Cursiva',()=>insertAround(ta,'*','*')),
@@ -2209,7 +2254,7 @@ function mdEditor(host, it) {
   ta.addEventListener('input', () => { changed(); rerender(); });
   ta.addEventListener('blur', flushSave);
   ta.addEventListener('keydown', e => { if (e.key==='Tab') { e.preventDefault(); insertAround(ta,'    ','',''); } });
-  wrap.append(ta, prev); host.append(wrap); if (S.canWrite) host.append(dictBar, tools); apply();
+  wrap.append(ta, prev); host.append(wrap); if (S.canWrite) host.append(tools); apply();
   return { getContent:()=>ta.value, setContent:v=>{ ta.value=v; if (mode!=='edit') renderMd(v, prev); }, isFocused:()=>document.activeElement===ta, text:()=>ta.value,
     stats:()=>{ const n = countWords(ta.value); return `${n.toLocaleString('es')} palabra${n===1?'':'s'}`; } };
 }
@@ -2304,7 +2349,7 @@ history.replaceState({ view:vista0, depth:0 }, '', location.pathname);
 S.view = vista0;
 render();
 if ('serviceWorker' in navigator && isSecureContext && location.protocol !== 'file:') navigator.serviceWorker.register('/sw.js').catch(() => {});
-auth.onAuthStateChanged(u => { S.isOwner = !!u && u.uid === OWNER_UID; S.authKnown = true; if (u && !S.isOwner) auth.signOut(); recompute(); });
+auth.onAuthStateChanged(u => { S.isOwner = !!u && u.uid === OWNER_UID; if (!S.isOwner) dictEnd(); S.authKnown = true; if (u && !S.isOwner) auth.signOut(); recompute(); });
 fdb.doc('config/access').onSnapshot(snap => { const m = snap.exists ? snap.data().mode : 'private'; S.access = MODES[m] ? m : 'private'; recompute(); }, () => { S.access = 'private'; recompute(); });
 })();
 </script>

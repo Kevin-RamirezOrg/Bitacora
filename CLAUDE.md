@@ -39,6 +39,7 @@ Este archivo es el contexto completo del proyecto; cualquier asistente (Claude, 
 
 ### Pendientes y decisiones abiertas
 - Resuelto el 9 nov: el modelo principal ya funciona; el resumen semanal queda **solo a pedido** (sin Cron Trigger).
+- **Tanda 2 (aprobada, por hacer)**: (a) formatos de respuesta con cajitas: opción múltiple, verdadero/falso, completar, tarjetas, tablas y pasos; (b) editar, regenerar, copiar y borrar mensajes como en Claude/Gemini: si el mensaje creó cosas en Notion, **deshacerlas automáticamente** antes de regenerar o al editar (decisión A de Kevin); (c) subir un audio grabado con la grabadora del teléfono y transcribirlo a una nota (para clases con la pantalla apagada; el dictado web no funciona en segundo plano). Kevin quiere mantener las respuestas **cortas**.
 1. **Panel parte B** (próximo) (acordado, no hecho): asistente de cálculo de horas libres de una sola vez (horario de Notion + sueño, comidas, traslados, compromisos fijos) que deja horas por día editables a mano en Ajustes; barra de capacidad (plan vs. horas libres, marca en 70 %); plan del día con IA (máx. 3 prioridades, margen ×1,5 en tareas conocidas y ×2 en nuevas); anillo de prioridades hechas; cierre del día con tiempo real (D1); gráfico estimado vs. real. El horario de clases ya está en Notion (base Horario).
 2. **Fase 4 – Moodle** (próximo): el aula virtual tiene "Exportar calendario". El Worker leería la URL iCal (como *secret*) una vez al día con Cron Trigger y crearía/actualizaría filas en Tareas y evaluaciones sin duplicar (usar el UID del evento).
 3. **Ideas aplazadas**: marcar tareas como hechas desde el Panel; próximos cumpleaños en el Panel; "Practicar" desde las sesiones de Repasos; bandeja para Claude (tarea programada que procesa el Inbox); recordatorios por Telegram; resumen matutino; foto de apuntes a texto; búsqueda global.
@@ -49,6 +50,7 @@ Este archivo es el contexto completo del proyecto; cualquier asistente (Claude, 
 - GitHub Pages desde `main`, raíz. Dominio **ellenkev.me** (`CNAME`). `_config.yml` excluye `CLAUDE.md`, `worker/` y `README.md`.
 - Librerías por CDN: Firebase compat 10.12.2 (gstatic), marked 12.0.2, DOMPurify 3.1.6, highlight.js 11.9.0 (cdnjs). Fuentes: Lora (títulos), Figtree (texto), JetBrains Mono (código).
 - **PWA**: `manifest.webmanifest` (standalone, colores Pizarra, accesos directos `?v=assistant` y `?v=panel`), íconos en `icons/` (192, 512, maskable, apple-touch, favicon; "B" con subrayado de tiza) y `sw.js` mínimo: red primero para la página y, sin conexión, la última copia; no cachea nada más. Verificado sin errores con `Page.getInstallabilityErrors`.
+- Dictado global (`DICT`): un solo dictado que sigue activo al navegar dentro de Bitácora hasta que Kevin toca el micrófono o **Detener**; escribe en el borrador del chat o en la nota donde empezó (si la nota está cerrada, agrega las frases al final cada ~4 s con `Store.patch`). Barra "Dictando en …" con Ir y Detener sobre la navegación (flotante en escritorio). En Android usa `continuous=false` y reinicia la sesión tras cada frase (en modo continuo Chrome repetía frases) y además descarta repeticiones. Se pausa si la página se oculta y sigue al volver; con la pantalla apagada no funciona (límite de Chrome).
 - Navegación: barra inferior **Inicio · Archivos · Asistente (botón central destacado, ícono `ICON.asistente`: estrella de cuatro puntas con arcos) · Panel · Ajustes**; la barra lleva `position:relative; z-index:6` para que el círculo que sobresale quede por encima del contenido; en ≥900 px es riel lateral. `history.pushState` para que funcione el botón atrás de Android.
   - **Inicio**: Urgente (atrasado + 7 días, máx. 5), Portapapeles, Carpetas, Recientes.
   - **Archivos**: carpetas y notas; botón **+** flotante abajo a la derecha (como Google Drive), crea dentro de la carpeta abierta.
@@ -108,6 +110,8 @@ Rutas privadas: `GET /yo`, `GET /ia/proveedores`, `GET /ia/modelos?proveedor=`, 
 
 ## Asistente (chat → Notion)
 
+**Clasificación primero** (9 nov): una llamada corta decide si el mensaje es `charla` (lo responde ahí mismo, breve, sin leer Notion ni enviar sus datos; `datos.charla`) o `notion` (flujo completo). Ante la duda o JSON inválido, va por Notion. "Resume / dame un resumen" de algo ya mostrado usa `leer_pagina` con la clave `r…`, no `resumen_semanal`.
+
 Decisiones de Kevin: **guardar directo** con **Deshacer** por mensaje; historial en D1; el modelo devuelve **JSON** `{respuesta, acciones}` que el Worker valida y ejecuta (funciona con cualquier modelo; si el JSON viene mal, se pide una vez más). Máximo 5 acciones por mensaje.
 
 El prompt incluye: fecha y hora de Ecuador, calendario de −3 a +35 días, memoria (`k1…`), resumen de valoraciones, horario semanal (`c1…`), todas las bases con su esquema (`b1…`), materias (`m1…`) y tareas pendientes (`t1…`, única fuente de verdad: lo deshecho se marca `[DESHECHO]` en el historial).
@@ -126,7 +130,7 @@ Interfaz del chat:
 - **Chat temporal**: no se guarda en D1; vive en la memoria de la página y se borra al salir del modo, recargar o bloquear. Lo guardado en Notion sí queda.
 - Caja de escribir estilo Gemini/Claude: selector de modelo (principal o favoritos; elección en `localStorage` `bitacora.chatModelo`), micrófono (Web Speech API `es-EC`, oculto si no hay soporte) y enviar.
 - **Progreso en vivo**: con `Accept: application/x-ndjson` el Worker envía `{etapa}` ("Leyendo tu Notion…", "Consultando Clases…", "Guardando en Notion…") y al final `{fin}` o `{error}`.
-- **Sugerencias según el momento** (máx. 3, se ocultan al escribir): apuntes de la clase en curso o reciente, practicar si hay prueba/examen en ≤5 días, "¿Qué tengo mañana?" desde las 18 h o "¿Qué clase me toca?", "Resumir la semana" de viernes a domingo.
+- Sin sugerencias ni texto de introducción (Kevin los quitó el 9 nov); el chat vacío solo muestra "Prueba con" y ejemplos.
 - 👍/👎 por respuesta (👎 pide motivo); resultados con "Abrir" en Notion, semáforo de días, Deshacer y aviso si algo falló.
 
 ## Notion de Kevin (página Universidad)
