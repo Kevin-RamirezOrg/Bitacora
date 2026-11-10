@@ -1644,6 +1644,24 @@ function vozSystem(text, words, cfg, job, finish) {
   });
 }
 // Gemini voice: the Worker returns 16-bit PCM in base64; it is wrapped as WAV and played. The highlight follows the audio time.
+// Gemini sometimes returns a whole WAV file (header plus a metadata block at the end) even when labelled as PCM.
+// Read as raw samples, those bytes sound like a loud "psss" at the end; only the 'data' chunk is audio.
+function vozPcm(bytes, mime) {
+  const tag = (o) => String.fromCharCode(bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]);
+  let rate = Number((mime || '').match(/rate=(\d+)/)?.[1]) || 24000;
+  if (bytes.length > 12 && tag(0) === 'RIFF' && tag(8) === 'WAVE') {
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.length);
+    let o = 12, data = null;
+    while (o + 8 <= bytes.length) {
+      const id = tag(o); let size = dv.getUint32(o + 4, true);
+      if (id === 'fmt ' && size >= 16) rate = dv.getUint32(o + 12, true) || rate;
+      if (id === 'data') { if (size === 0xFFFFFFFF || o + 8 + size > bytes.length) size = bytes.length - o - 8; data = bytes.subarray(o + 8, o + 8 + (size & ~1)); break; }
+      o += 8 + size + (size & 1);
+    }
+    if (data) return { pcm: new Uint8Array(data), rate };
+  }
+  return { pcm: bytes.subarray(0, bytes.length & ~1), rate };
+}
 // Gemini sometimes ends with a hiss or breath and a hard cut: the tail after the last voiced sound is trimmed
 // (only the final 1.5 s are inspected) and a short fade-out removes the click.
 function pcmClean(bytes, rate) {
@@ -1681,8 +1699,8 @@ async function vozGemini(text, words, cfg, job, finish) {
     const part = (data.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data);
     if (!part) throw new Error('La voz de Gemini no devolvió audio');
     const bin = atob(part.inlineData.data); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const rate = Number((part.inlineData.mimeType || '').match(/rate=(\d+)/)?.[1]) || 24000;
-    url = URL.createObjectURL(pcmToWav(pcmClean(bytes, rate), rate));
+    const { pcm, rate } = vozPcm(bytes, part.inlineData.mimeType);
+    url = URL.createObjectURL(pcmToWav(pcmClean(pcm, rate), rate));
     if (VOZ.cache.size > 20) { const [k0, u0] = VOZ.cache.entries().next().value; URL.revokeObjectURL(u0); VOZ.cache.delete(k0); }
     VOZ.cache.set(key, url);
   }
