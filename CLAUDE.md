@@ -38,11 +38,10 @@ Este archivo es el contexto completo del proyecto; cualquier asistente (Claude, 
 - Acceso de lectura y escritura a todas las bases de Universidad.
 
 ### Pendientes y decisiones abiertas
-1. **Kevin**: cambiar el modelo principal en Ajustes → Modelos de IA (el actual falla y responde el respaldo `gemini-3.5-flash-lite`). Conviene un principal de NanoGPT por privacidad: con Gemini gratis, horario, apuntes y datos de personas pasan por Google.
-2. **Pregunta abierta**: ¿generar el resumen semanal automáticamente cada domingo (Cron Trigger) o solo a pedido? Hoy es solo a pedido.
-3. **Panel parte B** (acordado, no hecho): asistente de cálculo de horas libres de una sola vez (horario de Notion + sueño, comidas, traslados, compromisos fijos) que deja horas por día editables a mano en Ajustes; barra de capacidad (plan vs. horas libres, marca en 70 %); plan del día con IA (máx. 3 prioridades, margen ×1,5 en tareas conocidas y ×2 en nuevas); anillo de prioridades hechas; cierre del día con tiempo real (D1); gráfico estimado vs. real. El horario de clases ya está en Notion (base Horario).
-4. **Fase 4 – Moodle**: el aula virtual tiene "Exportar calendario". El Worker leería la URL iCal (como *secret*) una vez al día con Cron Trigger y crearía/actualizaría filas en Tareas y evaluaciones sin duplicar (usar el UID del evento).
-5. **Ideas aplazadas**: marcar tareas como hechas desde el Panel; próximos cumpleaños en el Panel; "Practicar" desde las sesiones de Repasos; bandeja para Claude (tarea programada que procesa el Inbox); recordatorios por Telegram; resumen matutino; foto de apuntes a texto; búsqueda global.
+- Resuelto el 9 nov: el modelo principal ya funciona; el resumen semanal queda **solo a pedido** (sin Cron Trigger).
+1. **Panel parte B** (próximo) (acordado, no hecho): asistente de cálculo de horas libres de una sola vez (horario de Notion + sueño, comidas, traslados, compromisos fijos) que deja horas por día editables a mano en Ajustes; barra de capacidad (plan vs. horas libres, marca en 70 %); plan del día con IA (máx. 3 prioridades, margen ×1,5 en tareas conocidas y ×2 en nuevas); anillo de prioridades hechas; cierre del día con tiempo real (D1); gráfico estimado vs. real. El horario de clases ya está en Notion (base Horario).
+2. **Fase 4 – Moodle** (próximo): el aula virtual tiene "Exportar calendario". El Worker leería la URL iCal (como *secret*) una vez al día con Cron Trigger y crearía/actualizaría filas en Tareas y evaluaciones sin duplicar (usar el UID del evento).
+3. **Ideas aplazadas**: marcar tareas como hechas desde el Panel; próximos cumpleaños en el Panel; "Practicar" desde las sesiones de Repasos; bandeja para Claude (tarea programada que procesa el Inbox); recordatorios por Telegram; resumen matutino; foto de apuntes a texto; búsqueda global.
 
 ## Arquitectura
 
@@ -50,7 +49,7 @@ Este archivo es el contexto completo del proyecto; cualquier asistente (Claude, 
 - GitHub Pages desde `main`, raíz. Dominio **ellenkev.me** (`CNAME`). `_config.yml` excluye `CLAUDE.md`, `worker/` y `README.md`.
 - Librerías por CDN: Firebase compat 10.12.2 (gstatic), marked 12.0.2, DOMPurify 3.1.6, highlight.js 11.9.0 (cdnjs). Fuentes: Lora (títulos), Figtree (texto), JetBrains Mono (código).
 - **PWA**: `manifest.webmanifest` (standalone, colores Pizarra, accesos directos `?v=assistant` y `?v=panel`), íconos en `icons/` (192, 512, maskable, apple-touch, favicon; "B" con subrayado de tiza) y `sw.js` mínimo: red primero para la página y, sin conexión, la última copia; no cachea nada más. Verificado sin errores con `Page.getInstallabilityErrors`.
-- Navegación: barra inferior **Inicio · Archivos · Asistente (botón central destacado) · Panel · Ajustes**; en ≥900 px es riel lateral. `history.pushState` para que funcione el botón atrás de Android.
+- Navegación: barra inferior **Inicio · Archivos · Asistente (botón central destacado, ícono `ICON.asistente`: estrella de cuatro puntas con arcos) · Panel · Ajustes**; la barra lleva `position:relative; z-index:6` para que el círculo que sobresale quede por encima del contenido; en ≥900 px es riel lateral. `history.pushState` para que funcione el botón atrás de Android.
   - **Inicio**: Urgente (atrasado + 7 días, máx. 5), Portapapeles, Carpetas, Recientes.
   - **Archivos**: carpetas y notas; botón **+** flotante abajo a la derecha (como Google Drive), crea dentro de la carpeta abierta.
   - **Asistente**: chat (ver más abajo).

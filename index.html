@@ -84,7 +84,7 @@ svg{flex:none}
 .wrap{max-width:760px;margin:0 auto;width:100%}
 
 /* ---------- Tab bar ---------- */
-.tabbar{flex:none;display:flex;align-items:center;justify-content:space-around;height:calc(var(--tab-h) + env(safe-area-inset-bottom,0px));padding:0 max(6px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(6px,env(safe-area-inset-left,0px));background:var(--bg);border-top:1px solid var(--line)}
+.tabbar{flex:none;position:relative;z-index:6;display:flex;align-items:center;justify-content:space-around;height:calc(var(--tab-h) + env(safe-area-inset-bottom,0px));padding:0 max(6px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(6px,env(safe-area-inset-left,0px));background:var(--bg);border-top:1px solid var(--line)}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:64px;height:56px;border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--muted)}
 .tab svg{width:24px;height:24px}
 .tab[aria-current="page"]{color:var(--ink)}
@@ -92,7 +92,7 @@ svg{flex:none}
 .tab-ic{width:52px;height:30px;border-radius:var(--r-pill);display:grid;place-items:center}
 .tab.main{min-width:72px;justify-content:flex-end;padding-bottom:2px}
 .tab.main .tab-ic{width:58px;height:58px;border-radius:50%;background:var(--accent);color:var(--on-accent);margin-top:-26px;border:3px solid var(--bg);box-shadow:0 8px 22px rgba(0,0,0,.35)}
-.tab.main .tab-ic svg{width:26px;height:26px}
+.tab.main .tab-ic svg{width:28px;height:28px}
 .tab.main[aria-current="page"] .tab-ic{background:var(--accent);color:var(--on-accent);box-shadow:0 0 0 3px var(--accent-soft),0 8px 22px rgba(0,0,0,.35)}
 .fab{position:absolute;right:max(18px,env(safe-area-inset-right,0px));bottom:18px;z-index:5;width:58px;height:58px;border-radius:18px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;box-shadow:0 8px 22px rgba(0,0,0,.35)}
 .fab svg{width:28px;height:28px}
@@ -547,7 +547,7 @@ input.search-field::placeholder{color:var(--muted)}
   <nav class="tabbar" id="tabbar" aria-label="Secciones">
     <button class="tab" data-view="home"><span class="tab-ic" data-ic="home"></span>Inicio</button>
     <button class="tab" data-view="files"><span class="tab-ic" data-ic="folder"></span>Archivos</button>
-    <button class="tab main" data-view="assistant"><span class="tab-ic" data-ic="chat"></span>Asistente</button>
+    <button class="tab main" data-view="assistant"><span class="tab-ic" data-ic="asistente"></span>Asistente</button>
     <button class="tab" data-view="panel"><span class="tab-ic" data-ic="chart"></span>Panel</button>
     <button class="tab" data-view="settings"><span class="tab-ic" data-ic="gear"></span>Ajustes</button>
   </nav>
@@ -599,6 +599,7 @@ const ICON = {
   folder: sv('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
   folderFill: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
   plus: sv('<path d="M12 5v14M5 12h14"/>', 2.6),
+  asistente: '<svg class="icono-asistente" viewBox="-17 -17 34 34" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(-1 1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(1 -1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path transform="scale(-1 -1)" d="M3.04 -14.25 Q6.45 -11.13 10.86 -9.75 Q13.9 -8 13.9 -4.5"/><path fill="currentColor" stroke="none" d="M0 -15 L2.6 -2.6 L13 0 L2.6 2.6 L0 15 L-2.6 2.6 L-13 0 L-2.6 -2.6 Z"/></svg>',
   chat: sv('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h8"/>'),
   gear: sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>', 1.8),
   search: sv('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'),
