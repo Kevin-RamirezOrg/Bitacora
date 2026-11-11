@@ -217,21 +217,3 @@ test('E11: el límite de subpeticiones se explica con un mensaje claro', async (
   const fuente = (await import('node:fs')).readFileSync(new URL('../worker/src/index.js', import.meta.url), 'utf8');
   assert.match(fuente, /LIMITE_SUBPETICIONES/);
 });
-
-test('Decidir primero apagado: un solo modelo lee Notion y responde, sin paso previo', async () => {
-  const e = montar([{ respuesta: 'Un combiner es un mini-reduce.', acciones: [] }],
-    { config: { principal: { proveedor: 'gemini', modelo: 'g-principal' }, rapido: { proveedor: 'nanogpt', modelo: 'n-rapido' }, decidirPrimero: false } });
-  const r = await procesarMensaje(e.env, { texto: 'qué es un combiner' });
-  assert.equal(r.asistente.texto, 'Un combiner es un mini-reduce.');
-  assert.equal(e.modelo.llamadas.length, 1, 'una sola llamada al modelo');
-  assert.equal(e.modelo.llamadas[0].body.model, 'g-principal', 'el modelo rápido no se usa');
-});
-
-test('Decidir primero: la configuración guarda el interruptor y por defecto está activado', async () => {
-  const { validarConfig, leerConfig } = await import('../worker/src/ia.js');
-  const base = { principal: { proveedor: 'gemini', modelo: 'x' } };
-  assert.equal(validarConfig(base).decidirPrimero, true);
-  assert.equal(validarConfig({ ...base, decidirPrimero: false }).decidirPrimero, false);
-  const e = montar([]);
-  assert.equal((await leerConfig(e.env)).decidirPrimero !== false, true, 'una configuración antigua sigue con el paso previo');
-});

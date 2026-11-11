@@ -523,9 +523,7 @@ async function procesar(env, { texto, modelo, chat: chatPedido, temporal = false
     return { lista, pendientes, semana, todas, valoraciones };
   })();
   lectura.catch(() => {});
-  // Con "Decidir antes si hace falta Notion" apagado (Ajustes → Modelos de IA) no hay paso previo: el principal lo hace todo.
-  const decidir = leida?.decidirPrimero !== false;
-  const c = practica || !decidir ? { tipo: 'notion', fallos: [] } : await clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, voz, leida });
+  const c = practica ? { tipo: 'notion', fallos: [] } : await clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, voz, leida });
   if (c.tipo === 'charla') {
     const datos = { resultados: c.contenido ? [c.contenido] : [], modelo: c.r.modelo, proveedor: c.r.proveedor, respaldo: c.r.fallos?.length ? true : undefined, charla: true };
     return guardarTurno(env, base, { temporal, chatInfo, entrada, respuesta: c.respuesta, datos });

@@ -25,9 +25,6 @@ export const CONFIG_INICIAL = {
   respaldo: null,
   // Modelo pequeño y veloz para decidir si un mensaje necesita Notion. Sin elegir, se usa el principal.
   rapido: null,
-  // true: un paso previo (con el modelo rápido, si hay) decide si el mensaje necesita Notion.
-  // false: un solo modelo, el principal, lee Notion y responde todo en una llamada.
-  decidirPrimero: true,
   parametros: { temperature: 0.7 },
   extra: {},
   favoritos: [],
@@ -111,7 +108,6 @@ export function validarConfig(c) {
     principal: validarModelo(c.principal, 'principal'),
     respaldo: c.respaldo ? validarModelo(c.respaldo, 'respaldo') : null,
     rapido: c.rapido?.modelo ? validarModelo(c.rapido, 'rapido') : null,
-    decidirPrimero: c.decidirPrimero !== false,
     parametros: validarParametros(c.parametros),
     extra: validarExtra(c.extra),
     favoritos: validarFavoritos(c.favoritos),
