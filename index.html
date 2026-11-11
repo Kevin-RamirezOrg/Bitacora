@@ -693,7 +693,7 @@ button.msg.yo[aria-expanded="true"]{border-color:var(--accent-ink)}
 </head>
 <body>
 <div class="app" id="app">
-  <main class="screen" id="screen" aria-live="polite"></main>
+  <main class="screen" id="screen"></main>
   <nav class="tabbar" id="tabbar" aria-label="Secciones">
     <button class="tab" data-view="home"><span class="tab-ic" data-ic="home"></span>Inicio</button>
     <button class="tab" data-view="files"><span class="tab-ic" data-ic="folder"></span>Archivos</button>
@@ -736,7 +736,7 @@ const h = (tag, attrs={}, ...kids) => { const el=document.createElement(tag);
     else if (k==='style' && typeof v==='object') { for (const [sk,sv2] of Object.entries(v)) { if (sv2==null) continue; if (sk.startsWith('--')) el.style.setProperty(sk, sv2); else el.style[sk] = sv2; } }
     else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v===true?'':v); }
   for (const k of kids.flat()) if (k!=null && k!==false) el.append(k.nodeType?k:document.createTextNode(k)); return el; };
-const ic = (name, extra='') => { const s=document.createElement('span'); s.style.display='contents'; s.innerHTML=ICON[name]||''; return s.firstChild; };
+const ic = name => { const s=document.createElement('span'); s.style.display='contents'; s.innerHTML=ICON[name]||''; return s.firstChild; };
 const uid = () => 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 const relTime = t => { if (!t) return ''; const d=(Date.now()-t)/1000; if (d<60) return 'ahora'; if (d<3600) return 'hace '+Math.floor(d/60)+' min';
   if (d<86400) return 'hace '+Math.floor(d/3600)+' h'; if (d<172800) return 'ayer';
@@ -1505,11 +1505,13 @@ function chatModelo() { // favorite picked in the chat, or null = saved principa
 async function chatSend(text, opts = {}) {
   text = String(text || '').trim(); if (!text || CHAT.sending) return null; let reply = null;
   const ctl = new AbortController();
+  // Identificador del envío: Reintentar lo repite, y así el Worker no vuelve a escribir en Notion si el primero sí llegó.
+  const peticion = opts.peticion || (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
   CHAT.sending = { texto:text, ctl }; CHAT.failed = null; CHAT.draft = ''; chatPaint(true);
   const temporal = CHAT.temporal;
   try {
     const modelo = chatModelo();
-    const body = { texto:text, ...(modelo ? { modelo } : {}), ...(opts.voz ? { voz:true } : {}) };
+    const body = { texto:text, peticion, ...(modelo ? { modelo } : {}), ...(opts.voz ? { voz:true } : {}) };
     if (temporal) Object.assign(body, { temporal:true, historial: CHAT.tmsgs.slice(-8).map(m => ({ rol:m.rol, texto:m.texto, datos:m.datos })) });
     else if (CHAT.chatId) body.chat = CHAT.chatId;
     const r = await apiStream('/asistente/mensaje', body, t => { if (CHAT.sending) { CHAT.sending.etapa = t; const el = $('#chatTyping .etapa'); if (el) el.textContent = t; CHAT.onEtapa?.(t); } }, ctl);
@@ -1521,7 +1523,7 @@ async function chatSend(text, opts = {}) {
       CHAT.chats = [c, ...CHAT.chats.filter(x => x.id !== c.id)];
       if (!CHAT.temporal && (CHAT.chatId === r.chat.id || !CHAT.chatId)) { CHAT.chatId = r.chat.id; setPref('bitacora.chatActual', r.chat.id); CHAT.msgs.push(r.usuario, r.asistente); }
     }
-  } catch (e) { CHAT.failed = { texto:text, error:e.message, detenido:!!e.detenido }; }
+  } catch (e) { CHAT.failed = { texto:text, peticion, error:e.message, detenido:!!e.detenido }; }
   finally { CHAT.sending = false; chatPaint(true); }
   return reply;
 }
@@ -2253,11 +2255,10 @@ function contentBlock(r) {
 }
 
 // Message tools: copy, regenerate, edit and delete (like Claude or Gemini).
-const chatList = () => CHAT.temporal ? CHAT.tmsgs : CHAT.msgs;
 const undoable = d => !!d && !d.deshecho && (d.resultados || []).some(r => r.ok && r.deshacer);
 // Turn of a message: the user message and everything after it (it is replaced when regenerating or editing).
 function chatTurnFrom(m) {
-  const list = chatList(); let i = list.indexOf(m);
+  const list = chatMsgs(); let i = list.indexOf(m);
   if (i < 0) return null;
   if (m.rol !== 'usuario') { while (i >= 0 && list[i].rol !== 'usuario') i--; if (i < 0) return null; }
   return { user: list[i], index: i, after: list.slice(i) };
@@ -2278,7 +2279,7 @@ async function chatRedo(m, newText) {
       if (persisted) await api('/asistente/recortar', { method:'POST', body:{ id:t.user.id } });
       else for (const x of [...t.after].reverse()) if (undoable(x.datos)) await api('/asistente/deshacer', { method:'POST', body:{ datos:x.datos } });
     } catch (e) { toast(e.message); return false; }
-    chatList().splice(t.index); CHAT.editing = null; CHAT.draft = ''; CHAT.selUser = null;
+    chatMsgs().splice(t.index); CHAT.editing = null; CHAT.draft = ''; CHAT.selUser = null;
     chatSend(texto); return true;
   };
   if (!info.cambios && !info.posteriores) { await run(); return; }
@@ -2295,7 +2296,7 @@ function chatDelete(m) {
     onConfirm: async () => {
       try { if (!CHAT.temporal && typeof t.user.id === 'number') await api('/asistente/mensaje?id=' + t.user.id, { method:'DELETE' }); }
       catch (e) { toast(e.message); return false; }
-      const list = chatList(); const next = list[t.index + 1];
+      const list = chatMsgs(); const next = list[t.index + 1];
       list.splice(t.index, next && next.rol !== 'usuario' ? 2 : 1);
       CHAT.selUser = null; chatPaint(); toast('Mensaje borrado'); return true; } });
 }
@@ -2429,7 +2430,7 @@ function viewAssistant(scr) {
   if (CHAT.failed) {
     const f = CHAT.failed;
     log.append(h('div',{class:'msg yo',text:f.texto}), h('div',{class:'msg ia err',role:'alert'}, h('div',{class:'txt',text: f.detenido ? 'Envío detenido. Si Kell ya había guardado algo en Notion, eso se mantiene.' : 'No se pudo procesar: ' + f.error}),
-      h('div',{class:'msg-acts'}, h('button',{class:'link',type:'button',onclick:()=>chatSend(f.texto),text:'Reintentar'}),
+      h('div',{class:'msg-acts'}, h('button',{class:'link',type:'button',onclick:()=>chatSend(f.texto, { peticion:f.peticion }),text:'Reintentar'}),
         h('button',{class:'link',type:'button',onclick:()=>{ CHAT.failed = null; CHAT.draft = f.texto; chatPaint(true); $('#chatIn')?.focus(); },text:'Editar'}))));
   }
 
@@ -2444,7 +2445,7 @@ function viewAssistant(scr) {
   ta.addEventListener('input', () => { CHAT.draft = ta.value; fit(); });
   ta.addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !matchMedia('(pointer:coarse)').matches) { ev.preventDefault(); send.click(); } });
   send.onclick = () => { if (CHAT.sending) chatStop(); else if (CHAT.editing) { const ed = CHAT.editing; chatRedo(ed.msg, ta.value); } else chatSend(ta.value); };
-  if (CHAT.editing && !chatList().includes(CHAT.editing.msg)) CHAT.editing = null;
+  if (CHAT.editing && !chatMsgs().includes(CHAT.editing.msg)) CHAT.editing = null;
   if (CHAT.editing) cw.append(h('div',{class:'note-bar edit-bar',role:'status'}, ic('edit'), h('span',{text:'Editando tu mensaje'}),
     h('button',{class:'link',type:'button',text:'Cancelar',onclick:()=>{ CHAT.editing = null; CHAT.draft = ''; chatPaint(true); }})));
   const cur = chatModelo(); const principal = CHAT.config?.principal?.modelo;

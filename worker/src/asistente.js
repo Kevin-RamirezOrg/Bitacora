@@ -3,317 +3,37 @@
 
 import { ErrorIA, chat, leerConfig } from './ia.js';
 import {
-  ROLES, TIPOS_TAREA, consultarTareas, crearTarea, deshacer as deshacerPaso, diaSemana, guardarPersona,
-  horaActual, hoy, marcarTarea, materias as leerMaterias, normal, notaInbox, sinGuiones, sumarDias,
+  ROLES, TIPOS_TAREA, consultarTareas, crearTarea, deshacer as deshacerPaso, guardarPersona,
+  horaActual, hoy, marcarTarea, materias as leerMaterias, notaInbox, sumarDias,
 } from './notion.js';
-import { CLAVE_HORARIO, horarioParaPrompt, horarioSemana } from './horario.js';
+import { CLAVE_HORARIO, horarioSemana } from './horario.js';
+import { esFecha, extraerJSON, normal, sinGuiones } from './util.js';
+import {
+  ErrorAsistente, agregarMemoria, borrarMemoria, crearChat, db, fila, historial, listarMemoria, resumenValoraciones,
+} from './historial.js';
+import { MAX_ACCIONES, prompt, promptClasificar } from './prompt.js';
+
+// El historial, los chats y la memoria viven en historial.js; se reexportan para que las rutas los importen de aquí.
+export * from './historial.js';
 import { claseReciente, guardarApunte } from './clases.js';
-import { ErrorEstudio, elegirPractica, generarPreguntas, marcarDominio, resumenSemanal } from './estudio.js';
-import { ESPEC_CONTENIDO, REGLA_CONTENIDO, resumenContenido, validarContenido } from './contenido.js';
+import { elegirPractica, generarPreguntas, marcarDominio, resumenSemanal } from './estudio.js';
+import { resumenContenido, validarContenido } from './contenido.js';
 import {
   ErrorBase, archivarFila, bases as leerBases, basesParaPrompt, buscarPorTitulo, consultar, crearFila, editarFila,
   leerPagina, propiedadesEscritura,
 } from './universidad.js';
 
-const MAX_ACCIONES = 5;
 const TEMPERATURA_PLAN = 0.2; // tope para clasificar y planificar: con más temperatura el JSON sale mal más seguido
 const LECTURAS = new Set(['consultar_base', 'leer_pagina']);
 const MAX_TEXTO = 4000;
 const HISTORIAL_CONTEXTO = 8;
 
-export class ErrorAsistente extends Error {
-  constructor(status, mensaje) {
-    super(mensaje);
-    this.status = status;
-  }
-}
-
-// ---------- Historial, chats, memoria y valoraciones en D1 ----------
-
-const basesListas = new WeakSet(); // una vez por instancia del Worker
-async function db(env) {
-  if (!env.DB) throw new ErrorAsistente(503, 'Falta la base D1 del historial en Cloudflare');
-  if (!basesListas.has(env.DB)) {
-    await env.DB.batch([
-      env.DB.prepare('CREATE TABLE IF NOT EXISTS mensajes (id INTEGER PRIMARY KEY AUTOINCREMENT, rol TEXT NOT NULL, texto TEXT NOT NULL, datos TEXT, creado INTEGER NOT NULL)'),
-      env.DB.prepare('CREATE INDEX IF NOT EXISTS mensajes_creado ON mensajes (creado)'),
-      env.DB.prepare('CREATE TABLE IF NOT EXISTS chats (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT NOT NULL, creado INTEGER NOT NULL, actualizado INTEGER NOT NULL)'),
-      env.DB.prepare('CREATE TABLE IF NOT EXISTS memoria (id INTEGER PRIMARY KEY AUTOINCREMENT, texto TEXT NOT NULL, origen TEXT NOT NULL, creado INTEGER NOT NULL)'),
-      env.DB.prepare('CREATE TABLE IF NOT EXISTS valoraciones (mensaje INTEGER PRIMARY KEY, valor INTEGER NOT NULL, motivo TEXT, creado INTEGER NOT NULL)'),
-    ]);
-    // Migración: los mensajes pasan a pertenecer a un chat; los antiguos van a "Conversación anterior".
-    try { await env.DB.prepare('ALTER TABLE mensajes ADD COLUMN chat INTEGER').run(); } catch { /* ya existe */ }
-    await env.DB.prepare('CREATE INDEX IF NOT EXISTS mensajes_chat ON mensajes (chat, id)').run();
-    const sueltos = await env.DB.prepare('SELECT COUNT(*) AS n, MIN(creado) AS ini, MAX(creado) AS fin FROM mensajes WHERE chat IS NULL').first();
-    if (sueltos?.n) {
-      const c = await env.DB.prepare('INSERT INTO chats (titulo, creado, actualizado) VALUES (?, ?, ?)').bind('Conversación anterior', sueltos.ini, sueltos.fin).run();
-      await env.DB.prepare('UPDATE mensajes SET chat = ? WHERE chat IS NULL').bind(c.meta.last_row_id).run();
-    }
-    basesListas.add(env.DB);
-  }
-  return env.DB;
-}
-
-const fila = (r) => ({ id: r.id, rol: r.rol, texto: r.texto, datos: r.datos ? JSON.parse(r.datos) : null, creado: r.creado, chat: r.chat ?? null,
-  ...(r.valoracion != null ? { valoracion: r.valoracion } : {}) });
-
-export async function historial(env, { chat, antes, limite = 50 } = {}) {
-  const base = await db(env);
-  const n = Math.min(Math.max(Number(limite) || 50, 1), 100);
-  const id = Number(chat);
-  if (!id) return [];
-  const q = antes
-    ? base.prepare('SELECT m.*, v.valor AS valoracion FROM mensajes m LEFT JOIN valoraciones v ON v.mensaje = m.id WHERE m.chat = ? AND m.id < ? ORDER BY m.id DESC LIMIT ?').bind(id, Number(antes), n)
-    : base.prepare('SELECT m.*, v.valor AS valoracion FROM mensajes m LEFT JOIN valoraciones v ON v.mensaje = m.id WHERE m.chat = ? ORDER BY m.id DESC LIMIT ?').bind(id, n);
-  const { results } = await q.all();
-  return results.map(fila).reverse();
-}
-
-export async function borrarHistorial(env, chat) {
-  await (await db(env)).prepare('DELETE FROM mensajes WHERE chat = ?').bind(Number(chat)).run();
-}
-
-// Chats
-const tituloDe = (texto) => {
-  const t = String(texto).replace(/\s+/g, ' ').trim();
-  return t.length > 48 ? t.slice(0, 47).trimEnd() + '…' : t || 'Nuevo chat';
-};
-
-export async function listarChats(env) {
-  const { results } = await (await db(env)).prepare(
-    'SELECT c.id, c.titulo, c.creado, c.actualizado, (SELECT COUNT(*) FROM mensajes m WHERE m.chat = c.id) AS mensajes FROM chats c ORDER BY c.actualizado DESC LIMIT 100'
-  ).all();
-  return results;
-}
-
-export async function crearChat(env, titulo) {
-  const base = await db(env);
-  const ahora = Date.now();
-  const r = await base.prepare('INSERT INTO chats (titulo, creado, actualizado) VALUES (?, ?, ?)').bind(tituloDe(titulo || 'Nuevo chat'), ahora, ahora).run();
-  return { id: r.meta.last_row_id, titulo: tituloDe(titulo || 'Nuevo chat'), creado: ahora, actualizado: ahora, mensajes: 0 };
-}
-
-export async function renombrarChat(env, { id, titulo }) {
-  const t = typeof titulo === 'string' ? titulo.trim().slice(0, 80) : '';
-  if (!t) throw new ErrorAsistente(400, 'Escribe un nombre');
-  const r = await (await db(env)).prepare('UPDATE chats SET titulo = ? WHERE id = ?').bind(t, Number(id)).run();
-  if (!r.meta.changes) throw new ErrorAsistente(404, 'No encontré ese chat');
-  return { id: Number(id), titulo: t };
-}
-
-export async function borrarChat(env, id) {
-  const base = await db(env);
-  await base.batch([
-    base.prepare('DELETE FROM valoraciones WHERE mensaje IN (SELECT id FROM mensajes WHERE chat = ?)').bind(Number(id)),
-    base.prepare('DELETE FROM mensajes WHERE chat = ?').bind(Number(id)),
-    base.prepare('DELETE FROM chats WHERE id = ?').bind(Number(id)),
-  ]);
-}
-
-// Memoria: datos que Kevin pidió recordar o aceptó cuando el asistente los propuso.
-export async function listarMemoria(env) {
-  const { results } = await (await db(env)).prepare('SELECT id, texto, origen, creado FROM memoria ORDER BY id').all();
-  return results;
-}
-
-export async function agregarMemoria(env, texto, origen = 'usuario') {
-  const t = typeof texto === 'string' ? texto.trim().slice(0, 300) : '';
-  if (!t) throw new ErrorAsistente(400, 'El recuerdo está vacío');
-  const base = await db(env);
-  const { results } = await base.prepare('SELECT id, texto FROM memoria').all();
-  const igual = results.find((m) => normal(m.texto) === normal(t));
-  if (igual) return { id: igual.id, texto: igual.texto, repetido: true };
-  if (results.length >= 60) throw new ErrorAsistente(409, 'La memoria está llena (60 datos); borra alguno en Ajustes → Memoria');
-  const r = await base.prepare('INSERT INTO memoria (texto, origen, creado) VALUES (?, ?, ?)').bind(t, origen, Date.now()).run();
-  return { id: r.meta.last_row_id, texto: t, origen };
-}
-
-export async function editarMemoria(env, { id, texto }) {
-  const t = typeof texto === 'string' ? texto.trim().slice(0, 300) : '';
-  if (!t) throw new ErrorAsistente(400, 'El recuerdo está vacío');
-  await (await db(env)).prepare('UPDATE memoria SET texto = ? WHERE id = ?').bind(t, Number(id)).run();
-  return { id: Number(id), texto: t };
-}
-
-export async function borrarMemoria(env, id) {
-  await (await db(env)).prepare('DELETE FROM memoria WHERE id = ?').bind(Number(id)).run();
-}
-
-// Respuesta a una propuesta de recuerdo hecha por el asistente: se guarda (si se acepta) y se marca en el mensaje.
-export async function responderPropuesta(env, { mensaje, aceptar, texto }) {
-  const base = await db(env);
-  let guardado = null;
-  let m = null;
-  if (mensaje) {
-    const row = await base.prepare('SELECT * FROM mensajes WHERE id = ?').bind(Number(mensaje)).first();
-    if (row) m = fila(row);
-  }
-  const propuesta = m?.datos?.resultados?.find((x) => x.accion === 'proponer_recuerdo' && x.ok);
-  const t = propuesta?.texto || texto;
-  if (aceptar) guardado = await agregarMemoria(env, t, 'sugerida');
-  if (m && propuesta) {
-    propuesta.estado = aceptar ? 'aceptada' : 'rechazada';
-    await base.prepare('UPDATE mensajes SET datos = ? WHERE id = ?').bind(JSON.stringify(m.datos), m.id).run();
-  }
-  return { mensaje: m, memoria: guardado };
-}
-
-// Guarda en el mensaje qué marcó Kevin en una tarjeta de práctica (para que se vea al volver al chat).
-export async function guardarMarcaTarjeta(env, mensaje, indice, dominio) {
-  const base = await db(env);
-  const row = await base.prepare('SELECT * FROM mensajes WHERE id = ?').bind(Number(mensaje)).first();
-  if (!row) return;
-  const m = fila(row);
-  const r = m.datos?.resultados?.find((x) => Array.isArray(x.tarjetas));
-  if (!r || !r.tarjetas[Number(indice)]) return;
-  r.tarjetas[Number(indice)].marcado = dominio;
-  await base.prepare('UPDATE mensajes SET datos = ? WHERE id = ?').bind(JSON.stringify(m.datos), m.id).run();
-}
-
-// Valoraciones 👍/👎 (con motivo opcional) para que el asistente ajuste su forma de responder.
-export async function valorar(env, { mensaje, valor, motivo }) {
-  const v = Number(valor);
-  if (![1, -1, 0].includes(v)) throw new ErrorAsistente(400, 'Valor inválido');
-  const base = await db(env);
-  if (v === 0) await base.prepare('DELETE FROM valoraciones WHERE mensaje = ?').bind(Number(mensaje)).run();
-  else {
-    await base.prepare('INSERT INTO valoraciones (mensaje, valor, motivo, creado) VALUES (?, ?, ?, ?) ON CONFLICT (mensaje) DO UPDATE SET valor = excluded.valor, motivo = excluded.motivo, creado = excluded.creado')
-      .bind(Number(mensaje), v, typeof motivo === 'string' ? motivo.trim().slice(0, 200) || null : null, Date.now()).run();
-  }
-  return { mensaje: Number(mensaje), valor: v, motivo: motivo || null };
-}
-
-// Resumen breve de las últimas valoraciones para el prompt.
-async function resumenValoraciones(base) {
-  const { results } = await base.prepare('SELECT valor, motivo FROM valoraciones ORDER BY creado DESC LIMIT 30').all();
-  if (!results.length) return null;
-  const pos = results.filter((r) => r.valor > 0).length;
-  const motivos = {};
-  for (const r of results.filter((x) => x.valor < 0)) { const k = r.motivo || 'sin motivo'; motivos[k] = (motivos[k] || 0) + 1; }
-  const neg = Object.entries(motivos).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n}× "${k}"`).join(', ');
-  return `De las últimas ${results.length} respuestas valoradas: ${pos} le gustaron${neg ? `; no le gustaron por: ${neg}` : ''}.`;
-}
-
-// ---------- Prompt ----------
-
-function calendario(fechaHoy) {
-  const lineas = [];
-  for (let i = -3; i <= 35; i++) {
-    const f = sumarDias(fechaHoy, i);
-    lineas.push(`${f} ${diaSemana(f)}${i === 0 ? ' (hoy)' : i === 1 ? ' (mañana)' : ''}`);
-  }
-  return lineas.join('\n');
-}
-
-// La parte fija (rol, formato, acciones y reglas) va primero y no cambia entre mensajes: así los proveedores que
-// guardan en caché el inicio del prompt (Gemini lo hace solo) la reutilizan. Lo que cambia va al final, de lo
-// más estable (bases, materias, horario) a lo más variable (hora y tareas).
-const PROMPT_FIJO = `Eres Kell, el asistente de estudio de Kevin, estudiante universitario en Ecuador. Conviertes lo que escribe en acciones sobre su Notion y le respondes en español, tratándolo de tú, en una o dos frases. Los datos de su Notion y la fecha de hoy están al final de este mensaje.
-
-Responde SOLO con un objeto JSON válido, sin texto antes ni después y sin bloques de código, con esta forma:
-{"respuesta": "texto breve para Kevin", "acciones": []}
-
-Acciones posibles (máximo ${MAX_ACCIONES} por mensaje):
-{"accion": "crear_tarea", "titulo": "Prueba 2 de Big Data", "tipo": "${TIPOS_TAREA.join('|')}", "fecha": "AAAA-MM-DD" o null, "hora": "HH:MM" o null, "materia": "m1" o null, "grupal": false}
-{"accion": "completar_tarea", "tarea": "t1"}
-{"accion": "guardar_persona", "nombre": "Nombre completo" o null, "apodo": "Pulu" o null, "profesor_de": "m1" o null, "rol": "${ROLES.join('|')}" o null, "correo": null, "telefono": null, "grupo": null, "cumpleanos": "AAAA-MM-DD" o "MM-DD" o null, "notas": null, "materias": ["m1"]}
-{"accion": "preguntas_estudio", "materia": "m1", "semana": 7 o null, "cantidad": 5}
-{"accion": "practicar", "materia": "m1", "cantidad": 5}
-{"accion": "resumen_semanal", "materia": "m1", "semana": 7 o null}
-{"accion": "recordar", "texto": "dato en una frase, en tercera persona"}
-{"accion": "olvidar", "memoria": "k1"}
-{"accion": "proponer_recuerdo", "texto": "preferencia en una frase"}
-{"accion": "apunte_clase", "materia": "m1" o null, "fecha": "AAAA-MM-DD" o null, "tema": "tema corto de la clase", "contenido": ["idea 1", "idea 2"]}
-{"accion": "nota_inbox", "texto": "nota clara y autosuficiente", "materia": "m1" o null}
-{"accion": "mostrar_tareas", "desde": "AAAA-MM-DD", "hasta": "AAAA-MM-DD"}
-{"accion": "consultar_base", "base": "b1", "buscar": "texto en el título" o null, "filtros": [{"propiedad": "Nombre exacto", "valor": "...", "op": "igual|contiene|desde|hasta|mayor|menor"}], "limite": 15, "mostrar": false}
-{"accion": "leer_pagina", "fila": "r1"}
-{"accion": "crear_fila", "base": "b1", "propiedades": {"Nombre de la propiedad": valor}}
-{"accion": "editar_fila", "fila": "r1", "propiedades": {"Nombre de la propiedad": valor}}
-{"accion": "archivar_fila", "fila": "r1"}
-${ESPEC_CONTENIDO}
-{"accion": "marcar_dominio", "tarjeta": "p1", "dominio": "La sé|Más o menos|No la sé"}
-
-Reglas:
-- Usa las acciones especializadas (crear_tarea, completar_tarea, guardar_persona, nota_inbox, mostrar_tareas) para Tareas, Personas e Inbox. Para cualquier otra base usa consultar_base, leer_pagina, crear_fila, editar_fila o archivar_fila.
-- Horario: "¿qué clase me toca ahora?", "¿dónde es Big Data?" o "¿qué clases tengo mañana?" se responden directo con el horario que aparece más abajo, sin acciones. "Ahora" es la clase cuya hora incluye la hora actual; si no hay, di cuál es la siguiente.
-- Para leer otras bases (Clases, Resúmenes, Recursos, Banco de preguntas, Metas…) usa consultar_base o leer_pagina. Cuando pidas lecturas, el Worker te devolverá los resultados con claves "r1", "r2"… y te pedirá la respuesta final; en ese primer paso no incluyas escrituras. Pon "mostrar": true solo si Kevin pidió ver una lista.
-- leer_pagina sirve para el contenido de una página (apuntes, resúmenes); necesita una fila "r…". Las filas que consultaste en turnos anteriores siguen disponibles: aparecen en la conversación como [Filas de Notion consultadas…] con su clave actual; úsala directo, sin volver a consultar.
-- crear_fila y editar_fila: usa los nombres exactos de las propiedades y, en opciones, solo valores de la lista. Fechas "AAAA-MM-DD" o "AAAA-MM-DDTHH:MM"; para un rango usa {"inicio": ..., "fin": ...}. Relaciones: lista de claves ("m1", "r2", "c3", "t1") o nombres exactos.
-- editar_fila y archivar_fila necesitan una fila conocida: "r…" de una consulta, "c…" del horario o "t…" de las tareas. Si no la tienes, primero consulta.
-- archivar_fila manda la página a la papelera; úsala solo si Kevin pide borrar algo.
-- Fechas: resuelve "mañana", "el martes", "el martes 2", "la próxima semana" con el calendario. Si el día de la semana y el número no coinciden, usa la fecha futura más cercana con ese número y dilo en la respuesta. Nunca inventes una fecha: si no hay ninguna, usa null.
-- "hora" solo si Kevin la dice.
-- Materia: elige la clave que corresponda aunque Kevin la escriba abreviada o con otras palabras. Si no estás seguro, usa null.
-- Título corto y específico, sin repetir la fecha.
-- Tipo: "prueba", "test" o "lección" es Prueba; "examen" es Examen; "deber", "taller" o "informe" es Tarea; "proyecto" es Proyecto; "leer" es Lectura; matrículas, trámites o eventos de la universidad son Institucional.
-- No dupliques: si ya existe una tarea pendiente igual, no la crees y dilo.
-- "ya entregué…", "ya di…" o "terminé…" sobre una tarea pendiente es completar_tarea.
-- Estudio: "hazme preguntas de Big Data", "quiero repasar la semana 6" → preguntas_estudio (genera preguntas nuevas desde sus apuntes de Clases y las guarda en el Banco de preguntas). "quiero practicar", "tómame las preguntas de Compiladores" → practicar (usa las que ya existen, empezando por las que menos domina). "resume la semana de Big Data" → resumen_semanal. "semana" null = la semana actual del semestre. Usa solo una de estas tres por mensaje y no escribas tú las preguntas ni el resumen: los hace el Worker. Si no sabe la materia, pregúntala.
-- Memoria: si Kevin pide explícitamente que recuerdes algo ("recuerda que…", "de ahora en adelante…", "no olvides que…"), usa recordar con una frase clara ("Prefiere respuestas cortas", "Trabaja los sábados por la mañana"). Si pide olvidar algo de la lista, usa olvidar. Nunca guardes con recordar algo que no pidió.
-- Si notas un patrón claro y repetido sobre cómo le gustan las respuestas o cómo organiza su estudio (por ejemplo, siempre pide viñetas, o la valoración muestra que tus respuestas le parecen largas), puedes sugerirlo con proponer_recuerdo; él decide si se guarda. Máximo una por mensaje, solo si no está ya en la lista, y nunca sobre salud, dinero, familia u otros temas delicados.
-- Apuntes de clase ("en la clase de hoy de Big Data vimos…", "en la clase nos dieron…", "el licen explicó que…") son apunte_clase. "materia" va solo si Kevin la nombra o es obvia; si dice "la clase" sin materia, usa null y el Worker la deduce del horario. "fecha" null significa hoy. "contenido": una viñeta por idea, con las mismas palabras de Kevin, solo corrigiendo ortografía y puntuación; no agregues explicaciones, definiciones ni datos que él no dijo, y no quites ninguno. "tema": 3 a 8 palabras sobre lo principal.
-- Datos de docentes o compañeros son guardar_persona: nombre, apodo, rol, correo, teléfono, grupo, cumpleaños, materias y notas (personalidad, gustos, cómo prefiere que le escriban…; una frase clara por dato). Si Kevin no dice el nombre pero sí "el licen/profe de Big Data", usa "profesor_de" con esa materia y "nombre" null. Si usa un apodo ("el licen Pulu"), ponlo en "apodo". Cumpleaños sin año: "MM-DD".
-- Lo que un profesor dijo sobre la materia (temas, cómo será la prueba) va como apunte_clase; si además da una fecha de entrega o evaluación, agrega crear_tarea. Lo que describe a la persona va en guardar_persona. Un mismo mensaje puede tener varias acciones.
-- Lo que no sea una tarea ni un dato de contacto (cómo son las pruebas, temas, consejos, ideas, pedidos largos) va con nota_inbox.
-- Toda pregunta sobre sus pendientes o fechas ("¿qué tengo esta semana?", "¿tengo prueba el martes 17?", "¿el 17 tengo algo?") se responde SIEMPRE con mostrar_tareas y el rango de fechas que corresponda (un solo día si pregunta por un día). Nunca respondas de memoria ni por el historial; la lista la muestra la app, no la repitas. En "respuesta" di solo algo breve como "Esto tienes para el martes 17".
-${REGLA_CONTENIDO}
-- Si solo conversa o pide algo ajeno a Notion, responde sin acciones (salvo mostrar_contenido).
-- "Resume", "dame un resumen", "explícame eso" sobre algo que ya aparece en la conversación (clases, páginas o filas leídas) NO es resumen_semanal: si necesitas el contenido, usa leer_pagina con la clave "r…" de esa fila y resume tú en "respuesta" (en viñetas breves). Usa resumen_semanal solo si pide expresamente el resumen de la semana de una materia.
-- "respuesta" confirma en pocas palabras; no repite los detalles que ya muestran las acciones.`;
-
-function prompt(fechaHoy, claves) {
-  const clases = claves.clases.length
-    ? claves.clases.map((c) => `${c.clave}: ${c.dia} ${c.inicio}-${c.fin} · ${c.titulo}${c.aula ? ` · aula ${c.aula}` : ''}`).join('\n')
-    : '(sin horario registrado)';
-  const mats = claves.materias.length
-    ? claves.materias.map((m) => `${m.clave}: ${m.nombre}${m.codigo ? ` (${m.codigo})` : ''}${m.profesor ? `; profesor: ${m.profesor}` : ''}`).join('\n')
-    : '(ninguna registrada)';
-  const tareas = claves.tareas.length
-    ? claves.tareas.map((t) => `${t.clave}: ${t.tipo || 'Sin tipo'} · ${t.titulo} · ${t.materia || 'sin materia'} · ${t.fecha || 'sin fecha'}${t.hora ? ' ' + t.hora : ''}`).join('\n')
-    : '(no hay pendientes)';
-  return `${PROMPT_FIJO}${claves.voz ? '\n\n' + REGLAS_VOZ : ''}
-
-DATOS DE KEVIN EN ESTE MOMENTO
-
-Todas las bases de Universidad (usa la clave, por ejemplo "b1"):
-${claves.basesTexto}
-
-Materias (usa la clave, por ejemplo "m1"):
-${mats}
-
-Horario semanal de clases del semestre actual (base Horario; usa la clave, por ejemplo "c1", para editar una clase):
-${clases}
-
-Lo que Kevin te pidió recordar (usa la clave, por ejemplo "k1", para olvidar). Respétalo siempre:
-${claves.memoria.length ? claves.memoria.map((m) => `${m.clave}: ${m.texto}`).join('\n') : '(nada todavía)'}
-${claves.valoraciones ? `\nCómo valoró tus respuestas: ${claves.valoraciones}\n` : ''}
-Calendario de referencia:
-${calendario(fechaHoy)}
-
-Hoy es ${diaSemana(fechaHoy)} ${fechaHoy} y son las ${claves.hora} (zona horaria America/Guayaquil).
-
-Tareas y evaluaciones pendientes según Notion en este momento (usa la clave, por ejemplo "t1"):
-${tareas}
-Esta lista es la única fuente de verdad. El historial de la conversación puede mencionar tareas que Kevin deshizo o borró: si no están en esta lista, ya no existen.${claves.practica ? '\n\n' + practicaParaPrompt(claves.practica) : ''}`;
-}
-
 // ---------- Interpretación ----------
 
 // Saca el objeto JSON de la respuesta del modelo, aunque venga con razonamiento o bloques de código alrededor.
 export function extraerPlan(raw) {
-  let t = String(raw || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-  const bloque = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (bloque) t = bloque[1].trim();
-  const ini = t.indexOf('{');
-  const fin = t.lastIndexOf('}');
-  if (ini < 0 || fin <= ini) return { ok: false, error: 'no hay un objeto JSON' };
   let plan;
-  try {
-    plan = JSON.parse(t.slice(ini, fin + 1));
-  } catch (e) {
-    return { ok: false, error: 'JSON mal formado' };
-  }
+  try { plan = extraerJSON(raw); } catch (e) { return { ok: false, error: e.message }; }
   if (!plan || typeof plan !== 'object' || Array.isArray(plan)) return { ok: false, error: 'no es un objeto' };
   const respuesta = typeof plan.respuesta === 'string' ? plan.respuesta.trim() : '';
   const acciones = Array.isArray(plan.acciones) ? plan.acciones : [];
@@ -321,7 +41,6 @@ export function extraerPlan(raw) {
   return { ok: true, respuesta, acciones };
 }
 
-const esFecha = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v + 'T12:00:00Z'));
 const esHora = (v) => typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 const cadena = (v, max = 300) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
 const esCorreo = (v) => typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -660,14 +379,6 @@ function resumenDeHechos(m) {
 // ---------- Modo voz ----------
 // En la conversación por voz Kevin no ve la pantalla: todo va en la respuesta hablada y los quiz son orales.
 const DOMINIOS_VOZ = ['No la sé', 'Más o menos', 'La sé'];
-const REGLAS_VOZ = `MODO VOZ: Kevin te está hablando y escuchará tu respuesta en voz alta; no está mirando la pantalla.
-- No uses mostrar_contenido. Lo importante va en "respuesta", escrito para decirse en voz alta: frases naturales, sin viñetas, símbolos, tablas, markdown ni enlaces; fechas como se dicen ("el jueves 12").
-- Respuestas de 1 a 3 frases, salvo cuando hagas una pregunta de quiz.
-- Quiz oral: si pide preguntas, un quiz o repasar (sin pedir guardarlas), hazlas tú, UNA por turno. En opción múltiple di las opciones así: "A, …; B, …; C, …". Cuando responda, dile en una frase si acertó y por qué; acepta respuestas aproximadas o con sus palabras si la idea es correcta ("la segunda" es la B). Lleva la cuenta en tu cabeza y pasa a la siguiente en el mismo turno. Por defecto 5 preguntas; al terminar di el resultado ("4 de 5") y qué conviene repasar. Si deben salir de sus apuntes, léelos primero con consultar_base y leer_pagina y pregunta solo lo que dicen.
-- Si pide practicar con su Banco de preguntas, usa practicar (el Worker dice la primera pregunta). En la práctica en curso, evalúa cada respuesta suya contra la respuesta guardada, usa marcar_dominio ("La sé", "Más o menos" o "No la sé") y en el mismo turno haz la siguiente pregunta pendiente. Al terminar, di el resultado.
-- Tareas, horario o fechas: usa mostrar_tareas como siempre, pero resume además en "respuesta" lo principal (qué y cuándo), porque no ve la lista.
-- Estas reglas de voz mandan sobre cualquier otra que diga que la respuesta sea solo una confirmación.`;
-
 // Práctica del Banco en curso: viene de la última respuesta (resultado de practicar o arrastrada en datos.practica).
 function practicaEnCurso(previos) {
   const ultimo = [...previos].reverse().find((m) => m.rol !== 'usuario');
@@ -676,29 +387,6 @@ function practicaEnCurso(previos) {
   const r = (d.resultados || []).find((x) => x?.ok && (x.accion === 'practicar' || x.accion === 'preguntas_estudio') && x.tarjetas?.length);
   return r ? { materia: r.materia, tarjetas: r.tarjetas.map((t) => ({ id: t.id, pregunta: t.pregunta, respuesta: t.respuesta || '' })), hechas: [] } : null;
 }
-const practicaParaPrompt = (pr) => `Práctica en curso del Banco de preguntas (${pr.materia}). Usa la clave con marcar_dominio:\n` +
-  pr.tarjetas.map((t, i) => `p${i + 1}${pr.hechas.includes(t.id) ? ' [ya respondida]' : ''}: ${t.pregunta} → respuesta guardada: ${t.respuesta || '(sin respuesta)'}`).join('\n');
-
-// Primer paso: decide si el mensaje necesita Notion. Si es solo conversación, lo responde aquí mismo,
-// sin leer Notion (más rápido y no envía su información al modelo). Ante la duda, va por Notion.
-function promptClasificar(fechaHoy, hora, memoria, voz) {
-  return `Eres Kell, el asistente de estudio de Kevin, estudiante universitario en Ecuador.
-
-Decide si su último mensaje necesita su Notion (tareas, pruebas, fechas, horario, clases, apuntes, materias, profesores, compañeros, preguntas de estudio, práctica, resúmenes, recordar u olvidar algo, deshacer, o seguir con algo de Notion que aparece en la conversación).
-- Si lo necesita, o tienes la menor duda: {"tipo": "notion"}
-- Si es solo conversación o una pregunta general (saludos, cultura general, explicar un concepto, ideas, traducir, opiniones, un quiz sobre un tema general): {"tipo": "charla", "respuesta": "...", "contenido": null}
-En "respuesta" contesta en español, tratándolo de tú, de forma breve y directa: de 1 a 4 frases, o una lista corta si lo pide. Sin relleno.
-"contenido" es opcional: si pide un quiz, opción múltiple, verdadero o falso, completar, tarjetas, una tabla o pasos (o si una tabla o pasos responden mejor), pon ahí UNO de estos objetos (sin el campo "accion"); con ejercicio, "respuesta" solo lo presenta y no revela las respuestas. Hasta 10 elementos (5 si no dice cuántos):
-${ESPEC_CONTENIDO.replace(/"accion": "mostrar_contenido", /g, '')}
-${voz ? `\n${REGLAS_VOZ}\nEn modo voz "contenido" siempre es null.` : ''}
-Responde SOLO con el objeto JSON, sin texto antes ni después.
-
-Lo que Kevin te pidió recordar. Respétalo siempre:
-${memoria.length ? memoria.map((m) => '- ' + m.texto).join('\n') : '(nada)'}
-
-Hoy es ${diaSemana(fechaHoy)} ${fechaHoy}, son las ${hora}.`;
-}
-
 async function clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, voz, leida }) {
   try {
     const r = await chat(env, { modelo, leida, rapido: true, json: true, temperatura: TEMPERATURA_PLAN, mensajes: [
@@ -706,9 +394,7 @@ async function clasificar(env, { fechaHoy, memoria, previos, entrada, modelo, vo
       ...previos.slice(-6).map((m) => ({ role: m.rol === 'usuario' ? 'user' : 'assistant', content: m.rol === 'usuario' ? m.texto : resumenParaModelo(m) })),
       { role: 'user', content: entrada },
     ] });
-    const texto = String(r.texto || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
-    const ini = texto.indexOf('{'); const fin = texto.lastIndexOf('}');
-    const j = ini >= 0 && fin > ini ? JSON.parse(texto.slice(ini, fin + 1)) : null;
+    const j = extraerJSON(r.texto); // si no hay JSON válido, el catch de abajo lo manda por Notion
     if (j?.tipo === 'charla' && typeof j.respuesta === 'string' && j.respuesta.trim()) {
       let contenido = null;
       if (j.contenido && !voz) { try { contenido = { accion: 'mostrar_contenido', ok: true, ...validarContenido(j.contenido) }; } catch { /* sin formato */ } }
@@ -757,7 +443,47 @@ function previosTemporales(lista) {
   })).filter((m) => m.texto);
 }
 
-export async function procesarMensaje(env, { texto, modelo, chat: chatPedido, temporal = false, historial: historialCliente, progreso: progresoFn, voz = false }) {
+// Evita duplicar escrituras cuando la app reintenta un envío que en realidad sí llegó (conexión cortada a mitad
+// de la respuesta). La app manda un identificador por envío (`peticion`) y lo repite al reintentar:
+// - si esa petición ya terminó, se devuelve la misma respuesta sin volver a ejecutar nada;
+// - si sigue en curso, se espera un poco a que termine;
+// - si falló, se borra la marca y el reintento se procesa normalmente.
+const ESPERA_PETICION_MS = 2000;
+const INTENTOS_PETICION = 10;
+const PETICION_ABANDONADA_MS = 120_000; // sin respuesta tras este tiempo: el Worker murió a mitad y se puede repetir
+export async function procesarMensaje(env, args = {}) {
+  const pid = typeof args.peticion === 'string' && /^[\w-]{8,64}$/.test(args.peticion) ? args.peticion : null;
+  if (!pid) return procesar(env, args);
+  const base = await db(env);
+  const reservar = async () => (await base.prepare('INSERT OR IGNORE INTO peticiones (id, respuesta, creado) VALUES (?, NULL, ?)').bind(pid, Date.now()).run()).meta.changes > 0;
+  if (!(await reservar())) {
+    let libre = false;
+    for (let i = 0; i < INTENTOS_PETICION && !libre; i++) {
+      const p = await base.prepare('SELECT respuesta, creado FROM peticiones WHERE id = ?').bind(pid).first();
+      if (p?.respuesta) return { ...JSON.parse(p.respuesta), repetida: true };
+      if (!p) { libre = await reservar(); continue; } // la primera falló: este reintento la reemplaza
+      if (Date.now() - p.creado > PETICION_ABANDONADA_MS) {
+        await base.prepare('UPDATE peticiones SET creado = ? WHERE id = ?').bind(Date.now(), pid).run(); libre = true; continue;
+      }
+      if (typeof args.progreso === 'function') args.progreso('Recuperando la respuesta anterior…');
+      await new Promise((r) => setTimeout(r, env.ESPERA_PETICION_MS ?? ESPERA_PETICION_MS));
+    }
+    if (!libre) throw new ErrorAsistente(409, 'Tu mensaje anterior todavía se está procesando. Espera unos segundos y vuelve a abrir el chat.');
+  }
+  try {
+    const r = await procesar(env, args);
+    await base.batch([
+      base.prepare('UPDATE peticiones SET respuesta = ? WHERE id = ?').bind(JSON.stringify(r), pid),
+      base.prepare('DELETE FROM peticiones WHERE creado < ?').bind(Date.now() - 24 * 60 * 60 * 1000),
+    ]).catch(() => {});
+    return r;
+  } catch (e) {
+    await base.prepare('DELETE FROM peticiones WHERE id = ?').bind(pid).run().catch(() => {});
+    throw e;
+  }
+}
+
+async function procesar(env, { texto, modelo, chat: chatPedido, temporal = false, historial: historialCliente, progreso: progresoFn, voz = false }) {
   voz = voz === true;
   const progreso = typeof progresoFn === 'function' ? progresoFn : () => {};
   const entrada = typeof texto === 'string' ? texto.trim() : '';

@@ -164,3 +164,56 @@ test('O1: marcar una tarea desde Urgente escribe Completada en Notion y valida l
   await assert.rejects(marcarTareaHoy(e.env, { tarea: 'no-es-un-id', completada: true }), /inválida/);
   await assert.rejects(marcarTareaHoy(e.env, { tarea: t.id }), /completada/);
 });
+
+test('E10: reintentar con el mismo identificador no vuelve a escribir en Notion', async () => {
+  const plan = { respuesta: 'Listo.', acciones: [{ accion: 'crear_tarea', titulo: 'Deber repetible', tipo: 'Tarea', fecha: e0(4), hora: null, materia: 'm2', grupal: false }] };
+  const e = montar([{ tipo: 'notion' }, plan, { tipo: 'notion' }, plan]);
+  const antes = tareasEnNotion(e).length;
+  const a = await procesarMensaje(e.env, { texto: 'deber en 4 días', peticion: 'peticion-0001' });
+  const b = await procesarMensaje(e.env, { texto: 'deber en 4 días', peticion: 'peticion-0001', chat: a.chat.id });
+  assert.equal(tareasEnNotion(e).length, antes + 1, 'la tarea se crea una sola vez');
+  assert.equal(b.repetida, true); assert.equal(b.asistente.id, a.asistente.id);
+  assert.equal((await historial(e.env, { chat: a.chat.id })).length, 2);
+  // Con otro identificador sí es un mensaje nuevo.
+  await procesarMensaje(e.env, { texto: 'deber en 4 días', peticion: 'peticion-0002', chat: a.chat.id });
+  assert.equal(tareasEnNotion(e).length, antes + 2);
+});
+
+test('E10: si el primer intento falla, el reintento con el mismo identificador se procesa', async () => {
+  let caido = true; // el proveedor falla hasta que "vuelve"
+  const paso = () => { if (caido) throw new Error('caído'); return { tipo: 'charla', respuesta: 'Hola.' }; };
+  const e = montar(Array(8).fill(paso));
+  await assert.rejects(procesarMensaje(e.env, { texto: 'hola', peticion: 'peticion-0003' }));
+  caido = false;
+  const r = await procesarMensaje(e.env, { texto: 'hola', peticion: 'peticion-0003' });
+  assert.equal(r.asistente.texto, 'Hola.'); assert.ok(!r.repetida);
+});
+
+test('E10: una petición repetida que sigue en curso espera y devuelve la misma respuesta', async () => {
+  const e = montar([{ tipo: 'charla', respuesta: 'Una sola vez.' }]);
+  e.env.ESPERA_PETICION_MS = 20;
+  const [a, b] = await Promise.all([
+    procesarMensaje(e.env, { texto: 'hola', peticion: 'peticion-0004' }),
+    procesarMensaje(e.env, { texto: 'hola', peticion: 'peticion-0004' }),
+  ]);
+  assert.equal(a.asistente.id, b.asistente.id);
+  assert.equal([a, b].filter((x) => x.repetida).length, 1);
+  assert.equal(e.modelo.llamadas.length, 1, 'el modelo se llama una sola vez');
+});
+
+test('R8: con el esquema al día, cada arranque del Worker hace una sola consulta de migración', async () => {
+  const { listarMemoria } = await import('../worker/src/asistente.js');
+  const e = montar([]);
+  await listarMemoria(e.env); // primer arranque: crea tablas y guarda la versión
+  const env2 = { ...e.env, DB: Object.create(e.env.DB) }; // otra instancia del Worker sobre la misma base
+  const antes = e.env.DB.consultas;
+  await listarMemoria(env2);
+  assert.equal(e.env.DB.consultas - antes, 2, 'versión de esquema + la consulta pedida');
+});
+
+test('E11: el límite de subpeticiones se explica con un mensaje claro', async () => {
+  const worker = (await import('../worker/src/index.js')).default;
+  assert.ok(worker.fetch);
+  const fuente = (await import('node:fs')).readFileSync(new URL('../worker/src/index.js', import.meta.url), 'utf8');
+  assert.match(fuente, /LIMITE_SUBPETICIONES/);
+});

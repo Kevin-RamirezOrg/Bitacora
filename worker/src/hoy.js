@@ -2,7 +2,8 @@
 // Lo urgente y la carga salen de Notion; las sesiones de repaso hechas se guardan en D1.
 
 import { consultarTareas, hoy, marcarTarea, materias as leerMaterias, sumarDias } from './notion.js';
-import { ErrorAsistente } from './asistente.js';
+import { ErrorAsistente, db } from './historial.js';
+import { esFecha, sinGuiones } from './util.js';
 import { clasesDelDia, horarioSemana, proximoDiaConClases } from './horario.js';
 
 const DIAS_ATRAS = 14;
@@ -12,18 +13,6 @@ const HORIZONTE_REPASOS = 14;
 // Días antes de la evaluación en que conviene repasar (sesiones cortas y espaciadas).
 export const PLAN_REPASO = { Examen: [10, 6, 3, 1], Prueba: [6, 3, 1] };
 
-const basesListas = new WeakSet();
-async function db(env) {
-  if (!env.DB) throw new ErrorAsistente(503, 'Falta la base D1 en Cloudflare');
-  if (!basesListas.has(env.DB)) {
-    await env.DB.prepare('CREATE TABLE IF NOT EXISTS repasos (tarea TEXT NOT NULL, fecha TEXT NOT NULL, hecho INTEGER NOT NULL DEFAULT 1, actualizado INTEGER NOT NULL, PRIMARY KEY (tarea, fecha))').run();
-    basesListas.add(env.DB);
-  }
-  return env.DB;
-}
-
-const esFecha = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v + 'T12:00:00Z'));
-const sinGuiones = (id) => String(id || '').replace(/-/g, '');
 
 // Fechas de repaso de una evaluación. Si se registró tarde, las sesiones que ya pasaron se omiten
 // salvo que estén marcadas como hechas.

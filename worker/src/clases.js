@@ -1,13 +1,13 @@
 // Apuntes dictados de una clase: el Worker decide la fila de "Clases" (materia, fecha, semana y número)
 // y agrega el texto al final del cuerpo de la página, sin tocar lo que ya había.
 
-import { horaActual, notion, rich, sinGuiones, sumarDias, texto } from './notion.js';
+import { horaActual, notion, rich, sinGuiones, texto } from './notion.js';
+import { DIAS } from './util.js';
 import { semestreInfo } from './horario.js';
 
 const MARGEN_MIN = 180; // minutos después de terminar una clase en que "la clase" todavía se refiere a ella
 const ORDEN = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 const minutos = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 60 + (m || 0); };
-const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const dia = (f) => DIAS[new Date(f + 'T12:00:00Z').getUTCDay()];
 
 // Clase de hoy a la que se refiere "la clase": la que está en curso o la última que terminó hace poco.

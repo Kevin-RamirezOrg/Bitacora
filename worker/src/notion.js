@@ -1,6 +1,9 @@
 // Cliente mínimo de la API de Notion para las bases de "Universidad".
 // Versión 2026-03-11: las páginas se crean con parent data_source_id y se mandan a la papelera con in_trash.
 
+import { DIAS, normal, sinGuiones } from './util.js';
+export { normal, sinGuiones }; // se reexportan: varios módulos los toman de aquí
+
 const API = 'https://api.notion.com/v1';
 const VERSION = '2026-03-11';
 export const ZONA = 'America/Guayaquil';
@@ -56,7 +59,6 @@ export async function notion(env, ruta, { method = 'GET', body } = {}, intento =
 
 export const texto = (p) => (p?.title || p?.rich_text || []).map((t) => t.plain_text ?? t.text?.content ?? '').join('');
 export const rich = (s) => [{ type: 'text', text: { content: String(s).slice(0, 2000) } }];
-export const sinGuiones = (id) => String(id || '').replace(/-/g, '');
 
 // ---------- Fechas ----------
 
@@ -71,7 +73,6 @@ export function sumarDias(fecha, dias) {
   return d.toISOString().slice(0, 10);
 }
 
-const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 export const diaSemana = (fecha) => DIAS[new Date(fecha + 'T12:00:00Z').getUTCDay()];
 
 // Hora actual (HH:MM) en Ecuador.
@@ -191,7 +192,6 @@ export async function notaInbox(env, { texto: contenido, materia }) {
 
 // ---------- Personas ----------
 
-export const normal = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 // Fecha corta para anteponer a las notas: "9 nov".
 const fechaCorta = (f) => new Date(f + 'T12:00:00Z').toLocaleDateString('es', { day: 'numeric', month: 'short', timeZone: 'UTC' });

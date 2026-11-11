@@ -181,6 +181,21 @@ def practicar_desde_repasos(pg_):
         assert enviados and enviados[0].startswith('Practicar '), enviados
         assert not pg.errs, pg.errs
 
+@check
+def reintentar_repite_identificador(pg_):
+    ids = []
+    def mensaje(route):
+        ids.append(json.loads(route.request.post_data).get('peticion'))
+        if len(ids) == 1: route.abort()  # la conexión se corta en el primer intento
+        else: ndjson(route, [{'fin': {'usuario': {'id': 90, 'rol': 'usuario', 'texto': 'x', 'creado': now}, 'asistente': {'id': 91, 'rol': 'asistente', 'texto': 'Listo.', 'creado': now, 'datos': {'resultados': []}}, 'chat': {'id': 1}}}])
+    with abrir(rutas={'/asistente/mensaje': mensaje}) as pg:
+        kell(pg)
+        pg.fill('#chatIn', 'crea una tarea'); pg.click('.send'); pg.wait_for_timeout(800)
+        pg.click('text=Reintentar'); pg.wait_for_timeout(800)
+        assert len(ids) == 2 and ids[0] and ids[0] == ids[1], ids
+        pg.fill('#chatIn', 'otra cosa'); pg.click('.send'); pg.wait_for_timeout(800)
+        assert ids[2] and ids[2] != ids[0], ids
+
 if __name__ == '__main__':
     fallos = 0
     for n in (sys.argv[1:] or CHECKS):

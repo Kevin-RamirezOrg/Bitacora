@@ -3,6 +3,7 @@
 
 import { chat } from './ia.js';
 import { hoy, normal, notion, rich, texto } from './notion.js';
+import { extraerJSON } from './util.js';
 import { semestreInfo } from './horario.js';
 import { leerPaginaCompleta } from './universidad.js';
 
@@ -77,10 +78,8 @@ async function pedirJSON(env, { modelo, leida }, sistema, usuario, validar) {
   const mensajes = [{ role: 'system', content: sistema }, { role: 'user', content: usuario }];
   for (let i = 0; i < 2; i++) {
     const r = await chat(env, { mensajes, modelo, leida, json: true });
-    let t = String(r.texto || '').replace(/<think>[\s\S]*?<\/think>/gi, '');
-    const b = t.match(/```(?:json)?\s*([\s\S]*?)```/i); if (b) t = b[1];
     try {
-      const v = validar(JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)));
+      const v = validar(extraerJSON(r.texto));
       if (v) return v;
     } catch { /* se reintenta */ }
     mensajes.push({ role: 'assistant', content: String(r.texto).slice(0, 3000) }, { role: 'user', content: 'Responde de nuevo SOLO con el objeto JSON pedido, sin texto alrededor.' });

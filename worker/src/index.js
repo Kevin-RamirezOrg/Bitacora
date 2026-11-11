@@ -2,7 +2,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ErrorIA, chat, estadoProveedores, guardarConfig, leerConfig, listarModelos } from './ia.js';
 import { ErrorNotion } from './notion.js';
 import {
-  ErrorAsistente, agregarMemoria, borrarChat, borrarHistorial, borrarMemoria, crearChat, deshacerMensaje, deshacerTemporal,
+  ErrorAsistente, agregarMemoria, borrarChat, borrarMemoria, crearChat, deshacerMensaje, deshacerTemporal,
   editarMemoria, guardarMarcaTarjeta, historial, listarChats, listarMemoria, procesarMensaje, renombrarChat, responderPropuesta, valorar,
   recortarDesde, borrarTurno,
 } from './asistente.js';
@@ -79,6 +79,16 @@ async function leerCuerpo(request) {
   }
 }
 
+// El plan gratuito de Workers permite 50 llamadas externas (Notion, modelo, KV, D1) por petición. Si una acción
+// pesada lo supera, se avisa con un mensaje claro y queda una marca fácil de buscar en los registros.
+function mensajeInterno(e) {
+  if (/too many subrequests/i.test(String(e?.message || e))) {
+    console.error('LIMITE_SUBPETICIONES: una petición superó las 50 llamadas del plan gratuito');
+    return 'Esa petición necesitó demasiadas consultas a la vez. Pide menos de una sola vez (por ejemplo, menos preguntas o una sola materia).';
+  }
+  return 'Error interno';
+}
+
 // Respuesta en líneas (NDJSON): {etapa} mientras trabaja y al final {fin} o {error}.
 function enLineas(ctx, trabajo) {
   const { readable, writable } = new TransformStream();
@@ -91,7 +101,7 @@ function enLineas(ctx, trabajo) {
     } catch (e) {
       const conocido = e instanceof ErrorIA || e instanceof ErrorNotion || e instanceof ErrorAsistente || e instanceof ErrorEstudio || e instanceof ErrorBase;
       if (!conocido) console.error(e);
-      await enviar({ error: conocido ? e.message : 'Error interno', detalle: e.detalle ?? null, status: e.status || 500 });
+      await enviar({ error: conocido ? e.message : mensajeInterno(e), detalle: e.detalle ?? null, status: e.status || 500 });
     } finally {
       await w.close().catch(() => {});
     }
@@ -102,8 +112,6 @@ function enLineas(ctx, trabajo) {
 
 // Rutas privadas: "MÉTODO /ruta" → función.
 const RUTAS = {
-  'GET /yo': (req, env, sesion) => json({ ok: true, uid: sesion.sub }),
-
   'GET /ia/proveedores': (req, env) => json({ proveedores: estadoProveedores(env) }),
 
   'GET /ia/modelos': async (req, env) => {
@@ -124,11 +132,6 @@ const RUTAS = {
   'GET /asistente/historial': async (req, env) => {
     const p = new URL(req.url).searchParams;
     return json({ mensajes: await historial(env, { chat: p.get('chat'), antes: p.get('antes'), limite: p.get('limite') }) });
-  },
-
-  'DELETE /asistente/historial': async (req, env) => {
-    await borrarHistorial(env, new URL(req.url).searchParams.get('chat'));
-    return json({ ok: true });
   },
 
   // Chats: lista, crear, renombrar y borrar
@@ -223,7 +226,7 @@ export default {
         return json({ error: error.message }, error.status || 400);
       }
       console.error(error);
-      return json({ error: 'Error interno' }, 500);
+      return json({ error: mensajeInterno(error) }, 500);
     }
   },
 };

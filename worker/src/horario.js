@@ -2,13 +2,13 @@
 // Cada fila es una clase que se repite cada semana: Bloque (título), Día, Hora ("14:00 – 16:00"), Aula, Materia.
 
 import { diaSemana, notion, sinGuiones, sumarDias, texto } from './notion.js';
+import { normal } from './util.js';
 
 export const CLAVE_HORARIO = 'notion:horario:v2';
 const CLAVE = CLAVE_HORARIO;
 const TTL = 6 * 60 * 60; // el horario cambia pocas veces por semestre
 const ORDEN = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 
-const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 // "14:00 – 16:00", "14h00-16h00", "7:00 a 9:00" → { inicio: "14:00", fin: "16:00" }
 export function leerHora(t) {
@@ -45,14 +45,14 @@ export async function horarioSemana(env, materias = [], refrescar = false) {
   const clases = [];
   for (const p of r.results || []) {
     const pr = p.properties || {};
-    const dia = norm(pr['Día']?.select?.name);
+    const dia = normal(pr['Día']?.select?.name);
     const hora = leerHora(texto(pr.Hora));
     if (!dia || !hora) continue;
     const rel = pr.Materia?.relation?.[0]?.id;
     clases.push({
       id: p.id, url: p.url,
       titulo: texto(pr.Bloque) || nombreMateria(rel) || 'Clase',
-      dia: ORDEN.find((d) => norm(d) === dia) || dia,
+      dia: ORDEN.find((d) => normal(d) === dia) || dia,
       inicio: hora.inicio, fin: hora.fin,
       aula: texto(pr.Aula) || null,
       materia: rel ? nombreMateria(rel) : null,
@@ -74,13 +74,4 @@ export function proximoDiaConClases(clases, fecha) {
     if (cl.length) return { fecha: f, clases: cl };
   }
   return null;
-}
-
-// Texto compacto para el prompt del asistente.
-export function horarioParaPrompt(clases) {
-  if (!clases?.length) return '(sin horario registrado)';
-  return ORDEN.map((d) => {
-    const cl = clases.filter((c) => c.dia === d);
-    return cl.length ? `${d}: ${cl.map((c) => `${c.inicio}-${c.fin} ${c.titulo}${c.aula ? ` (aula ${c.aula})` : ''}`).join('; ')}` : null;
-  }).filter(Boolean).join('\n');
 }
