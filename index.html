@@ -167,6 +167,19 @@ input.search-field::placeholder{color:var(--muted)}
 .hoy-card .res{margin-top:0;background:transparent;border:0;border-radius:0}
 .hoy-card .res-row{padding:10px 0}
 .hoy-more{margin:8px 0 0;font-size:13px;color:var(--ink-2)}
+/* Urgente: filas de dos líneas. La casilla marca la tarea como hecha; el resto de la fila abre Notion. */
+.urg{display:flex;align-items:center;gap:2px;border-bottom:1px solid var(--line)}
+.urg:last-child{border-bottom:0}
+.urg-chk{width:44px;height:44px;display:grid;place-items:center;flex:none;margin-left:-10px}
+.urg-chk i{width:22px;height:22px;border-radius:7px;border:2px solid var(--line-strong);display:grid;place-items:center;color:transparent}
+.urg-chk i svg{width:15px;height:15px}
+.urg-chk[aria-pressed="true"] i{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.urg-chk:disabled{opacity:.6}
+.urg-a{flex:1;min-width:0;display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 0;color:inherit;text-decoration:none}
+.urg-a .res-t b,.urg-a .res-t span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.urg-a .due{margin-top:0;white-space:nowrap;flex:none}
+.urg.done .res-t b{text-decoration:line-through;color:var(--muted)}
+.rp-go{margin-left:auto}
 .load{display:grid;grid-template-columns:repeat(14,1fr);gap:4px;align-items:end}
 .load-col{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
 .load-col.wk{border-left:1px dashed var(--line);margin-left:-3px;padding-left:2px}
@@ -1312,7 +1325,7 @@ function hoySection() {
   const sec = h('section',{class:'sec'}, h('div',{class:'sec-h'}, h('h2',{text:'Urgente'}), hoyRefresh()));
   if (!hoyGate(sec, 'Tus pruebas y entregas más cercanas aparecen aquí.')) return sec;
   const d = HOY.data;
-  sec.append(hoyUrgent(d.tareas.filter(t => !t.completada && t.fecha), d.hoy));
+  sec.append(hoyUrgent(d.tareas.filter(t => (!t.completada || t.marcada) && t.fecha), d.hoy)); // lo recién marcado sigue visible para poder desmarcarlo
   return sec;
 }
 function viewPanel(scr) {
@@ -1351,9 +1364,14 @@ function hoyUrgent(pend, hoy) {
   const list = pend.filter(t => t.fecha <= lim).sort((a,b) => a.fecha.localeCompare(b.fecha) || (HOY_PESO[b.tipo]||1) - (HOY_PESO[a.tipo]||1));
   const card = h('div',{class:'hoy-card'}, h('p',{class:'sub',text:'Lo atrasado y lo de los próximos 7 días'}));
   if (!list.length) { card.append(h('p',{class:'hoy-more',style:{marginTop:'0'},text:'Nada pendiente en los próximos 7 días.'})); return card; }
-  const box = h('div',{class:'res'});
-  list.slice(0, 5).forEach(t => box.append(h('div',{class:'res-row'}, h('span',{class:'res-ic',html:ICON.cal}),
-    h('span',{class:'res-t'}, h('b',{text:t.titulo}), h('span',{text:[t.tipo, t.materia || 'Sin materia', fmtDue(t.fecha, t.hora)].filter(Boolean).join(' · ')}), dueBadge(t)), openLink(t.url))));
+  const box = h('div',{});
+  list.slice(0, 5).forEach(t => {
+    const chk = h('button',{class:'urg-chk',type:'button','aria-pressed':String(!!t.completada),'aria-label':(t.completada ? 'Desmarcar ' : 'Marcar como hecha ') + t.titulo}, h('i',{html:ICON.check}));
+    chk.onclick = () => hoyToggleTask(t, chk);
+    const cuerpo = [h('span',{class:'res-t'}, h('b',{text:t.titulo}), h('span',{text:[t.tipo, t.materia || 'Sin materia', t.hora].filter(Boolean).join(' · ')})), dueBadge(t)];
+    box.append(h('div',{class:'urg' + (t.completada ? ' done' : '')}, chk,
+      t.url ? h('a',{class:'urg-a',href:t.url,target:'_blank',rel:'noopener',title:'Abrir en Notion'}, ...cuerpo) : h('div',{class:'urg-a'}, ...cuerpo)));
+  });
   card.append(box);
   if (list.length > 5) card.append(h('p',{class:'hoy-more',text:`Y ${list.length - 5} más. Pregúntale al asistente "¿qué tengo esta semana?" para ver todo.`}));
   return card;
@@ -1397,9 +1415,24 @@ function hoyReviews(d) {
     card.append(h('div',{class:'rp-item'}, h('div',{class:'rp-head'}, h('span',{class:'res-t'}, h('b',{text:r.titulo}),
       h('span',{text:[r.tipo, r.materia || 'Sin materia', fmtDay(r.fecha)].join(' · ')}), dueBadge(r)),
       h('span',{class:'msg-meta',style:{whiteSpace:'nowrap'},text:`${done} de ${r.sesiones.length}`}), openLink(r.url)), row));
+    if (r.materia) row.append(h('button',{class:'rp rp-go',type:'button','aria-label':'Practicar ' + r.materia + ' con Kell',onclick:()=>kellSend('Practicar ' + r.materia)}, ic('asistente'), 'Practicar'));
   });
   if (!d.historial) card.append(h('p',{class:'hoy-more',text:'Falta la base D1: los repasos marcados no se guardarán.'}));
   return card;
+}
+const hoyRepaint = () => { if (S.view === 'home' || S.view === 'panel') { const top = $('#screen .scroll')?.scrollTop || 0; render(); const sc = $('#screen .scroll'); if (sc) sc.scrollTop = top; } };
+// Marca (o desmarca) una tarea en Notion desde Urgente, sin pasar por Kell.
+async function hoyToggleTask(t, btn) {
+  btn.disabled = true; const prev = !!t.completada; t.completada = !prev; t.marcada = true; hoyRepaint();
+  try { await api('/hoy/tarea', { method:'POST', body:{ tarea:t.id, completada:t.completada } }); toast(t.completada ? 'Marcada como hecha en Notion' : 'Vuelve a estar pendiente'); }
+  catch (e) { t.completada = prev; toast(e.message); hoyRepaint(); }
+}
+// Abre Kell y envía un mensaje ya escrito (por ejemplo "Practicar Big Data" desde Repasos).
+async function kellSend(text) {
+  goTab('assistant');
+  for (let i = 0; i < 60 && !CHAT.loaded && !CHAT.err; i++) await new Promise(r => setTimeout(r, 100));
+  if (S.view !== 'assistant') return;
+  if (CHAT.loaded && !CHAT.sending) chatSend(text); else { CHAT.draft = text; chatPaint(); }
 }
 async function hoyToggleReview(r, x, btn) {
   btn.disabled = true; const prev = x.hecho; x.hecho = !prev;

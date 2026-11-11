@@ -151,6 +151,36 @@ def modo_voz(pg_):
         assert not pg.query_selector('.conv')
         assert not pg.errs, pg.errs
 
+@check
+def urgente_marcar_tarea(pg_):
+    vistas = []
+    def tarea(route):
+        vistas.append(json.loads(route.request.post_data))
+        route.fulfill(body=json.dumps({'ok': True}), content_type='application/json', headers={'Access-Control-Allow-Origin': '*'})
+    with abrir(rutas={'/hoy/tarea': tarea}) as pg:
+        filas = pg.query_selector_all('.urg'); assert filas, 'Urgente debe listar tareas'
+        alto = pg.evaluate("document.querySelector('.urg').getBoundingClientRect().height"); assert alto <= 72, alto
+        assert pg.evaluate("document.querySelector('.urg-chk').getBoundingClientRect().width") >= 44
+        pg.click('.urg-chk'); pg.wait_for_timeout(500)
+        assert vistas and vistas[0]['completada'] is True and vistas[0]['tarea'], vistas
+        assert pg.get_attribute('.urg-chk', 'aria-pressed') == 'true', 'sigue visible y marcada para poder desmarcar'
+        pg.click('.urg-chk'); pg.wait_for_timeout(500)
+        assert vistas[1]['completada'] is False
+        assert not pg.errs, pg.errs
+
+@check
+def practicar_desde_repasos(pg_):
+    enviados = []
+    def mensaje(route):
+        enviados.append(json.loads(route.request.post_data)['texto'])
+        ndjson(route, [{'fin': {'usuario': {'id': 90, 'rol': 'usuario', 'texto': enviados[-1], 'creado': now}, 'asistente': {'id': 91, 'rol': 'asistente', 'texto': 'Empecemos.', 'creado': now, 'datos': {'resultados': []}}, 'chat': {'id': 1}}}])
+    with abrir(rutas={'/asistente/mensaje': mensaje}) as pg:
+        pg.click('.tab[data-view="panel"]'); pg.wait_for_timeout(500)
+        pg.click('.rp-go'); pg.wait_for_timeout(1500)
+        assert vista(pg) == 'assistant'
+        assert enviados and enviados[0].startswith('Practicar '), enviados
+        assert not pg.errs, pg.errs
+
 if __name__ == '__main__':
     fallos = 0
     for n in (sys.argv[1:] or CHECKS):

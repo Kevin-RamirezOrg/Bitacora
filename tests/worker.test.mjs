@@ -152,3 +152,15 @@ test('K2: Notion se lee mientras el clasificador responde', async () => {
   const e = montar([(body) => { assert.ok(e.notion.llamadas.length > 0, 'la lectura de Notion ya empezó'); return { tipo: 'notion' }; }, { respuesta: 'ok', acciones: [] }]);
   await procesarMensaje(e.env, { texto: 'qué tengo' });
 });
+
+test('O1: marcar una tarea desde Urgente escribe Completada en Notion y valida la entrada', async () => {
+  const { marcarTareaHoy } = await import('../worker/src/hoy.js');
+  const e = montar([]);
+  const t = tareasEnNotion(e)[0];
+  await marcarTareaHoy(e.env, { tarea: t.id, completada: true });
+  assert.equal(e.notion.paginas.get(t.id).properties.Completada.checkbox, true);
+  await marcarTareaHoy(e.env, { tarea: t.id, completada: false });
+  assert.equal(e.notion.paginas.get(t.id).properties.Completada.checkbox, false);
+  await assert.rejects(marcarTareaHoy(e.env, { tarea: 'no-es-un-id', completada: true }), /inválida/);
+  await assert.rejects(marcarTareaHoy(e.env, { tarea: t.id }), /completada/);
+});

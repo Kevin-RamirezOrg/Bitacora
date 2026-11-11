@@ -1,7 +1,7 @@
 // Panel "Hoy": datos con reglas fijas (sin IA) para que se vea aunque falle el modelo.
 // Lo urgente y la carga salen de Notion; las sesiones de repaso hechas se guardan en D1.
 
-import { consultarTareas, hoy, materias as leerMaterias, sumarDias } from './notion.js';
+import { consultarTareas, hoy, marcarTarea, materias as leerMaterias, sumarDias } from './notion.js';
 import { ErrorAsistente } from './asistente.js';
 import { clasesDelDia, horarioSemana, proximoDiaConClases } from './horario.js';
 
@@ -63,6 +63,14 @@ export async function datosHoy(env, { refrescar = false } = {}) {
     horario: Boolean(semana), clases: semana ? clasesDelDia(semana, fechaHoy) : [],
     proximo: proximo ? { fecha: proximo.fecha, clases: proximo.clases } : null,
   };
+}
+
+// Marca o desmarca una tarea desde Urgente (misma escritura que la acción completar_tarea de Kell).
+export async function marcarTareaHoy(env, { tarea, completada }) {
+  if (typeof tarea !== 'string' || !/^[0-9a-f-]{32,36}$/i.test(tarea)) throw new ErrorAsistente(400, 'Tarea inválida');
+  if (typeof completada !== 'boolean') throw new ErrorAsistente(400, 'Falta indicar si está completada');
+  await marcarTarea(env, tarea, completada);
+  return { ok: true, tarea, completada };
 }
 
 export async function marcarRepaso(env, { tarea, fecha, hecho }) {

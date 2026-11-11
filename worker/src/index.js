@@ -6,7 +6,7 @@ import {
   editarMemoria, guardarMarcaTarjeta, historial, listarChats, listarMemoria, procesarMensaje, renombrarChat, responderPropuesta, valorar,
   recortarDesde, borrarTurno,
 } from './asistente.js';
-import { datosHoy, marcarRepaso } from './hoy.js';
+import { datosHoy, marcarRepaso, marcarTareaHoy } from './hoy.js';
 import { ErrorEstudio, marcarDominio } from './estudio.js';
 import { ErrorBase } from './universidad.js';
 import { subirAudio, transcribirArchivo } from './audio.js';
@@ -189,6 +189,7 @@ const RUTAS = {
   'GET /hoy': async (req, env) => json(await datosHoy(env, { refrescar: new URL(req.url).searchParams.get('refrescar') === '1' })),
 
   'POST /hoy/repaso': async (req, env) => json(await marcarRepaso(env, await leerCuerpo(req))),
+  'POST /hoy/tarea': async (req, env) => json(await marcarTareaHoy(env, await leerCuerpo(req))),
 };
 
 export default {
