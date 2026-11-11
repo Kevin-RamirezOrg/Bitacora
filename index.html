@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1C2723" id="themeColor">
+<script>
+// Tema antes del primer pintado, para que en modo claro no se vea un destello oscuro. applyTheme() lo repite al cargar.
+(function(){try{var d=document.documentElement,t=localStorage.getItem('bitacora.theme')||'auto',p=localStorage.getItem('bitacora.palette');
+if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';d.setAttribute('data-theme',t);
+if(p&&p!=='pizarra')d.setAttribute('data-palette',p);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();
+</script>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -34,19 +40,6 @@
   --r-sm:10px; --r-md:14px; --r-lg:20px; --r-pill:999px;
   --tab-h:68px;
 }
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
-  color-scheme:light;
-  --bg:#F2F4F1; --surface:#FFFFFF; --surface-2:#E7ECE6; --surface-3:#DAE1D9;
-  --line:#DCE2DB; --line-strong:#76877E;
-  --ink:#16201C; --ink-2:#2C3933; --muted:#55655D;
-  --accent:#1D5C46; --on-accent:#FFFFFF; --accent-ink:#1D5C46; --accent-soft:rgba(29,92,70,.12);
-  --danger:#C42B21; --danger-soft:rgba(196,43,33,.10); --ok:#1F7A4D; --warn:#9A6200;
-  --scrim:rgba(18,28,24,.45); --shadow:0 14px 34px rgba(22,32,28,.16);
-  --c0:#D23A31; --c1:#C25E0C; --c2:#9A7400; --c3:#1E8553; --c4:#0B7C79; --c5:#1F63C4; --c6:#6743D6; --c7:#BE2F67; --c8:#5F6E66;
-  --tc0:#C42B21; --tc1:#B35400; --tc2:#1C7A4B; --tc3:#1D5FBF; --tc4:#6240CF; --tc5:#B62A61;
-  --hc0:rgba(255,214,10,.42); --hc1:rgba(48,164,108,.26); --hc2:rgba(0,144,255,.20); --hc3:rgba(214,64,159,.20); --hc4:rgba(247,107,21,.24);
-  --sx-k:#6240CF; --sx-s:#1C7A4B; --sx-n:#B35400; --sx-c:#6F7D75; --sx-f:#1D5FBF; --sx-t:#9A6200; --sx-a:#0B7C79;
-}}
 :root[data-theme="light"]{
   color-scheme:light;
   --bg:#F2F4F1; --surface:#FFFFFF; --surface-2:#E7ECE6; --surface-3:#DAE1D9;
@@ -56,15 +49,19 @@
   --danger:#C42B21; --danger-soft:rgba(196,43,33,.10); --ok:#1F7A4D; --warn:#9A6200;
   --scrim:rgba(18,28,24,.45); --shadow:0 14px 34px rgba(22,32,28,.16);
   --c0:#D23A31; --c1:#C25E0C; --c2:#9A7400; --c3:#1E8553; --c4:#0B7C79; --c5:#1F63C4; --c6:#6743D6; --c7:#BE2F67; --c8:#5F6E66;
-  --tc0:#C42B21; --tc1:#B35400; --tc2:#1C7A4B; --tc3:#1D5FBF; --tc4:#6240CF; --tc5:#B62A61;
+  --tc0:#C42B21; --tc1:#9E4A00; --tc2:#176B41; --tc3:#1D5FBF; --tc4:#6240CF; --tc5:#B62A61;
   --hc0:rgba(255,214,10,.42); --hc1:rgba(48,164,108,.26); --hc2:rgba(0,144,255,.20); --hc3:rgba(214,64,159,.20); --hc4:rgba(247,107,21,.24);
-  --sx-k:#6240CF; --sx-s:#1C7A4B; --sx-n:#B35400; --sx-c:#6F7D75; --sx-f:#1D5FBF; --sx-t:#9A6200; --sx-a:#0B7C79;
+  --sx-k:#6240CF; --sx-s:#1C7A4B; --sx-n:#B35400; --sx-c:#64726A; --sx-f:#1D5FBF; --sx-t:#9A6200; --sx-a:#0B7C79;
 }
 
+/* El modo (oscuro o claro) siempre llega resuelto en data-theme: "Automático" lo decide el script del <head> y applyTheme().
+   Así cada paleta tiene un solo bloque oscuro y uno claro. */
 /* Palette: Uva (purple). Same structure as Pizarra; the light variant wins by higher specificity. */
 :root[data-palette="uva"]{ --bg:#221B2B; --surface:#2B2236; --surface-2:#352A42; --surface-3:#40334F; --line:#3B3048; --line-strong:#8F80A4; --ink:#F1EDF5; --ink-2:#D9D1E3; --muted:#B3A7C2; --accent:#C9AEFF; --on-accent:#221B2B; --accent-ink:#C9AEFF; --accent-soft:rgba(201,174,255,.17); --scrim:rgba(12,8,18,.62); }
-@media (prefers-color-scheme: light){:root[data-palette="uva"]:not([data-theme="dark"]){ color-scheme:light; --bg:#F5F2F8; --surface:#FFFFFF; --surface-2:#ECE6F2; --surface-3:#DFD7E8; --line:#E2DAEA; --line-strong:#7F7196; --ink:#1E1828; --ink-2:#352C42; --muted:#5F5471; --accent:#6A3FC2; --on-accent:#FFFFFF; --accent-ink:#6A3FC2; --accent-soft:rgba(106,63,194,.12); --scrim:rgba(24,16,34,.45); }}
 :root[data-palette="uva"][data-theme="light"]{ color-scheme:light; --bg:#F5F2F8; --surface:#FFFFFF; --surface-2:#ECE6F2; --surface-3:#DFD7E8; --line:#E2DAEA; --line-strong:#7F7196; --ink:#1E1828; --ink-2:#352C42; --muted:#5F5471; --accent:#6A3FC2; --on-accent:#FFFFFF; --accent-ink:#6A3FC2; --accent-soft:rgba(106,63,194,.12); --scrim:rgba(24,16,34,.45); }
+/* Paleta: Noche (casi negra y neutra, con acento azul). */
+:root[data-palette="noche"]{ --bg:#131314; --surface:#1C1C1E; --surface-2:#262628; --surface-3:#323235; --line:#2C2C2F; --line-strong:#85858E; --ink:#EDEDEF; --ink-2:#CFCFD4; --muted:#A6A6AE; --accent:#A8C7FA; --on-accent:#0B1A33; --accent-ink:#A8C7FA; --accent-soft:rgba(168,199,250,.16); --scrim:rgba(0,0,0,.66); --sx-c:#8E8E97; }
+:root[data-palette="noche"][data-theme="light"]{ color-scheme:light; --bg:#F4F4F5; --surface:#FFFFFF; --surface-2:#E9E9EC; --surface-3:#DCDCE0; --line:#DFDFE3; --line-strong:#74747C; --ink:#18181B; --ink-2:#2E2E33; --muted:#585860; --accent:#2452B5; --on-accent:#FFFFFF; --accent-ink:#2452B5; --accent-soft:rgba(36,82,181,.12); --scrim:rgba(18,18,22,.45); --sx-c:#6C6C74; }
 
 *{box-sizing:border-box}
 html{height:100%;-webkit-text-size-adjust:100%;background:var(--bg)}
@@ -98,6 +95,16 @@ svg{flex:none}
 .fab{position:absolute;right:max(18px,env(safe-area-inset-right,0px));bottom:18px;z-index:5;width:58px;height:58px;border-radius:18px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;box-shadow:0 8px 22px rgba(0,0,0,.35)}
 .fab svg{width:28px;height:28px}
 .app.in-editor .tabbar{display:none}
+/* El chat de Kell ocupa toda la pantalla, como el editor: sin barra inferior y con flecha para volver. */
+.app.in-chat .tabbar{display:none}
+.app.in-chat .chat-comp{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.app.in-chat .dict-bar:not([hidden]){padding-bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+.chat-back{margin-left:-8px;color:var(--accent-ink)}
+/* Cambio de sección al deslizar: la pantalla nueva entra desde el lado hacia el que se deslizó. */
+.screen.go-l{animation:goL .2s ease-out}
+.screen.go-r{animation:goR .2s ease-out}
+@keyframes goL{from{transform:translateX(32px);opacity:.25}to{transform:none;opacity:1}}
+@keyframes goR{from{transform:translateX(-32px);opacity:.25}to{transform:none;opacity:1}}
 
 /* ---------- Headers ---------- */
 .top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-top:14px;padding-bottom:6px}
@@ -123,7 +130,6 @@ svg{flex:none}
 .btn.ghost{color:var(--accent-ink);padding:0 10px}
 .btn.danger{background:var(--danger);color:#1A0E0C}
 :root[data-theme="light"] .btn.danger{color:#fff}
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .btn.danger{color:#fff}}
 .btn.wide{width:100%}
 .btn:disabled{opacity:.55;cursor:default}
 .link{color:var(--accent-ink);font-weight:600;font-size:15px;min-height:44px;display:inline-flex;align-items:center;padding:0 4px}
@@ -358,7 +364,7 @@ input.search-field::placeholder{color:var(--muted)}
 .set-row > svg{width:22px;height:22px;color:var(--ink-2)}
 .set-row .row-t b{font-weight:600}
 .set-row.danger,.set-row.danger > svg{color:var(--danger)}
-.pal-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:100%;margin-top:4px}
+.pal-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;width:100%;margin-top:4px}
 .pal{border:1.5px solid var(--line-strong);border-radius:var(--r-md);padding:10px;display:flex;align-items:center;gap:10px;background:var(--surface-2);font-weight:600;font-size:15px;text-align:left;min-height:56px}
 .pal[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
 .pal i{width:34px;height:34px;border-radius:10px;flex:none;position:relative;border:1px solid rgba(127,127,127,.35)}
@@ -421,6 +427,8 @@ input.search-field::placeholder{color:var(--muted)}
 .msg.ia{align-self:flex-start;width:min(88%,620px)}
 .msg.ia > .txt{background:var(--surface);border:1px solid var(--line);padding:10px 14px;border-radius:18px 18px 18px 6px;white-space:pre-wrap}
 .msg.err > .txt{background:var(--danger-soft);border-color:var(--danger)}
+.msg.ia > .txt[role="button"]{cursor:pointer}
+.msg.ia > .txt[aria-expanded="true"]{border-color:var(--line-strong)}
 .msg.ia > .txt.md{white-space:normal}
 .txt.md > :first-child{margin-top:0}
 .txt.md > :last-child{margin-bottom:0}
@@ -452,49 +460,62 @@ button.msg.yo[aria-expanded="true"]{border-color:var(--accent-ink)}
 .reading .vw.said{color:inherit}
 .reading .vw.now{color:var(--ink);background:var(--accent-soft);border-radius:4px;box-shadow:0 0 0 2px var(--accent-soft)}
 .rate[aria-pressed="true"][aria-label="Detener lectura"]{color:var(--accent-ink)}
-.conv{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
-.conv-top{display:flex;align-items:center;gap:12px;padding:12px 16px 4px}
+/* Modo conversación: siempre oscuro (casi negro), con el símbolo de Kell al centro y un brillo del color de
+   acento en el borde inferior que respira al escuchar y late al hablar. Los tokens se redefinen aquí para que
+   se vea igual con cualquier tema; --accent lo fija convOpen() con el acento oscuro de la paleta. */
+.conv{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;overflow:hidden;color-scheme:dark;
+  --bg:#0C0C0E;--surface:#19191C;--surface-2:#232327;--surface-3:#2E2E33;--line:#2A2A2E;--line-strong:#85858E;--ink:#F2F2F4;--ink-2:#CFCFD4;--muted:#A6A6AE;
+  --danger:#FF9187;--ok:#8FD9A8;--accent-ink:var(--accent);--accent-soft:color-mix(in srgb,var(--accent) 20%,transparent);
+  background:var(--bg);color:var(--ink);padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+.conv-glow{position:absolute;left:-12%;right:-12%;bottom:-20%;height:64%;pointer-events:none;z-index:0}
+.conv-glow i{position:absolute;inset:0;border-radius:50%;filter:blur(46px);background:radial-gradient(closest-side,var(--accent),transparent 74%);opacity:.3;transform-origin:50% 100%;will-change:transform,opacity}
+.conv-glow i:nth-child(2){inset:26% 20% 0;filter:blur(34px);opacity:.44}
+.conv.escuchando .conv-glow i{animation:glowBreathe 3.6s ease-in-out infinite}
+.conv.escuchando.oye .conv-glow i{animation:glowTalk .7s ease-in-out infinite alternate}
+.conv.hablando .conv-glow i{animation:glowTalk .58s ease-in-out infinite alternate}
+.conv.hablando .conv-glow i:nth-child(2){animation-delay:.18s}
+.conv.pensando .conv-glow i{animation:glowThink 2s ease-in-out infinite}
+.conv.silenciado .conv-glow i{opacity:.1;background:radial-gradient(closest-side,var(--muted),transparent 74%)}
+@keyframes glowBreathe{0%,100%{transform:scale(1);opacity:.26}50%{transform:scale(1.07,1.18);opacity:.46}}
+@keyframes glowTalk{from{transform:scale(1,.94);opacity:.38}to{transform:scale(1.1,1.32);opacity:.74}}
+@keyframes glowThink{0%,100%{transform:translateX(-8%);opacity:.22}50%{transform:translateX(8%) scale(1.05);opacity:.4}}
+.conv-top,.conv-stage,.conv-avisos,.conv-bar{position:relative;z-index:1}
+.conv-top{display:flex;align-items:center;gap:4px;padding:10px 12px 4px 20px}
 .conv-tt{flex:1;min-width:0;display:flex;flex-direction:column}
-.conv-tt b{font-family:Lora,Georgia,serif;font-size:22px;font-weight:700}
+.conv-tt b{font-family:var(--f-display);font-size:20px;font-weight:700}
 .conv-tt span{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.conv-stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;padding:8px 20px 0;width:100%;max-width:640px;margin:0 auto}
-.conv-orb{position:relative;flex:none;width:132px;height:132px;margin:18px 0 10px}
-.conv-orb i{position:absolute;inset:0;border-radius:50%;background:var(--accent)}
-.conv-orb i:nth-child(1){opacity:.18;transform:scale(1.32)}
-.conv-orb i:nth-child(2){opacity:.32;transform:scale(1.14)}
-.conv-orb i:nth-child(3){opacity:1;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-.conv-orb.escuchando i:nth-child(1){animation:orbBreathe 2.4s ease-in-out infinite}
-.conv-orb.escuchando i:nth-child(2){animation:orbBreathe 2.4s ease-in-out .3s infinite}
-.conv-orb.pensando i:nth-child(1),.conv-orb.pensando i:nth-child(2){background:transparent;border:3px dashed var(--accent);opacity:.6;animation:orbSpin 3s linear infinite}
-.conv-orb.pensando i:nth-child(2){animation-direction:reverse;animation-duration:2.2s}
-.conv-orb.hablando i:nth-child(1){animation:orbTalk .9s ease-in-out infinite}
-.conv-orb.hablando i:nth-child(2){animation:orbTalk .9s ease-in-out .15s infinite}
-.conv-orb.hablando i:nth-child(3){animation:orbCore .45s ease-in-out infinite alternate}
-.conv-orb.silenciado i{background:var(--line-strong)}
-.conv-orb.silenciado i:nth-child(3){background:var(--surface-3);border:2px solid var(--line-strong)}
-@keyframes orbBreathe{0%,100%{transform:scale(1.14)}50%{transform:scale(1.32)}}
-@keyframes orbSpin{from{transform:scale(1.2) rotate(0)}to{transform:scale(1.2) rotate(360deg)}}
-@keyframes orbTalk{0%,100%{transform:scale(1.1);opacity:.35}50%{transform:scale(1.42);opacity:.12}}
-@keyframes orbCore{from{transform:scale(.96)}to{transform:scale(1.04)}}
-@media (prefers-reduced-motion:reduce){.conv-orb i{animation:none!important}}
-.conv-estado{margin:6px 0 10px;font-size:15px;font-weight:600;color:var(--ink-2);text-align:center;min-height:22px}
-.conv-talk{flex:1;min-height:0;width:100%;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 2px 16px}
-.conv-yo{margin:0;align-self:flex-end;max-width:88%;padding:10px 14px;border-radius:18px 18px 6px 18px;background:var(--accent-soft);border:1px solid var(--line-strong);font-size:16px;line-height:1.45}
+.conv-ic{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink);flex:none}
+.conv-ic[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.conv-stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:8px 24px 0;width:100%;max-width:640px;margin:0 auto;text-align:center}
+.conv-mark{color:var(--accent);line-height:0;transition:color .3s}
+.conv-mark svg{width:88px;height:88px;transition:width .25s,height .25s}
+.conv.escuchando.oye .conv-mark svg{animation:markPulse .7s ease-in-out infinite alternate}
+.conv.pensando .conv-mark svg{animation:markSpin 5s linear infinite}
+.conv.hablando .conv-mark svg{animation:markPulse .58s ease-in-out infinite alternate}
+.conv.silenciado .conv-mark{color:var(--muted)}
+@keyframes markSpin{to{transform:rotate(360deg)}}
+@keyframes markPulse{from{transform:scale(.94)}to{transform:scale(1.08)}}
+.conv-hola{font-family:var(--f-display);font-size:30px;font-weight:600;line-height:1.2;margin:14px 0 0;text-wrap:balance}
+.conv-estado{margin:0;font-size:15px;font-weight:500;color:var(--ink-2);min-height:22px}
+.conv-talk{display:none}
+.conv.subs .conv-stage{justify-content:flex-start}
+.conv.subs .conv-mark svg{width:46px;height:46px}
+.conv.subs .conv-hola{display:none}
+.conv.subs .conv-talk{flex:1;min-height:0;width:100%;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:8px 2px 16px;text-align:left}
+.conv-yo{margin:0;align-self:flex-end;max-width:88%;padding:10px 14px;border-radius:18px 18px 6px 18px;background:var(--surface-2);border:1px solid var(--line-strong);font-size:16px;line-height:1.45}
 .conv-int{color:var(--muted)}
-.conv-resp{margin:0;font-size:22px;line-height:1.5;font-weight:500;white-space:pre-wrap}
+.conv-resp{margin:0;font-size:21px;line-height:1.5;font-weight:500;white-space:pre-wrap}
+.conv-avisos{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 20px;text-align:center}
 .conv-nota{margin:0;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2)}
 .conv-nota svg{width:18px;height:18px;color:var(--ok);flex:none}
 .conv-err{margin:0;font-size:14px;color:var(--danger)}
-.conv-bar{flex:none;display:flex;justify-content:space-around;align-items:flex-start;gap:12px;padding:14px 16px 20px;border-top:1px solid var(--line)}
-.conv-c{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:72px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.conv-bar{flex:none;display:flex;justify-content:center;align-items:center;gap:26px;padding:16px 16px 26px}
 .conv-btn{width:60px;height:60px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1.5px solid var(--line-strong);color:var(--ink)}
 .conv-btn svg{width:26px;height:26px}
-.conv-btn.main{width:72px;height:72px;background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.conv-btn.main{width:76px;height:76px;background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .conv-btn.main:disabled{opacity:1;background:var(--surface-2);border-color:var(--line-strong);color:var(--ink-2)}
 .conv-btn.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .conv-btn.end{background:var(--danger);border-color:var(--danger);color:#1A0E0C}
-:root[data-theme="light"] .conv-btn.end{color:#fff}
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]) .conv-btn.end{color:#fff}}
 .prog{height:10px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line-strong);overflow:hidden;margin:4px 0 12px}
 .prog i{display:block;height:100%;background:var(--accent);transition:width .3s}
 .edit-bar{margin:0 0 8px}
@@ -628,6 +649,7 @@ button.msg.yo[aria-expanded="true"]{border-color:var(--accent-ink)}
 /* ---------- Toast ---------- */
 .toast{position:fixed;left:50%;bottom:calc(var(--tab-h) + 18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:var(--r-pill);font-size:15px;font-weight:600;z-index:90;box-shadow:var(--shadow);max-width:calc(100% - 32px);text-align:center;animation:fade .15s ease}
 .app.in-editor ~ .toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+.app.in-chat ~ .toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 
 @keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -641,12 +663,13 @@ button.msg.yo[aria-expanded="true"]{border-color:var(--accent-ink)}
   .tab.main{justify-content:center;padding-bottom:0}
   .tab.main .tab-ic{margin-top:0;width:52px;height:52px}
   .fab{right:32px;bottom:28px}
-  .app.in-editor .tabbar{display:flex}
+  .app.in-editor .tabbar,.app.in-chat .tabbar{display:flex}
+  .chat-back{display:none}
   .dict-bar,.dict-bar:not([hidden]),.app.in-editor .dict-bar:not([hidden]){position:fixed;z-index:30;left:calc(96px + 24px);right:24px;bottom:24px;max-width:640px;margin:0 auto;padding:6px 12px 6px 16px;border:1px solid var(--line-strong);border-radius:18px;box-shadow:0 8px 22px rgba(0,0,0,.25)}
   .sheet-scrim{align-items:center;padding:20px}
   .sheet{border-radius:24px;border-bottom:1px solid var(--line);max-height:84vh}
   .sheet-f{padding-bottom:16px}
-  .toast,.app.in-editor ~ .toast{bottom:28px}
+  .toast,.app.in-editor ~ .toast,.app.in-chat ~ .toast{bottom:28px}
   .big{font-size:40px}
   .ed-top,.ed-head{max-width:900px;margin-left:auto;margin-right:auto;width:100%}
   .rich,.md-wrap{max-width:900px;margin-left:auto;margin-right:auto;width:100%}
@@ -724,6 +747,7 @@ const ICON = {
   speaker: sv('<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/>'),
   stop: '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>',
   wave: sv('<path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/>'),
+  subs: sv('<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 11.5h4M13.5 11.5H17M7 15h6.5M16 15h1"/>'),
   micOff: sv('<path d="M9 9v2a3 3 0 0 0 5.1 2.1M15 10V5a3 3 0 0 0-5.7-1.3"/><path d="M19 11a7 7 0 0 1-1.2 3.9M5 11a7 7 0 0 0 11 5.7"/><path d="M12 18v3M3 3l18 18"/>'),
   chat: sv('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h8"/>'),
   gear: sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>', 1.8),
@@ -832,11 +856,13 @@ const toHex = rgb => '#' + rgb.map(v=>Math.round(Math.max(0,Math.min(255,v))).to
 const relLum = hx => { const f = c => { c/=255; return c<=0.03928 ? c/12.92 : ((c+0.055)/1.055)**2.4; }; const [r,g,b] = hexRgb(hx); return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b); };
 const contrast = (a,b) => { const [x,y] = [relLum(a),relLum(b)].sort((m,n)=>n-m); return (x+0.05)/(y+0.05); };
 const mixHex = (a,b,t) => { const A = hexRgb(a), B = hexRgb(b); return toHex(A.map((v,i)=>v+(B[i]-v)*t)); };
-const PALETTES = { pizarra:{label:'Pizarra', bg:'#1C2723', acc:'#F2D67A'}, uva:{label:'Uva', bg:'#221B2B', acc:'#C9AEFF'} };
+const PALETTES = { pizarra:{label:'Pizarra', bg:'#1C2723', acc:'#F2D67A'}, uva:{label:'Uva', bg:'#221B2B', acc:'#C9AEFF'}, noche:{label:'Noche', bg:'#131314', acc:'#A8C7FA'} };
 const ACCENTS = ['#F2D67A','#C9AEFF','#F2A7B8','#9CC7E8','#A8DDB5','#F5B987','#FF8A80','#7FE0D4'];
 function applyTheme() {
   const root = document.documentElement;
-  const t = pref('bitacora.theme','auto'); if (t === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', t);
+  const t = pref('bitacora.theme','auto');
+  // "Automático" se resuelve aquí (y en el script del <head>): el CSS solo conoce data-theme="dark" o "light".
+  root.setAttribute('data-theme', t === 'dark' || t === 'light' ? t : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
   const pal = pref('bitacora.palette','pizarra'); if (pal === 'pizarra' || !PALETTES[pal]) root.removeAttribute('data-palette'); else root.setAttribute('data-palette', pal);
   ['--accent','--on-accent','--accent-ink','--accent-soft'].forEach(p => root.style.removeProperty(p));
   const custom = pref('bitacora.accent', null);
@@ -1024,10 +1050,43 @@ window.addEventListener('popstate', e => {
   if (S.view === 'editor') flushSave();
   applyState(e.state || { view:'home', depth:0 });
 });
+// Secciones principales, en el orden de la barra. Kell entra con "push" para que la flecha y el botón atrás
+// de Android vuelvan a la sección anterior (el chat no muestra la barra inferior).
+const TAB_ORDER = ['home','files','assistant','panel','settings'];
+const tabOf = v => v === 'search' ? 'home' : v === 'ai' ? 'settings' : v;
+function goTab(v, dir = 0) {
+  navigate(v, {}, S.view === 'editor' || v === 'assistant' ? 'push' : 'replace');
+  if (dir) { const scr = $('#screen'); scr.classList.remove('go-l','go-r'); void scr.offsetWidth; scr.classList.add(dir > 0 ? 'go-l' : 'go-r'); }
+}
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
   const v = t.dataset.view; if (v === S.view && v !== 'files') return;
-  navigate(v, {}, S.view === 'editor' ? 'push' : 'replace');
+  goTab(v);
 }));
+// Deslizar hacia los lados cambia de sección (Inicio · Archivos · Kell · Panel · Ajustes). No actúa en el editor,
+// con una hoja abierta, sobre campos de texto ni sobre zonas que ya se desplazan en horizontal (tablas, código, carpetas).
+(() => {
+  const scr = $('#screen'); let ini = null;
+  const propio = el => el.closest?.('.hscroll, .cnt-tw, .ed-tools, pre, table, input, textarea, select, [contenteditable="true"]');
+  scr.addEventListener('touchstart', e => {
+    ini = null;
+    if (e.touches.length !== 1 || S.view === 'editor' || sheetEl || CONV.on || !$('#lock').hidden) return;
+    const t = e.touches[0];
+    if (t.clientX < 24 || t.clientX > innerWidth - 24) return; // los bordes son del gesto "atrás" del sistema
+    if (propio(e.target)) return;
+    ini = { x:t.clientX, y:t.clientY, at:Date.now() };
+  }, { passive:true });
+  scr.addEventListener('touchmove', e => { if (ini && e.touches.length !== 1) ini = null; }, { passive:true });
+  scr.addEventListener('touchcancel', () => { ini = null; }, { passive:true });
+  scr.addEventListener('touchend', e => {
+    const s = ini; ini = null; if (!s) return;
+    const t = e.changedTouches[0]; const dx = t.clientX - s.x; const dy = t.clientY - s.y;
+    if (Date.now() - s.at > 700 || Math.abs(dx) < 72 || Math.abs(dx) < Math.abs(dy) * 2.2) return;
+    if (!getSelection().isCollapsed) return; // estaba seleccionando texto
+    const i = TAB_ORDER.indexOf(tabOf(S.view)); const j = i + (dx < 0 ? 1 : -1);
+    if (i < 0 || j < 0 || j >= TAB_ORDER.length) return;
+    goTab(TAB_ORDER[j], dx < 0 ? 1 : -1);
+  }, { passive:true });
+})();
 document.querySelectorAll('[data-ic]').forEach(el => { el.innerHTML = ICON[el.dataset.ic]; });
 
 /* ================= Rendering ================= */
@@ -1035,6 +1094,7 @@ let ed = null; let saveT = null;
 function render() {
   const app = $('#app'); const scr = $('#screen');
   app.classList.toggle('in-editor', S.view === 'editor');
+  app.classList.toggle('in-chat', S.view === 'assistant');
   document.querySelectorAll('.tab').forEach(t => t.toggleAttribute('aria-current', false));
   const tabView = S.view === 'search' ? 'home' : S.view === 'ai' ? 'settings' : S.view === 'editor' ? null : S.view;
   const cur = document.querySelector(`.tab[data-view="${tabView}"]`); if (cur) cur.setAttribute('aria-current','page');
@@ -1679,7 +1739,7 @@ function vozSpeak(text, on = {}) {
   const job = { done:false, stopped:false, cancel:null };
   const finish = reason => { if (job.done) return; job.done = true; if (VOZ.cur === job) VOZ.cur = null; on.end?.(reason); };
   job.stop = () => { job.stopped = true; try { job.cancel?.(); } catch {} finish('stop'); };
-  job.word = i => { if (!job.done) on.word?.(i); };
+  job.word = i => { if (job.done || i === job.ultima) return; job.ultima = i; on.word?.(i); };
   VOZ.cur = job;
   (async () => {
     if (cfg.motor === 'gemini' && S.isOwner) {
@@ -1691,12 +1751,12 @@ function vozSpeak(text, on = {}) {
   return job;
 }
 // System voice: sentences one after another (Chrome cuts very long utterances); word boundaries give the highlight.
-function vozSystem(text, words, cfg, job, finish) {
+function vozSystem(text, words, cfg, job, finish, desde = 0) {
   if (!TTS) { toast('Este navegador no puede leer en voz alta'); finish('error'); return; }
   TTS.cancel(); job.cancel = () => TTS.cancel();
   const voice = sysVoices().find(v => v.voiceURI === cfg.sysVoice) || sysVoices()[0] || null;
-  const chunks = []; const re = /[^.!?;:\n]+[.!?;:\n]*\s*/g; let m;
-  while ((m = re.exec(text))) if (m[0].trim()) chunks.push({ t:m[0], at:m.index });
+  const chunks = []; const re = /[^.!?;:\n]+[.!?;:\n]*\s*/g; let m; const resto = text.slice(desde); // `desde`: continúa donde quedó otra voz
+  while ((m = re.exec(resto))) if (m[0].trim()) chunks.push({ t:m[0], at:desde + m.index });
   if (!chunks.length) { finish('end'); return; }
   let timer = null;
   chunks.forEach((c, k) => {
@@ -1756,31 +1816,60 @@ function pcmToWav(bytes, rate) {
   v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, bytes.length, true);
   return new Blob([h, bytes], { type:'audio/wav' });
 }
-async function vozGemini(text, words, cfg, job, finish) {
+// Audio de Gemini para un texto (con caché de 20 audios): devuelve la URL del WAV listo para sonar.
+async function vozGeminiUrl(text, cfg) {
   const key = cfg.gem + '|' + text;
-  let url = VOZ.cache.get(key);
-  if (!url) {
-    const user = auth.currentUser; if (!user || user.uid !== OWNER_UID) throw new Error('Ingresa con tu PIN para usar la voz de Gemini');
-    const token = await user.getIdToken();
-    let r; try { r = await fetch(WORKER_URL + '/voz/tts', { method:'POST', headers:{ Authorization:'Bearer ' + token, 'Content-Type':'application/json' }, body: JSON.stringify({ texto: speakable(text), voz: cfg.gem }) }); }
-    catch { throw new Error('No se pudo conectar con el Worker'); }
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error || 'La voz de Gemini no respondió');
-    const part = (data.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data);
-    if (!part) throw new Error('La voz de Gemini no devolvió audio');
-    const bin = atob(part.inlineData.data); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const { pcm, rate } = vozPcm(bytes, part.inlineData.mimeType);
-    url = URL.createObjectURL(pcmToWav(pcmClean(pcm, rate), rate));
-    if (VOZ.cache.size > 20) { const [k0, u0] = VOZ.cache.entries().next().value; URL.revokeObjectURL(u0); VOZ.cache.delete(k0); }
-    VOZ.cache.set(key, url);
+  let url = VOZ.cache.get(key); if (url) return url;
+  const user = auth.currentUser; if (!user || user.uid !== OWNER_UID) throw new Error('Ingresa con tu PIN para usar la voz de Gemini');
+  const token = await user.getIdToken();
+  let r; try { r = await fetch(WORKER_URL + '/voz/tts', { method:'POST', headers:{ Authorization:'Bearer ' + token, 'Content-Type':'application/json' }, body: JSON.stringify({ texto: speakable(text), voz: cfg.gem }) }); }
+  catch { throw new Error('No se pudo conectar con el Worker'); }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'La voz de Gemini no respondió');
+  const part = (data.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data);
+  if (!part) throw new Error('La voz de Gemini no devolvió audio');
+  const bin = atob(part.inlineData.data); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const { pcm, rate } = vozPcm(bytes, part.inlineData.mimeType);
+  url = URL.createObjectURL(pcmToWav(pcmClean(pcm, rate), rate));
+  if (VOZ.cache.size > 20) { const [k0, u0] = VOZ.cache.entries().next().value; URL.revokeObjectURL(u0); VOZ.cache.delete(k0); }
+  VOZ.cache.set(key, url);
+  return url;
+}
+// Un texto largo se pide en dos partes: la primera oración sola, que Gemini genera rápido, y el resto mientras suena.
+// Solo dos peticiones como máximo, porque la cuota gratuita de voz de Gemini es de pocas peticiones por minuto.
+const VOZ_PARTIR_DESDE = 240;
+function vozPartes(text) {
+  if (text.length < VOZ_PARTIR_DESDE) return [{ t:text, at:0 }];
+  const m = /^[\s\S]{50,}?[.!?;:\n]+\s+/.exec(text);
+  if (!m || text.length - m[0].length < 60) return [{ t:text, at:0 }];
+  return [{ t:m[0], at:0 }, { t:text.slice(m[0].length), at:m[0].length }];
+}
+async function vozGemini(text, words, cfg, job, finish) {
+  const partes = vozPartes(text);
+  const pedidos = partes.map(p => vozGeminiUrl(p.t, cfg)); pedidos.slice(1).forEach(p => p.catch(() => {}));
+  // Suena una parte; el resaltado sigue el avance del audio dentro de esa parte.
+  const sonar = (url, p) => new Promise((ok, no) => {
+    const a = new Audio(url); a.playbackRate = cfg.rate; a.preservesPitch = true; let raf = 0;
+    const tick = () => { if (job.done) return; if (a.duration) job.word(wordAt(words, p.at + a.currentTime / a.duration * p.t.length)); raf = requestAnimationFrame(tick); };
+    job.cancel = () => { a.pause(); cancelAnimationFrame(raf); ok(); };
+    a.onended = () => { cancelAnimationFrame(raf); ok(); };
+    a.onerror = () => { cancelAnimationFrame(raf); no(new Error('No se pudo reproducir el audio')); };
+    a.play().then(tick, no);
+  });
+  const primera = await pedidos[0]; // si falla, vozSpeak lee todo con la voz del sistema
+  if (job.stopped) return;
+  await sonar(primera, partes[0]);
+  for (let i = 1; i < partes.length && !job.stopped; i++) {
+    let url;
+    try { url = await pedidos[i]; if (job.stopped) return; await sonar(url, partes[i]); }
+    catch (e) { // sin cuota o sin red a mitad de la respuesta: el resto lo termina la voz del sistema
+      if (job.stopped) return;
+      if (!VOZ.warned) { VOZ.warned = true; toast(e.message + '. Sigo con la voz del sistema.'); }
+      vozSystem(text, words, cfg, job, finish, partes[i].at); return;
+    }
   }
   if (job.stopped) return;
-  const a = new Audio(url); a.playbackRate = cfg.rate; a.preservesPitch = true;
-  let raf = 0; const tick = () => { if (job.done) return; if (a.duration) job.word(wordAt(words, a.currentTime / a.duration * text.length)); raf = requestAnimationFrame(tick); };
-  job.cancel = () => { a.pause(); cancelAnimationFrame(raf); };
-  a.onended = () => { cancelAnimationFrame(raf); job.word(words.length - 1); finish('end'); };
-  a.onerror = () => { cancelAnimationFrame(raf); if (!job.stopped) finish('error'); };
-  await a.play(); tick();
+  job.word(words.length - 1); finish('end');
 }
 
 // Reading a chat reply: the bubble shows each word as it is said.
@@ -1789,9 +1878,15 @@ function vozWordsEl(text, el) {
   vozWords(text).forEach((w, k) => { if (w.i > last) el.append(text.slice(last, w.i)); el.append(h('span',{class:'vw','data-k':String(k),text:text.slice(w.i, w.end)})); last = w.end; });
   if (last < text.length) el.append(text.slice(last));
 }
+// Marca la palabra en curso tocando solo las que cambian (antes recorría todo el texto en cada cuadro).
 function vozMark(el, i) {
   if (!el) return; el.classList.add('reading');
-  el.querySelectorAll('.vw').forEach(s => { const k = Number(s.dataset.k); s.classList.toggle('said', k < i); s.classList.toggle('now', k === i); });
+  const spans = el._vw || (el._vw = [...el.querySelectorAll('.vw')]); const prev = el._vi ?? -1;
+  if (prev === i) return;
+  if (i < prev) spans.forEach((sp, k) => { sp.classList.toggle('said', k < i); sp.classList.remove('now'); });
+  else for (let k = Math.max(prev, 0); k < Math.min(i, spans.length); k++) { spans[k].classList.add('said'); spans[k].classList.remove('now'); }
+  if (spans[i]) spans[i].classList.add('now');
+  el._vi = i;
 }
 function vozRead(m) {
   if (VOZ.msg === m) { vozStop(); return; }
@@ -1846,7 +1941,7 @@ function convOpen() {
   if (!SpeechRec) { toast('Este navegador no permite dictar por voz'); return; }
   if (CONV.on) return;
   dictEnd(); vozStop(); VOZ.msg = null;
-  Object.assign(CONV, { on:true, fase:'escuchando', mute:false, yo:'', interim:'', preg:'', resp:'', nota:'', error:'', etapa:'', word:-1, ui:null });
+  Object.assign(CONV, { on:true, fase:'escuchando', mute:false, yo:'', interim:'', preg:'', resp:'', nota:'', error:'', etapa:'', word:-1, ui:null, subs: pref('bitacora.convSubs', '') === '1' });
   history.pushState({ ...(history.state || {}), conv:true }, '');
   CONV.el = h('div',{class:'conv',role:'dialog','aria-modal':'true','aria-label':'Conversación por voz con Kell'}); document.body.append(CONV.el);
   navigator.wakeLock?.request('screen').then(l => { CONV.lock = l; }).catch(() => {});
@@ -1908,45 +2003,66 @@ function convToggleMute() {
   else if (CONV.fase === 'silenciado') { CONV.fase = 'escuchando'; CONV.error = ''; convListen(); }
   convPaint();
 }
+// Acento para la pantalla oscura de la conversación: el personalizado o el de la paleta en su versión oscura,
+// aclarado si hiciera falta para que se distinga sobre el fondo casi negro.
+function convAccent() {
+  const custom = pref('bitacora.accent', null); const pal = PALETTES[pref('bitacora.palette','pizarra')] || PALETTES.pizarra;
+  let acc = custom && /^#[0-9a-f]{6}$/i.test(custom) ? custom : pal.acc; let k = 0;
+  while (contrast(acc, '#0C0C0E') < 4.5 && k < 10) { k++; acc = mixHex(acc, '#FFFFFF', k / 10); }
+  return { acc, on: contrast(acc, '#FFFFFF') >= contrast(acc, '#151515') ? '#FFFFFF' : '#151515' };
+}
 function convPaint() {
   const el = CONV.el; if (!el) return;
   const f = CONV.fase;
   if (!CONV.ui) {
-    const orb = h('div',{class:'conv-orb','aria-hidden':'true'}, h('i'), h('i'), h('i'));
+    const { acc, on } = convAccent(); el.style.setProperty('--accent', acc); el.style.setProperty('--on-accent', on);
+    const sub = h('span',{});
+    const subs = h('button',{class:'conv-ic',type:'button','aria-label':'Subtítulos',title:'Subtítulos',html:ICON.subs,
+      onclick:()=>{ CONV.subs = !CONV.subs; setPref('bitacora.convSubs', CONV.subs ? '1' : null); convPaint(); }});
+    const top = h('div',{class:'conv-top'}, h('div',{class:'conv-tt'}, h('b',{text:'Kell'}), sub), subs,
+      h('button',{class:'conv-ic',type:'button','aria-label':'Configurar la voz',title:'Configurar la voz',html:ICON.gear,onclick:()=>{ if (CONV.fase === 'hablando') vozStop(); vozSheet(); }}));
+    const mark = h('div',{class:'conv-mark','aria-hidden':'true',html:ICON.asistente});
+    const hola = h('p',{class:'conv-hola',text:'Hablemos, Kevin'});
     const estado = h('p',{class:'conv-estado',role:'status','aria-live':'polite'});
     const talk = h('div',{class:'conv-talk'});
-    const sub = h('span',{});
-    const top = h('div',{class:'conv-top'}, h('div',{class:'conv-tt'}, h('b',{text:'Conversación con Kell'}), sub),
-      h('button',{class:'icon-btn',type:'button','aria-label':'Configurar la voz',html:ICON.gear,onclick:()=>{ if (CONV.fase === 'hablando') vozStop(); vozSheet(); }}));
-    const stage = h('div',{class:'conv-stage',onclick:()=>{ if (CONV.fase === 'hablando') convInterrupt(); }}, orb, estado, talk);
+    const stage = h('div',{class:'conv-stage',onclick:()=>{ if (CONV.fase === 'hablando') convInterrupt(); }}, mark, hola, estado, talk);
+    const avisos = h('div',{class:'conv-avisos'});
     const bar = h('div',{class:'conv-bar'});
-    el.append(top, stage, bar);
-    CONV.ui = { orb, estado, talk, sub, bar };
+    el.append(h('div',{class:'conv-glow','aria-hidden':'true'}, h('i'), h('i')), top, stage, avisos, bar);
+    CONV.ui = { estado, talk, sub, bar, subs, hola, avisos };
   }
-  const u = CONV.ui;
+  const u = CONV.ui; const oye = !!(CONV.yo || CONV.interim).trim();
+  el.className = 'conv ' + f + (CONV.subs ? ' subs' : '') + (oye ? ' oye' : '');
+  u.subs.setAttribute('aria-pressed', String(!!CONV.subs));
   u.sub.textContent = CHAT.temporal ? 'Chat temporal' : chatActual()?.titulo || 'Nuevo chat';
-  u.orb.className = 'conv-orb ' + f;
-  u.estado.textContent = { escuchando: CONV.yo || CONV.interim ? 'Te escucho… al callarte lo envío' : 'Te escucho', pensando: CONV.etapa || 'Pensando…',
-    hablando: 'Hablando · toca la pantalla para interrumpir', silenciado: 'Micrófono silenciado' }[f];
+  u.hola.hidden = !!(CONV.preg || CONV.resp || oye);
+  u.estado.textContent = { escuchando: oye ? 'Te escucho… al callarte lo envío' : 'Te escucho', pensando: CONV.etapa || 'Pensando…',
+    hablando: 'Toca la pantalla para interrumpir', silenciado: 'Micrófono silenciado' }[f];
+  // Subtítulos (lo que dices y la respuesta, palabra por palabra): solo si están activados.
   const t = u.talk; t.innerHTML = '';
-  if (CONV.preg) t.append(h('p',{class:'conv-yo',text:CONV.preg}));
-  if (f === 'escuchando' && (CONV.yo || CONV.interim)) t.append(h('p',{class:'conv-yo live'}, CONV.yo, CONV.interim ? h('span',{class:'conv-int',text:(CONV.yo ? ' ' : '') + CONV.interim}) : null));
-  if (CONV.resp) { const r = h('p',{class:'conv-resp'}); vozWordsEl(CONV.resp, r); t.append(r); if (CONV.word >= 0) vozMark(r, CONV.word); }
-  if (CONV.nota) t.append(h('p',{class:'conv-nota'}, ic('done'), h('span',{text:CONV.nota})));
-  if (CONV.error) t.append(h('p',{class:'conv-err',role:'alert',text:CONV.error}));
-  t.scrollTop = t.scrollHeight;
-  const key = f + '|' + CONV.mute + '|' + !!(CONV.yo || CONV.interim).trim();
+  if (CONV.subs) {
+    if (CONV.preg) t.append(h('p',{class:'conv-yo',text:CONV.preg}));
+    if (f === 'escuchando' && oye) t.append(h('p',{class:'conv-yo live'}, CONV.yo, CONV.interim ? h('span',{class:'conv-int',text:(CONV.yo ? ' ' : '') + CONV.interim}) : null));
+    if (CONV.resp) { const r = h('p',{class:'conv-resp'}); vozWordsEl(CONV.resp, r); t.append(r); if (CONV.word >= 0) vozMark(r, CONV.word); }
+    t.scrollTop = t.scrollHeight;
+  }
+  // Lo guardado en Notion y los errores se ven siempre, con o sin subtítulos.
+  const av = [CONV.nota, CONV.error].join('|');
+  if (u.avKey !== av) { u.avKey = av; u.avisos.innerHTML = '';
+    if (CONV.nota) u.avisos.append(h('p',{class:'conv-nota'}, ic('done'), h('span',{text:CONV.nota})));
+    if (CONV.error) u.avisos.append(h('p',{class:'conv-err',role:'alert',text:CONV.error})); }
+  const key = f + '|' + CONV.mute + '|' + oye;
   if (u.barKey === key) return; u.barKey = key;
-  const mid = f === 'hablando' ? h('button',{class:'conv-btn main',type:'button','aria-label':'Interrumpir',html:ICON.stop,onclick:convInterrupt})
-    : f === 'pensando' ? h('button',{class:'conv-btn main',type:'button','aria-label':'Pensando',disabled:true,html:ICON.wave})
-    : f === 'silenciado' ? h('button',{class:'conv-btn main',type:'button','aria-label':'Activar micrófono',html:ICON.mic,onclick:convToggleMute})
-    : h('button',{class:'conv-btn main',type:'button','aria-label':'Enviar ahora',html:ICON.send,disabled:!(CONV.yo || CONV.interim).trim(),onclick:convSend});
+  const boton = (cls, label, icon, fn, extra = {}) => h('button',{class:'conv-btn' + (cls ? ' ' + cls : ''),type:'button','aria-label':label,title:label,html:ICON[icon],onclick:fn,...extra});
+  const mid = f === 'hablando' ? boton('main', 'Interrumpir', 'stop', convInterrupt)
+    : f === 'pensando' ? boton('main', 'Pensando', 'wave', null, { disabled:true })
+    : f === 'silenciado' ? boton('main', 'Activar micrófono', 'mic', convToggleMute)
+    : boton('main', 'Enviar ahora', 'send', convSend, { disabled:!oye });
   u.bar.innerHTML = '';
   u.bar.append(
-    h('div',{class:'conv-c'}, h('button',{class:'conv-btn' + (CONV.mute ? ' on' : ''),type:'button','aria-pressed':String(CONV.mute),'aria-label': CONV.mute ? 'Activar micrófono' : 'Silenciar micrófono',html: CONV.mute ? ICON.micOff : ICON.mic,onclick:convToggleMute}),
-      h('span',{text: CONV.mute ? 'Activar' : 'Silenciar'})),
-    h('div',{class:'conv-c'}, mid, h('span',{text: f === 'hablando' ? 'Interrumpir' : f === 'pensando' ? 'Pensando' : f === 'silenciado' ? 'Hablar' : 'Enviar'})),
-    h('div',{class:'conv-c'}, h('button',{class:'conv-btn end',type:'button','aria-label':'Terminar conversación',html:ICON.close,onclick:()=>convClose()}), h('span',{text:'Terminar'})));
+    boton(CONV.mute ? 'on' : '', CONV.mute ? 'Activar micrófono' : 'Silenciar micrófono', CONV.mute ? 'micOff' : 'mic', convToggleMute, { 'aria-pressed':String(CONV.mute) }),
+    mid,
+    boton('end', 'Terminar conversación', 'close', () => convClose()));
 }
 
 // Sheet to pick the model for the chat: saved principal or one of the favorites.
@@ -2161,7 +2277,7 @@ function chatMd(src, el) {
     el.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
   } catch { el.classList.remove('md'); el.textContent = src; }
 }
-function chatMessage(m) {
+function chatMessage(m, ultima = false) {
   if (m.rol === 'usuario') {
     const sel = CHAT.selUser === m;
     const bub = h('button',{class:'msg yo',type:'button','aria-expanded':String(sel),text:m.texto,onclick:()=>{ CHAT.selUser = sel ? null : m; chatPaint(); }});
@@ -2174,6 +2290,14 @@ function chatMessage(m) {
   const d = m.datos || {}; const res = d.resultados || [];
   const leyendo = VOZ.msg === m;
   const txt = h('div',{class:'txt'}); if (leyendo) { vozWordsEl(m.texto, txt); vozMark(txt, VOZ.word); } else chatMd(m.texto, txt);
+  // Solo la última respuesta muestra todas sus acciones; en las anteriores aparecen al tocar el mensaje.
+  const abierta = ultima || leyendo || CHAT.selIa === m;
+  if (!ultima) {
+    const alternar = () => { CHAT.selIa = CHAT.selIa === m ? null : m; chatPaint(); };
+    txt.setAttribute('role','button'); txt.tabIndex = 0; txt.setAttribute('aria-expanded', String(abierta)); txt.setAttribute('aria-label','Mostrar u ocultar las acciones de esta respuesta');
+    txt.addEventListener('click', e => { if (e.target.closest('a') || !getSelection().isCollapsed) return; alternar(); });
+    txt.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === txt) alternar(); });
+  }
   const el = h('div',{class:'msg ia' + (leyendo ? ' reading-now' : '')}, txt);
   const actions = res.filter(r => !['mostrar_tareas','consultar_base','leer_pagina','proponer_recuerdo','preguntas_estudio','practicar','mostrar_contenido'].includes(r.accion) || !r.ok).map(resultRow).filter(Boolean);
   if (actions.length) el.append(h('div',{class:'res' + (d.deshecho ? ' undone' : '')}, ...actions));
@@ -2193,7 +2317,10 @@ function chatMessage(m) {
     }
     el.append(card);
   }
-  const meta = [d.modelo ? shortModel(d.modelo) + (d.respaldo ? ' (respaldo)' : '') : null,
+  // El nombre del modelo solo aparece si no es el esperado: respondió el respaldo u otro distinto de los elegidos.
+  const esperados = [CHAT.config?.principal?.modelo, CHAT.config?.rapido?.modelo, chatModelo()?.modelo].filter(Boolean);
+  const verModelo = d.modelo && (d.respaldo || !esperados.includes(d.modelo));
+  const meta = [verModelo ? shortModel(d.modelo) + (d.respaldo ? ' (respaldo)' : '') : null,
     leidas.length ? 'Consultó ' + [...new Set(leidas.map(r => r.base || r.titulo))].join(', ') : null, d.deshecho ? 'Deshecho' : null].filter(Boolean).join(' · ');
   const canUndo = !d.deshecho && res.some(r => r.ok && r.deshacer);
   const canRate = typeof m.id === 'number';
@@ -2206,8 +2333,10 @@ function chatMessage(m) {
     h('button',{class:'rate','aria-label':'Buena respuesta','aria-pressed':String(m.valoracion === 1),html:ICON.thumbUp,onclick:()=>chatRate(m, 1)}),
     h('button',{class:'rate','aria-label':'Mala respuesta','aria-pressed':String(m.valoracion === -1),html:ICON.thumbDown,onclick:()=>chatRate(m, -1)}));
   bar.append(h('button',{class:'rate',type:'button','aria-label':'Borrar respuesta',html:ICON.trash,onclick:()=>chatDelete(m)}));
-  if (canUndo) { const b = h('button',{class:'link',type:'button',text:'Deshacer'}); b.onclick = () => chatUndo(m, b); bar.append(h('span',{style:{flex:'1'}}), b); }
-  el.append(bar);
+  const undoBtn = () => { const b = h('button',{class:'link',type:'button',text:'Deshacer'}); b.onclick = () => chatUndo(m, b); return b; };
+  if (canUndo) bar.append(h('span',{style:{flex:'1'}}), undoBtn());
+  if (abierta) el.append(bar);
+  else if (canUndo) el.append(h('div',{class:'msg-acts'}, undoBtn())); // Deshacer queda siempre a la vista
   if (d.aviso) el.append(h('p',{class:'msg-meta',text:d.aviso}));
   return el;
 }
@@ -2216,12 +2345,15 @@ function viewAssistant(scr) {
   const actual = chatActual();
   const sub = CHAT.temporal ? 'Chat temporal: no se guarda' : actual ? actual.titulo : 'Nuevo chat';
   const head = h('div',{class:'wrap pad'}, h('div',{class:'page-h'},
+    h('button',{class:'icon-btn chat-back',type:'button','aria-label':'Volver',html:ICON.back,onclick:()=>goBack('home')}),
     h('div',{class:'chat-title'}, h('h1',{text:'Kell'}), S.isOwner && CHAT.loaded ? h('span',{class:'chat-sub' + (CHAT.temporal ? ' temp' : ''),text:sub}) : null),
     S.isOwner && CHAT.loaded ? h('span',{class:'head-acts'},
       h('button',{class:'icon-btn','aria-label':'Chats',html:ICON.list,onclick:chatsSheet}),
       h('button',{class:'icon-btn','aria-label':'Nuevo chat',html:ICON.newChat,onclick:chatNew}),
       h('button',{class:'icon-btn','aria-label':'Opciones de Kell',html:ICON.dots,onclick:chatMenu})) : null));
   const sc = h('div',{class:'scroll'}); const w = h('div',{class:'wrap pad'}); sc.append(w); scr.append(head, sc);
+  // La primera vez en el teléfono, avisa que se puede deslizar: el chat ya no muestra la barra inferior.
+  if (!pref('bitacora.hintSwipe', '') && matchMedia('(pointer:coarse)').matches && innerWidth < 900) { setPref('bitacora.hintSwipe', '1'); setTimeout(() => toast('Desliza a los lados para cambiar de sección'), 600); }
   const intro = () => h('div',{class:'hoy'}, h('span',{class:'hoy-ic',html:ICON.sparkle}), h('div',{},
     h('p',{text:'Escribe lo que pasó y el asistente lo guarda en tu Notion: pruebas, entregas, datos de docentes y pendientes.'}),
     h('small',{text:'Se guarda al instante; si algo no quedó bien, toca Deshacer.'})));
@@ -2252,11 +2384,12 @@ function viewAssistant(scr) {
       h('div',{class:'as-ex'}, ...CHAT_EXAMPLES.map(t => h('button',{type:'button',onclick:()=>{ const i = $('#chatIn'); i.value = t; CHAT.draft = t; i.dispatchEvent(new Event('input')); i.focus(); }}, t))));
   }
   let lastDay = null;
+  const ultimaIa = [...msgs].reverse().find(x => x.rol !== 'usuario') || null;
   msgs.forEach(m => {
     const day = localDay(new Date(m.creado));
     if (day !== lastDay) { lastDay = day; const n = daysUntil(day);
       log.append(h('div',{class:'chat-day',text: n === 0 ? 'Hoy' : n === -1 ? 'Ayer' : fmtDay(day,{weekday:'long',day:'numeric',month:'long'})})); }
-    log.append(chatMessage(m));
+    log.append(chatMessage(m, m === ultimaIa));
   });
   if (CHAT.sending) log.append(h('div',{class:'msg yo',text:CHAT.sending.texto}), h('div',{class:'typing',id:'chatTyping',role:'status','aria-live':'polite'},
     h('span',{class:'dots','aria-hidden':'true'}, h('i'), h('i'), h('i')), h('span',{class:'etapa',text:CHAT.sending.etapa || 'Enviando…'})));

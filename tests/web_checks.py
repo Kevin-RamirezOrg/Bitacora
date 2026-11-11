@@ -99,6 +99,58 @@ def service_worker_guarda_librerias(pg_):
     for esperado in ['/', '/lib/firebase-firestore-compat.js?v=10.12.2', '/lib/marked.min.js?v=12.0.2', '/lib/highlight.min.js?v=11.9.0', '/manifest.webmanifest']:
         assert esperado in claves, (esperado, claves)
 
+DESLIZAR = """(dx) => { const el = document.querySelector('#screen'); const x0 = 200, y = 400;
+  const t = x => new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
+  el.dispatchEvent(new TouchEvent('touchstart', { touches: [t(x0)], changedTouches: [t(x0)], bubbles: true }));
+  el.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(x0 + dx)], bubbles: true })); }"""
+vista = lambda pg: pg.evaluate("history.state && history.state.view || 'home'")
+
+@check
+def chat_pantalla_completa(pg_):
+    with abrir() as pg:
+        pg.click('.tab[data-view="files"]'); pg.wait_for_timeout(300)
+        kell(pg)
+        assert pg.evaluate("getComputedStyle(document.querySelector('.tabbar')).display") == 'none'
+        pg.click('.chat-back'); pg.wait_for_timeout(400)
+        assert vista(pg) == 'files', vista(pg)
+        assert pg.evaluate("getComputedStyle(document.querySelector('.tabbar')).display") != 'none'
+        assert not pg.errs, pg.errs
+
+@check
+def deslizar_entre_secciones(pg_):
+    with abrir() as pg:
+        orden = []
+        for _ in range(4): pg.evaluate(DESLIZAR, -160); pg.wait_for_timeout(350); orden.append(vista(pg))
+        assert orden == ['files', 'assistant', 'panel', 'settings'], orden
+        pg.evaluate(DESLIZAR, -160); pg.wait_for_timeout(300); assert vista(pg) == 'settings'
+        pg.evaluate(DESLIZAR, 160); pg.wait_for_timeout(350); assert vista(pg) == 'panel'
+        pg.evaluate(DESLIZAR, 40); pg.wait_for_timeout(300); assert vista(pg) == 'panel', 'un gesto corto no cambia de sección'
+        assert not pg.errs, pg.errs
+
+@check
+def paleta_noche(pg_):
+    with abrir() as pg:
+        pg.click('.tab[data-view="settings"]'); pg.wait_for_timeout(400)
+        assert pg.evaluate("document.documentElement.getAttribute('data-palette')") in (None, 'pizarra')
+        pg.click('.pal:has-text("Noche")'); pg.wait_for_timeout(300)
+        assert pg.evaluate("document.documentElement.getAttribute('data-palette')") == 'noche'
+        assert pg.evaluate("getComputedStyle(document.body).backgroundColor") == 'rgb(19, 19, 20)'
+        pg.click('.pal:has-text("Pizarra")'); pg.wait_for_timeout(300)
+        assert pg.evaluate("getComputedStyle(document.body).backgroundColor") == 'rgb(28, 39, 35)'
+        assert not pg.errs, pg.errs
+
+@check
+def modo_voz(pg_):
+    with abrir() as pg:
+        kell(pg); pg.click('[aria-label="Conversación por voz con Kell"]'); pg.wait_for_timeout(600)
+        assert 'Hablemos, Kevin' in pg.inner_text('.conv')
+        assert len(pg.query_selector_all('.conv-bar .conv-btn')) == 3
+        pg.click('[aria-label="Subtítulos"]'); pg.wait_for_timeout(200)
+        assert pg.get_attribute('[aria-label="Subtítulos"]', 'aria-pressed') == 'true'
+        pg.click('[aria-label="Terminar conversación"]'); pg.wait_for_timeout(400)
+        assert not pg.query_selector('.conv')
+        assert not pg.errs, pg.errs
+
 if __name__ == '__main__':
     fallos = 0
     for n in (sys.argv[1:] or CHECKS):
