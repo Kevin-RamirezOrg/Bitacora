@@ -196,6 +196,27 @@ def reintentar_repite_identificador(pg_):
         pg.fill('#chatIn', 'otra cosa'); pg.click('.send'); pg.wait_for_timeout(800)
         assert ids[2] and ids[2] != ids[0], ids
 
+@check
+def interruptor_decidir_primero(pg_):
+    guardado = []
+    def cfg(route):
+        if route.request.method == 'PUT':
+            c = json.loads(route.request.post_data); guardado.append(c)
+            route.fulfill(body=json.dumps({'ok': True, 'config': c}), content_type='application/json', headers={'Access-Control-Allow-Origin': '*'})
+        else: route.fulfill(body=json.dumps(ROUTES['/config/ia']), content_type='application/json', headers={'Access-Control-Allow-Origin': '*'})
+    with abrir(rutas={'/config/ia': cfg}) as pg:
+        pg.click('.tab[data-view="settings"]'); pg.wait_for_timeout(300); pg.click('text=Modelos de IA'); pg.wait_for_timeout(700)
+        sw = '[role="switch"]:has-text("Decidir antes")'
+        assert pg.get_attribute(sw, 'aria-checked') == 'true'
+        assert pg.query_selector('.set-row:has-text("Rápido")')
+        pg.click(sw); pg.wait_for_timeout(300)
+        assert pg.get_attribute(sw, 'aria-checked') == 'false'
+        assert not pg.query_selector('.set-row:has-text("Rápido")'), 'sin paso previo, el modelo rápido no aplica'
+        assert pg.evaluate("getComputedStyle(document.querySelector('.tgl')).borderColor") != ''
+        pg.click('button:has-text("Guardar")'); pg.wait_for_timeout(600)
+        assert guardado and guardado[-1]['decidirPrimero'] is False, guardado
+        assert not pg.errs, pg.errs
+
 if __name__ == '__main__':
     fallos = 0
     for n in (sys.argv[1:] or CHECKS):

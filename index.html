@@ -377,6 +377,11 @@ input.search-field::placeholder{color:var(--muted)}
 .set-row > svg{width:22px;height:22px;color:var(--ink-2)}
 .set-row .row-t b{font-weight:600}
 .set-row.danger,.set-row.danger > svg{color:var(--danger)}
+/* Interruptor: pista con borde visible (≥3:1) y círculo; encendido usa el acento. */
+.tgl{flex:none;width:48px;height:28px;border-radius:var(--r-pill);border:2px solid var(--line-strong);background:var(--surface-2);position:relative;transition:background .15s,border-color .15s}
+.tgl::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--line-strong);transition:transform .15s,background .15s}
+[aria-checked="true"] > .tgl{background:var(--accent);border-color:var(--accent)}
+[aria-checked="true"] > .tgl::after{transform:translateX(20px);background:var(--on-accent)}
 .pal-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;width:100%;margin-top:4px}
 .pal{border:1.5px solid var(--line-strong);border-radius:var(--r-md);padding:10px;display:flex;align-items:center;gap:10px;background:var(--surface-2);font-weight:600;font-size:15px;text-align:left;min-height:56px}
 .pal[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
@@ -2572,7 +2577,7 @@ async function apiStream(path, body, onEtapa, ctl) {
 }
 
 // Form state keeps numbers as typed text; fromDraft validates like the Worker does.
-const aiToDraft = c => ({ principal:{...c.principal}, respaldo: c.respaldo ? {...c.respaldo} : null, rapido: c.rapido ? {...c.rapido} : null, favoritos:(c.favoritos||[]).map(f=>({...f})),
+const aiToDraft = c => ({ principal:{...c.principal}, respaldo: c.respaldo ? {...c.respaldo} : null, rapido: c.rapido ? {...c.rapido} : null, decidirPrimero: c.decidirPrimero !== false, favoritos:(c.favoritos||[]).map(f=>({...f})),
   temperature: c.parametros?.temperature ?? '', top_p: c.parametros?.top_p ?? '', max_tokens: c.parametros?.max_tokens ?? '',
   extra: c.extra && Object.keys(c.extra).length ? JSON.stringify(c.extra, null, 2) : '' });
 function aiFromDraft(d) {
@@ -2593,7 +2598,7 @@ function aiFromDraft(d) {
     } catch { err.extra = 'Debe ser un objeto JSON, por ejemplo {"top_k": 40}.'; }
   }
   if (!d.principal?.modelo) err.principal = 'Elige un modelo principal.';
-  return { config:{ principal:d.principal, respaldo:d.respaldo, rapido:d.rapido || null, parametros, extra, favoritos:d.favoritos }, err };
+  return { config:{ principal:d.principal, respaldo:d.respaldo, rapido:d.rapido || null, decidirPrimero: d.decidirPrimero !== false, parametros, extra, favoritos:d.favoritos }, err };
 }
 const aiDirty = () => !!AI.draft && JSON.stringify(aiFromDraft(AI.draft).config) !== AI.saved;
 function aiSetSaved(config) { AI.draft = aiToDraft(config); AI.saved = JSON.stringify(aiFromDraft(AI.draft).config); }
@@ -2675,9 +2680,16 @@ function viewAI(scr) {
       h('span',{class:'row-t'}, h('b',{text:'Principal'}), h('span',{class: d.principal.modelo ? 'ai-model' : '',text: modelTxt(d.principal) || 'Sin elegir. Toca para buscar un modelo.'})), h('span',{class:'chev',html:ICON.chevR})),
     h('button',{class:'set-row',onclick:()=>aiModelSheet('respaldo')}, ic('undo'),
       h('span',{class:'row-t'}, h('b',{text:'Respaldo'}), h('span',{class: d.respaldo ? 'ai-model' : '',text: modelTxt(d.respaldo) || 'Ninguno. Se usa solo si el principal falla.'})), h('span',{class:'chev',html:ICON.chevR})),
-    h('button',{class:'set-row',onclick:()=>aiModelSheet('rapido')}, ic('send'),
-      h('span',{class:'row-t'}, h('b',{text:'Rápido'}), h('span',{class: d.rapido ? 'ai-model' : '',text: modelTxt(d.rapido) || 'Ninguno. Elige uno pequeño y veloz para que Kell decida antes qué hacer.'})), h('span',{class:'chev',html:ICON.chevR}))),
-    h('p',{class:'hint',style:{margin:'8px 4px 0'},text:'El modelo rápido solo decide si tu mensaje necesita Notion y responde las charlas simples; las acciones las planifica el principal. Si no eliges uno, todo lo hace el principal.'}));
+    d.decidirPrimero ? h('button',{class:'set-row',onclick:()=>aiModelSheet('rapido')}, ic('send'),
+      h('span',{class:'row-t'}, h('b',{text:'Rápido'}), h('span',{class: d.rapido ? 'ai-model' : '',text: modelTxt(d.rapido) || 'Ninguno. Elige uno pequeño y veloz para que Kell decida antes qué hacer.'})), h('span',{class:'chev',html:ICON.chevR})) : null),
+    h('div',{class:'set-group',style:{marginTop:'12px'}},
+      h('button',{class:'set-row',type:'button',role:'switch','aria-checked':String(d.decidirPrimero),onclick:()=>{ d.decidirPrimero = !d.decidirPrimero; aiPaint(); }},
+        h('span',{class:'row-t'}, h('b',{text:'Decidir antes si hace falta Notion'}),
+          h('span',{text: d.decidirPrimero ? 'Activado: las charlas responden rápido; lo de Notion suma un paso previo.' : 'Apagado: un solo modelo, el principal, lee tu Notion y responde todo en una llamada.'})),
+        h('span',{class:'tgl','aria-hidden':'true'}))),
+    h('p',{class:'hint',style:{margin:'8px 4px 0'},text: d.decidirPrimero
+      ? 'Un paso previo (con el modelo rápido, si eliges uno) decide si tu mensaje necesita Notion y responde las charlas simples; las acciones las planifica el principal.'
+      : 'Lo de Notion responde antes porque no espera la decisión previa; las charlas tardan un poco más porque siempre se lee tu Notion. El modelo rápido no se usa.'}));
 
   // Favorites
   w.append(h('div',{class:'set-label',text:'Favoritos'}));
